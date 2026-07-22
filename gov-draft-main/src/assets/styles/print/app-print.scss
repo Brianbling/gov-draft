@@ -1,0 +1,42 @@
+@media print {
+	html,
+	body,
+	#app,
+	.app-shell {
+		height: auto;
+		background: var(--paper-bg);
+	}
+
+	.topbar,
+	.toolbar,
+	.editor-panel,
+	.editor-preview-resizer,
+	.paper-measure {
+		display: none !important;
+	}
+
+	.editor-workspace {
+		display: block;
+	}
+
+	.preview-panel,
+	.paper-stage {
+		border: 0;
+		border-radius: 0;
+		margin: 0;
+		padding: 0;
+		overflow: visible;
+		background: var(--paper-bg);
+	}
+
+	.paper-stack {
+		display: block;
+	}
+
+	.paper-sheet,
+	.paper-page {
+		box-shadow: none !important;
+		border: 0 !important;
+		border-radius: 0 !important;
+	}
+}

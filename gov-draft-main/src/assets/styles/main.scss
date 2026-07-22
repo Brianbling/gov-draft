@@ -1,0 +1,23 @@
+@use './base/typography';
+@use './base/tokens';
+@use './theme';
+@use './base/reset';
+@use './base/base';
+@use './mixins/animation';
+@use './utilities/colors';
+@use './utilities/visibility';
+@use './components/ui';
+@use './layout/app-shell';
+@use './layout/paper-preview';
+@use './print/app-print';
+
+.panel {
+	background: var(--panel-bg);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
