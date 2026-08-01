@@ -87,8 +87,9 @@ describe("validateFormRequired", () => {
 
   it("缺失必填要素时返回缺失的中文 label", () => {
     const missing = validateFormRequired("request", {})
-    expect(missing).toContain("标题")
+    // request 仅主送机关必填（标题由 LLM 从描述推断，不再作为表单硬拦）
     expect(missing).toContain("主送机关")
+    expect(missing).not.toContain("标题")
   })
 
   it("minutes 的出席人员（array）必填", () => {
@@ -126,7 +127,7 @@ describe("hasFormValues", () => {
 })
 
 describe("formFields 与 sealDefault 覆盖全部文种", () => {
-  it("每个文种都有 formFields 且 title 必填", () => {
+  it("每个文种都有 formFields 且 title 不作为表单必填（LLM 从描述推断）", () => {
     for (const docType of Object.keys(DOC_TYPE_SPECS) as Array<
       keyof typeof DOC_TYPE_SPECS
     >) {
@@ -134,7 +135,8 @@ describe("formFields 与 sealDefault 覆盖全部文种", () => {
       expect(fields.length).toBeGreaterThan(0)
       const title = fields.find((f) => f.key === "title")
       expect(title).toBeDefined()
-      expect(title?.required).toBe(true)
+      // 生成前不硬拦标题：缺失由 L1 审查 TITLE_EMPTY 兜底
+      expect(title?.required).not.toBe(true)
     }
   })
 

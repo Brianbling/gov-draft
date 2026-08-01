@@ -346,7 +346,7 @@ function buildFormFields(docType: DocType): FormField[] {
   switch (docType) {
     case "gongwen":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于…的通知" }),
+        textField("title", "标题", { placeholder: "关于…的通知" }),
         textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
         textField("recipient", "主送机关", { placeholder: "各区人民政府，市政府各委、办、局" }),
         textField("issuer", "发文机关署名"),
@@ -357,7 +357,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "decision":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于…的决定" }),
+        textField("title", "标题", { placeholder: "关于…的决定" }),
         textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
         textField("recipient", "主送机关"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
@@ -365,7 +365,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "opinion":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于…的意见" }),
+        textField("title", "标题", { placeholder: "关于…的意见" }),
         textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
         textField("recipient", "主送机关"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
@@ -373,7 +373,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "request":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于…的请示" }),
+        textField("title", "标题", { placeholder: "关于…的请示" }),
         textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
         textField("recipient", "主送机关", { required: true, placeholder: "省人民政府" }),
         textField("issuer", "发文机关署名"),
@@ -383,7 +383,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "report":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于…的报告" }),
+        textField("title", "标题", { placeholder: "关于…的报告" }),
         textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
         textField("recipient", "主送机关", { placeholder: "市人民政府" }),
         textField("issuer", "发文机关署名"),
@@ -392,7 +392,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "reply":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于同意…的批复" }),
+        textField("title", "标题", { placeholder: "关于同意…的批复" }),
         textField("docNumber", "发文字号", { placeholder: "×政函〔2026〕×号" }),
         textField("recipient", "主送机关", { required: true, placeholder: "市财政局" }),
         textField("issuer", "发文机关署名"),
@@ -401,7 +401,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "letter":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于商请…的函" }),
+        textField("title", "标题", { placeholder: "关于商请…的函" }),
         textField("docNumber", "发文字号", { placeholder: "×政函〔2026〕×号" }),
         textField("recipient", "主送机关", { placeholder: "××大学" }),
         textField("issuer", "发文机关署名"),
@@ -411,7 +411,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "minutes":
       return [
-        textField("title", "标题", { required: true, placeholder: "××会议纪要" }),
+        textField("title", "标题", { placeholder: "××会议纪要" }),
         arrayField("attendees", "出席人员", { required: true, placeholder: "张三（市委办）" }),
         arrayField("absentees", "请假人员", { placeholder: "李四（市政府办）" }),
         arrayField("observers", "列席人员", { placeholder: "王五（列席）" }),
@@ -420,7 +420,7 @@ function buildFormFields(docType: DocType): FormField[] {
       ]
     case "announcement":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于…的通告" }),
+        textField("title", "标题", { placeholder: "关于…的通告" }),
         textField("docNumber", "发文字号", { placeholder: "×府发〔2026〕×号" }),
         textField("issuer", "发布机关署名"),
         textField("date", "发布日期", { placeholder: "2026-08-01" }),

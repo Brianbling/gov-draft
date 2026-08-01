@@ -35,17 +35,17 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
     }
   })
 
-  it("minutes 的出席人员（attendees）标记 required，其余文种 title 标记 required", () => {
+  it("title 不设表单必填（标题可由 LLM 从描述推断）；attendees / 请示批复主送机关为必填", () => {
     const minutes = DOC_TYPE_SPECS.minutes.formFields.find(
       (f) => f.key === "attendees",
     )
     expect(minutes?.required).toBe(true)
     for (const docType of DOC_TYPES) {
-      if (docType === "minutes") continue
       const title = DOC_TYPE_SPECS[docType].formFields.find(
         (f) => f.key === "title",
       )
-      expect(title?.required).toBe(true)
+      // 生成前不硬拦标题：LLM 能从自然语言描述推断，缺失由 L1 审查 TITLE_EMPTY 兜底
+      expect(title?.required, `${docType}.title`).not.toBe(true)
     }
   })
 
