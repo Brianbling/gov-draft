@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-08-01
+
+### Fixed
+
+- **ai-service:** 安装包默认走 DeepSeek，而非 OpenAI (f157aba)
+
+### Commits
+
+- f157aba fix(ai-service): 安装包默认走 DeepSeek，而非 OpenAI
+
 ## [0.1.6] - 2026-08-02
 
 ### Added
@@ -186,7 +196,8 @@ First release of ezdoc — a Tauri + React Markdown-to-styled-document editor.
 - 0da19ff feat(engine): migrate engine layer from gov-draft with green test baseline
 - 6a6449c feat: initial commit
 
-[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/Brianbling/gov-draft/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/Brianbling/gov-draft/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Brianbling/gov-draft/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/Brianbling/gov-draft/compare/v0.1.3...v0.1.4
