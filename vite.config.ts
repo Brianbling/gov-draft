@@ -13,7 +13,9 @@ export default defineConfig({
     },
   },
   server: {
-    port: 1420,
+    // v1 (E:\ezdoc-main) 的 tauri dev 固定用 1420，v2 错开到 1421 避免端口冲突；
+    // strictPort 保持 true——devUrl 写死，端口漂移会导致 tauri 加载不到页面。
+    port: 1421,
     strictPort: true,
     // Rust 编译产物 src-tauri/target 里的 dll/exe 会被锁，vite 监听 EBUSY 崩溃，
     // 排除掉避免首次编译时 dev 服务器被杀。
