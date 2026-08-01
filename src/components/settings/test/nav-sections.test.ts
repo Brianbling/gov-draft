@@ -6,6 +6,7 @@ import {
   searchFields,
   isGroup,
   EDITOR_SECTION_ID,
+  AI_SECTION_ID,
   type SettingsSection,
 } from "../nav-sections"
 
@@ -21,7 +22,7 @@ function modelWith(contentKeys: string[]): Record<string, unknown> {
 const BUILTIN_LEVELS = ["body", "h1", "h2", "h3", "h4"]
 
 describe("buildNavEntries", () => {
-  it("lists basic,每个内容层级, page/pagination/parser and editor", () => {
+  it("lists basic, ai,每个内容层级, page/pagination/parser and editor", () => {
     const entries = buildNavEntries(descriptors, modelWith(BUILTIN_LEVELS))
     const ids = entries
       .filter((e): e is SettingsSection => !isGroup(e))
@@ -29,6 +30,7 @@ describe("buildNavEntries", () => {
 
     expect(ids).toEqual([
       "basic",
+      AI_SECTION_ID,
       "content.body",
       "content.h1",
       "content.h2",

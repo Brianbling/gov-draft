@@ -12,6 +12,7 @@ import type { SchemaFieldDescriptor } from "@/engine/schema"
  */
 
 export const EDITOR_SECTION_ID = "editor"
+export const AI_SECTION_ID = "ai"
 
 export interface SettingsSection {
   id: string
@@ -68,6 +69,15 @@ export function buildNavEntries(
       depth: 0,
     })
   }
+
+  // ── AI service: LLM API key — the must-configure step on first run,
+  // surfaced as its own nav section so it isn't buried in editor settings. ──
+  entries.push({
+    id: AI_SECTION_ID,
+    labelKey: "settingsNav.ai",
+    fields: [],
+    depth: 0,
+  })
 
   // ── Content: one section per level, under a group header ──
   const content = descriptors.find((d) => d.path === "content")

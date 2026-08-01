@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { RuleSettingsForm } from "./RuleSettingsForm"
 import { EditorSettingsForm } from "./EditorSettingsForm"
 import type { EditorSettingsDraft } from "./EditorSettingsForm"
+import { AiSettingsForm } from "./AiSettingsForm"
 import { SettingsNav } from "./SettingsNav"
 import { SectionHeader } from "./SectionHeader"
 import {
@@ -21,6 +22,7 @@ import {
   isGroup,
   lastSegment,
   EDITOR_SECTION_ID,
+  AI_SECTION_ID,
   type SettingsNavEntry,
   type SettingsSection,
 } from "./nav-sections"
@@ -110,7 +112,12 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   const { t, i18n } = useTranslation()
 
   const [draft, setDraft] = useState<SettingsDraft>(bootstrapDraft)
-  const [selectedId, setSelectedId] = useState("basic")
+  // First run has no LLM API key yet — land on the AI section so the
+  // must-configure step is the first thing the user sees. Returning users
+  // (key already set) land on 基础 as before.
+  const defaultSectionId =
+    draft.editor.llmApiKey.trim().length === 0 ? AI_SECTION_ID : "basic"
+  const [selectedId, setSelectedId] = useState(defaultSectionId)
   const [query, setQuery] = useState("")
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
@@ -415,6 +422,11 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                 />
                 {selected.id === EDITOR_SECTION_ID ? (
                   <EditorSettingsForm
+                    draft={draft.editor}
+                    onChange={setEditorDraft}
+                  />
+                ) : selected.id === AI_SECTION_ID ? (
+                  <AiSettingsForm
                     draft={draft.editor}
                     onChange={setEditorDraft}
                   />

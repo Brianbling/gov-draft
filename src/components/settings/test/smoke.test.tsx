@@ -40,21 +40,22 @@ describe("SettingsOverlay smoke", () => {
     const items = within(nav).getAllByRole("button")
     const labels = items.map((el) => el.textContent)
 
-    // basic + 5 builtin content levels + page/pagination/parser + editor
+    // basic + ai + 5 builtin content levels + page/pagination/parser + editor
     expect(labels).toContain("基础")
+    expect(labels).toContain("AI 服务")
     expect(labels).toContain("正文")
     expect(labels).toContain("标题 H1")
     expect(labels).toContain("页面")
     expect(labels).toContain("编辑器与预览")
   })
 
-  it("opens on the basic section, showing its fields and no others", () => {
+  it("first run (no API key) opens on the AI section showing the key field", () => {
     renderOverlay(true)
 
-    // The rule name field, whichever builtin loaded first.
-    expect(screen.getByDisplayValue(/^GB\/T /)).toBeTruthy()
-    // A content-level field must not be rendered while 基础 is selected.
-    expect(screen.queryByText("每行字数")).toBeNull()
+    // The must-configure API key input is front and center on first run.
+    expect(screen.getByText("API Key")).toBeTruthy()
+    // A rule field must not be rendered while AI 服务 is selected.
+    expect(screen.queryByDisplayValue(/^GB\/T /)).toBeNull()
   })
 
   it("switches the detail pane when a nav section is selected", () => {

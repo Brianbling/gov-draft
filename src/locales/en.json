@@ -502,6 +502,7 @@
 		"page": "Page",
 		"pagination": "Page numbers",
 		"parser": "Parser",
+		"ai": "AI Service",
 		"editor": "Editor & preview"
 	},
 	"fontPreset": {
