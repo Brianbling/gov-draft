@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-08-02
+
+### Added
+
+- **设置页 AI 服务独立导航**：LLM API Key 从"编辑器与预览"里拆出来，成为左侧导航的独立入口。
+- **首次运行默认打开 AI 服务**：本机未配置过 API Key 时，设置页一打开就落在 API Key 输入框上，内测用户不会再找不到"填 key 的环节"。
+
+### Changed
+
+- 已配置过 API Key 的老用户打开设置仍落在"基础"，行为不变。
+
+### Commits
+
+- e821733 feat(settings): AI 服务独立导航入口 + 首次运行默认打开 API Key
+
 ## [0.1.5] - 2026-08-01
 
 ### Added
@@ -171,7 +186,8 @@ First release of ezdoc — a Tauri + React Markdown-to-styled-document editor.
 - 0da19ff feat(engine): migrate engine layer from gov-draft with green test baseline
 - 6a6449c feat: initial commit
 
-[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/Brianbling/gov-draft/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Brianbling/gov-draft/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/Brianbling/gov-draft/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/Brianbling/gov-draft/compare/v0.1.2...v0.1.3
