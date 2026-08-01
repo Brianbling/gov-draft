@@ -7,6 +7,8 @@ import {
   toMarkdown,
   reviewDocument,
   normalizeDoc,
+  repairDoc,
+  repairsToIssues,
 } from "@/lib/legal-doc"
 import type { DocType, LegalDoc, FormatIssue } from "@/lib/legal-doc"
 
@@ -109,14 +111,15 @@ export function useGenerateDocument() {
       })
       if (!raw || raw.trim().length === 0) throw new Error("LLM_EMPTY_RESULT")
       const parsed = parseLegalDoc(raw)
-      // L3 标点/文字规范：先规范化所有文本字段，再渲染/自检，
-      // 保证写进编辑器的 markdown 与 issues 都是基于规范化后的内容。
-      const doc = normalizeDoc(parsed)
+      // L3 标点/文字规范：先规范化所有文本字段，再走保守修复带
+      // （repairDoc 只修 100% 确定的模式，每个修复返回一条 info 级说明）。
+      const normalized = normalizeDoc(parsed)
+      const { doc, repairs } = repairDoc(normalized)
       const markdown = toMarkdown(doc)
       if (!mountedRef.current) return null
       useDocStore.getState().setContent(markdown)
       useDocStore.getState().setTitle(doc.title)
-      const nextIssues = reviewDocument(doc)
+      const nextIssues = [...repairsToIssues(repairs), ...reviewDocument(doc)]
       setResult(doc)
       setIssues(nextIssues)
       setStatus("done")

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { usePaginator } from '@/hooks/use-paginator'
 import { getPaginationText, getPaginationInlineStyle } from '@/hooks/use-pagination-display'
 import { useRuleStore } from '@/stores/rule-store'
@@ -9,6 +10,7 @@ interface A4PaperProps {
 }
 
 export function A4Paper({ html }: A4PaperProps) {
+  const { t } = useTranslation()
   const ruleStore = useRuleStore()
   const previewZoom = useSettingsStore((s) => s.previewSettings.zoom)
   const { pages, pageMetas, paginate, measureRef } = usePaginator()
@@ -21,6 +23,8 @@ export function A4Paper({ html }: A4PaperProps) {
   // since the preview mirrors a fixed-width printed page.
   const scale = previewZoom / 100
 
+  const isEmpty = html.trim().length === 0
+
   useEffect(() => {
     paginate(html)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -28,6 +32,9 @@ export function A4Paper({ html }: A4PaperProps) {
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.pointerType !== 'mouse' || e.button !== 0) return
+    // 只在纸面外的灰色留白区启动拖拽滚动，纸面内保留文本选择/复制能力
+    const target = e.target as HTMLElement
+    if (target.closest('.paper-sheet')) return
     const stage = stageRef.current
     if (!stage) return
     drag.current = {
@@ -65,27 +72,38 @@ export function A4Paper({ html }: A4PaperProps) {
         onPointerCancel={handlePointerUp}
       >
         <div className="paper-stack flex flex-col items-center gap-6">
-          {pages.map((pageHtml, idx) => {
-            const meta = pageMetas[idx]
-            const paginationEnabled = ruleStore.currentRule?.pagination?.enabled === true
-            return (
-              <article
-                key={idx}
-                data-page-index={idx + 1}
-                className="paper-sheet preview-content relative w-[210mm] min-h-[297mm] bg-background shadow-lg"
-              >
-                <div dangerouslySetInnerHTML={{ __html: pageHtml }} />
-                {paginationEnabled && meta?.pagination && (
-                  <div
-                    className="paper-pagination absolute"
-                    style={getPaginationInlineStyle(meta, idx)}
-                  >
-                    {getPaginationText(meta)}
-                  </div>
-                )}
-              </article>
-            )
-          })}
+          {isEmpty ? (
+            <div className="paper-sheet flex h-[297mm] w-[210mm] flex-col items-center justify-center gap-2 rounded-sm bg-background text-center shadow-lg">
+              <p className="text-sm text-muted-foreground">
+                {t('preview.emptyHint')}
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                {t('preview.emptySubHint')}
+              </p>
+            </div>
+          ) : (
+            pages.map((pageHtml, idx) => {
+              const meta = pageMetas[idx]
+              const paginationEnabled = ruleStore.currentRule?.pagination?.enabled === true
+              return (
+                <article
+                  key={idx}
+                  data-page-index={idx + 1}
+                  className="paper-sheet preview-content relative w-[210mm] min-h-[297mm] bg-background shadow-lg"
+                >
+                  <div dangerouslySetInnerHTML={{ __html: pageHtml }} />
+                  {paginationEnabled && meta?.pagination && (
+                    <div
+                      className="paper-pagination absolute"
+                      style={getPaginationInlineStyle(meta, idx)}
+                    >
+                      {getPaginationText(meta)}
+                    </div>
+                  )}
+                </article>
+              )
+            })
+          )}
         </div>
       </div>
 

@@ -6,6 +6,8 @@ import {
   File01Icon,
   Settings01Icon,
   AiMagicIcon,
+  UndoIcon,
+  RedoIcon,
 } from "@hugeicons/core-free-icons"
 import { SettingsOverlay } from "@/components/settings/SettingsOverlay"
 import { AiGenerateDialog } from "@/components/ai-generate/AiGenerateDialog"
@@ -68,7 +70,7 @@ export function Toolbar({ editorRef }: ToolbarProps) {
         aria-label={t("toolbar.undoTitle")}
         onClick={() => editorRef.current?.undo()}
       >
-        ↶
+        <HugeiconsIcon icon={UndoIcon} />
       </Button>
       <Button
         variant="ghost"
@@ -77,7 +79,7 @@ export function Toolbar({ editorRef }: ToolbarProps) {
         aria-label={t("toolbar.redoTitle")}
         onClick={() => editorRef.current?.redo()}
       >
-        ↷
+        <HugeiconsIcon icon={RedoIcon} />
       </Button>
 
       <span className="mx-1 h-4 w-px bg-border" />

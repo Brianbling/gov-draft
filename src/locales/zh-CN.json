@@ -89,6 +89,10 @@
 		"success": "已写入编辑器",
 		"issuesTitle": "格式自检",
 		"issuesEmpty": "未发现格式问题",
+		"generatingBanner": "正在生成公文",
+		"generatingHint": "请稍候，通常需要几秒",
+		"retry": "重试",
+		"retryHint": "将使用当前输入重新生成",
 		"errors": {
 			"unknown": "生成失败，请稍后重试",
 			"llmRequestFailed": "AI 服务请求失败，请检查服务配置",
@@ -114,6 +118,10 @@
 		"exporting": "导出中...",
 		"exportFailed": "导出失败，请重试",
 		"cancel": "取消"
+	},
+	"preview": {
+		"emptyHint": "预览区为空",
+		"emptySubHint": "在左侧编辑器中输入或使用 AI 生成公文"
 	},
 	"pdfExport": {
 		"success": "已导出 PDF 到 {{path}}",
@@ -227,6 +235,7 @@
 	},
 	"codemirror": {
 		"editorAria": "公文 Markdown 编辑器",
+		"emptyEditorHint": "输入公文内容，或点击工具栏 AI 图标一键生成…",
 		"expandHeading": "展开标题内容",
 		"collapseHeading": "折叠标题内容",
 		"openColorPicker": "打开颜色选择器",

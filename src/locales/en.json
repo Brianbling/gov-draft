@@ -89,6 +89,10 @@
 		"success": "Written to editor",
 		"issuesTitle": "Format Check",
 		"issuesEmpty": "No format issues found",
+		"generatingBanner": "Generating document",
+		"generatingHint": "This usually takes a few seconds",
+		"retry": "Retry",
+		"retryHint": "Regenerates with the current input",
 		"errors": {
 			"unknown": "Generation failed. Please try again.",
 			"llmRequestFailed": "AI service request failed. Check service settings.",
@@ -114,6 +118,10 @@
 		"exporting": "Exporting...",
 		"exportFailed": "Export failed, please try again",
 		"cancel": "Cancel"
+	},
+	"preview": {
+		"emptyHint": "Preview is empty",
+		"emptySubHint": "Type in the editor or use AI to generate a document"
 	},
 	"pdfExport": {
 		"success": "Exported PDF to {{path}}",
@@ -227,6 +235,7 @@
 	},
 	"codemirror": {
 		"editorAria": "Official document Markdown editor",
+		"emptyEditorHint": "Type your document, or click the AI icon in the toolbar to generate…",
 		"expandHeading": "Expand heading content",
 		"collapseHeading": "Collapse heading content",
 		"openColorPicker": "Open color picker",

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { checkDocFormat } from "../review/format-rules"
-import type { LegalDoc } from "../types"
+import { DOC_TYPE_SPECS } from "../doc-type-spec"
+import { buildUserPrompt } from "../prompt"
+import { DOC_TYPES, type LegalDoc } from "../types"
 
 function buildDoc(overrides: Partial<LegalDoc> = {}): LegalDoc {
   return {
@@ -264,5 +266,150 @@ describe("checkDocFormat · letter 函", () => {
       })
     )
     expect(codes(issues)).toEqual(["LETTER_IMPERATIVE_TONE"])
+  })
+})
+
+describe("checkDocFormat · 新 L2 通用规则", () => {
+  it("请示/批复 recipient 含顿号（多头主送）时给出 MULTI_RECIPIENT", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "request",
+        recipient: "省人民政府、省财政厅：",
+        body: [{ type: "p", text: "现申请采购设备，妥否，请批示。" }],
+      })
+    )
+    expect(codes(issues)).toContain("MULTI_RECIPIENT")
+  })
+
+  it("请示/批复 recipient 单一机关（无顿号）时不报 MULTI_RECIPIENT", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "request",
+        recipient: "省人民政府：",
+        body: [{ type: "p", text: "现申请采购设备，妥否，请批示。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("MULTI_RECIPIENT")
+  })
+
+  it("docNumber 序号带前导 0（〔2026〕05号）时给出 DOC_NUMBER_LEADING_ZERO", () => {
+    const issues = checkDocFormat(
+      buildDoc({ docNumber: "国发〔2026〕05号" })
+    )
+    expect(codes(issues)).toContain("DOC_NUMBER_LEADING_ZERO")
+  })
+
+  it("docNumber 无前导 0（〔2026〕5号）时不报 DOC_NUMBER_LEADING_ZERO", () => {
+    const issues = checkDocFormat(buildDoc({ docNumber: "国发〔2026〕5号" }))
+    expect(codes(issues)).not.toContain("DOC_NUMBER_LEADING_ZERO")
+  })
+
+  it("正文含口语化词时给出 COLLOQUIAL_WORD", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [{ type: "p", text: "大家要提高认识，抓紧落实。" }],
+      })
+    )
+    expect(codes(issues)).toContain("COLLOQUIAL_WORD")
+  })
+
+  it("正文纯书面语时不报 COLLOQUIAL_WORD", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [
+          { type: "p", text: "各单位要进一步提高认识，扎实做好贯彻落实工作。" },
+        ],
+      })
+    )
+    expect(codes(issues)).not.toContain("COLLOQUIAL_WORD")
+  })
+
+  it("纪要正文用“会议决定”时给出 MINUTES_USES_DECISION", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "minutes",
+        attendees: ["张三（市委办）"],
+        body: [{ type: "p", text: "会议决定，组织开展专项整治行动。" }],
+      })
+    )
+    expect(codes(issues)).toContain("MINUTES_USES_DECISION")
+  })
+
+  it("纪要正文用“会议确定/议定”时不报 MINUTES_USES_DECISION", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "minutes",
+        attendees: ["张三（市委办）"],
+        body: [{ type: "p", text: "会议确定，组织开展专项整治行动。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("MINUTES_USES_DECISION")
+  })
+
+  it("正文提到《X》但未列入声明的 attachments 时给出 ATTACHMENT_MISMATCH", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        attachments: ["年度工作要点"],
+        body: [{ type: "p", text: "现将《绩效考核方案》一并印发，请遵照执行。" }],
+      })
+    )
+    expect(codes(issues)).toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("正文提到的《X》已列入 attachments（去书名号/后缀模糊匹配）时不报", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        attachments: ["绩效考核方案"],
+        body: [{ type: "p", text: "现将《绩效考核方案》一并印发，请遵照执行。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("未声明 attachments 时正文引用《××请示》属正常引述，不报 ATTACHMENT_MISMATCH", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "reply",
+        recipient: "市财政局：",
+        body: [{ type: "p", text: "你局《关于申请追加预算的请示》收悉。现批复如下。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("正文未提任何《书名号》时不报 ATTACHMENT_MISMATCH", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        attachments: ["年度工作要点"],
+        body: [{ type: "p", text: "现就有关工作通知如下，请遵照执行。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
+  })
+})
+
+describe("单一事实源 · DOC_TYPE_SPECS 覆盖全部文种且与 prompt/规则一致", () => {
+  it("DOC_TYPE_SPECS 的 key 覆盖全部 9 个 DOC_TYPES", () => {
+    expect(Object.keys(DOC_TYPE_SPECS).sort()).toEqual(
+      [...DOC_TYPES].sort()
+    )
+  })
+
+  it("prompt 要求的格式字符串直接取自 DOC_TYPE_SPECS（不再双写）", () => {
+    for (const docType of DOC_TYPES) {
+      const prompt = buildUserPrompt(`${docType}\n测试内容`)
+      expect(prompt).toContain(DOC_TYPE_SPECS[docType].promptRequirement)
+    }
+  })
+
+  it("checkDocFormat 对全部注册规则逐一执行且不抛错（registry 同源）", () => {
+    for (const docType of DOC_TYPES) {
+      const spec = DOC_TYPE_SPECS[docType]
+      expect(spec.rules.length).toBeGreaterThan(0)
+      for (const rule of spec.rules) {
+        expect(typeof rule.check).toBe("function")
+        expect(() => checkDocFormat(buildDoc({ docType }))).not.toThrow()
+      }
+    }
   })
 })

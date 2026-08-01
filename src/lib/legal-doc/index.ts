@@ -20,5 +20,7 @@ export {
   checkDocFormat,
   normalizeText,
   normalizeDoc,
+  repairDoc,
+  repairsToIssues,
 } from "./review"
-export type { DocFormatRequirement } from "./review"
+export type { DocFormatRequirement, RepairInfo } from "./review"

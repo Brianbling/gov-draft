@@ -11,6 +11,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
   keymap,
+  placeholder,
 } from "@codemirror/view"
 import i18n from "@/locales"
 import type { EditorSettings } from "@/stores/settings-store"
@@ -69,6 +70,8 @@ export function createEditorState(
     ...autoPairExtension,
     highlightActiveLine(),
     lineWrapExtension(settings.wordWrap),
+    // 空文档占位提示：与 store 默认文档逻辑无关，纯展示层
+    placeholder(i18n.t("codemirror.emptyEditorHint")),
     EditorView.updateListener.of((update) => {
       if (!update.docChanged) return
       options.onChange(update.state.doc.toString())

@@ -36,6 +36,18 @@ function stripSealPlaceholder(text: string): string {
   return text.replace(SEAL_PLACEHOLDER_PATTERN, "").trim()
 }
 
+/**
+ * 成文日期/印发日期在落款版记中按 GB/T 9704-2012 §6.5 编排：
+ * “用阿拉伯数字将年、月、日标全，月、日不编虚位”，即 2026-08-01 → 2026年8月1日。
+ * 输入非 ISO 日期（YYYY-MM-DD）时原样返回，避免把 LLM 已写好的中文日期改坏。
+ */
+export function formatChineseDate(iso: string): string {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return iso
+  const [, year, month, day] = match
+  return `${year}年${Number(month)}月${Number(day)}日`
+}
+
 function renderBody(doc: LegalDoc): string[][] {
   const blocks: string[][] = []
   let pendingParagraphs: string[] = []
@@ -119,7 +131,7 @@ export function toMarkdown(doc: LegalDoc): string {
 
   const signatureLines: string[] = []
   if (doc.issuer) signatureLines.push(stripSealPlaceholder(doc.issuer))
-  if (doc.date) signatureLines.push(stripSealPlaceholder(doc.date))
+  if (doc.date) signatureLines.push(stripSealPlaceholder(formatChineseDate(doc.date)))
   if (signatureLines.length > 0) {
     blocks.push(container(RIGHT_ALIGNED, signatureLines))
   }
@@ -138,7 +150,7 @@ export function toMarkdown(doc: LegalDoc): string {
 
   const printingLines: string[] = []
   if (doc.printingOffice) printingLines.push(doc.printingOffice)
-  if (doc.printingDate) printingLines.push(doc.printingDate)
+  if (doc.printingDate) printingLines.push(formatChineseDate(doc.printingDate))
   if (printingLines.length > 0) {
     blocks.push(container(FLUSH_LEFT, printingLines))
   }

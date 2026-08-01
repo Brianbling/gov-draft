@@ -134,4 +134,26 @@ describe("checkFormat", () => {
       "TITLE_TOO_LONG",
     ])
   })
+
+  it("L1 结构性错误（空正文段落/空标题）标为 severity=error", () => {
+    const issues = checkFormat(
+      buildDoc({ body: [{ type: "p", text: "   " }] })
+    )
+    expect(issues[0]).toMatchObject({
+      field: "body[0].text",
+      code: "PARAGRAPH_EMPTY",
+      severity: "error",
+    })
+
+    const titleIssues = checkFormat(buildDoc({ title: "   " }))
+    expect(titleIssues[0]).toMatchObject({
+      code: "TITLE_EMPTY",
+      severity: "error",
+    })
+  })
+
+  it("非结构性格式问题（如日期格式）缺省 severity 视为 warning", () => {
+    const issues = checkFormat(buildDoc({ date: "2026年7月31日" }))
+    expect(issues[0].severity).toBeUndefined()
+  })
 })

@@ -10,6 +10,8 @@ export {
 } from "./format-rules"
 export { normalizeText } from "./normalize-text"
 export { normalizeDoc } from "./normalize-doc"
+export { repairDoc, repairsToIssues } from "./repair-doc"
+export type { RepairInfo } from "./repair-doc"
 
 import type { LegalDoc } from "../types"
 import type { FormatIssue } from "../format-check"

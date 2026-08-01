@@ -16,8 +16,9 @@ export function LineWrapToggle() {
 
   return (
     <Button
-      variant={isWrapped ? "ghost" : "secondary"}
+      variant={isWrapped ? "secondary" : "ghost"}
       size="sm"
+      aria-pressed={isWrapped}
       title={t("toolbar.toggleLineWrap")}
       aria-label={t("toolbar.toggleLineWrap")}
       onClick={handleToggle}

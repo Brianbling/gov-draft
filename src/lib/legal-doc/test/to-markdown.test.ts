@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { toMarkdown } from "../to-markdown"
+import { toMarkdown, formatChineseDate } from "../to-markdown"
 import type { LegalDoc } from "../types"
 
 function buildDoc(overrides: Partial<LegalDoc> = {}): LegalDoc {
@@ -107,9 +107,9 @@ describe("toMarkdown", () => {
       "::: content.body.paragraph.align: right; content.body.paragraph.indent: 0em"
     )
     expect(markdown).toContain("国务院办公厅")
-    expect(markdown).toContain("2026-07-31")
+    expect(markdown).toContain("2026年7月31日")
     expect(markdown).toContain("抄送：中共中央办公厅")
-    expect(markdown).toContain("国务院办公厅\n2026-08-01")
+    expect(markdown).toContain("国务院办公厅\n2026年8月1日")
   })
 
   it("numbers multiple attachments", () => {
@@ -258,5 +258,32 @@ describe("toMarkdown", () => {
     expect(markdown).not.toContain("出席：")
     expect(markdown).not.toContain("请假：")
     expect(markdown).not.toContain("列席：")
+  })
+})
+
+describe("formatChineseDate · GB/T 9704 §6.5 中文日期", () => {
+  it("ISO → 中文日期（月日不编虚位，去前导 0）", () => {
+    expect(formatChineseDate("2026-07-31")).toBe("2026年7月31日")
+    expect(formatChineseDate("2026-08-01")).toBe("2026年8月1日")
+    expect(formatChineseDate("2026-12-30")).toBe("2026年12月30日")
+  })
+
+  it("非 ISO 日期原样返回（不误改 LLM 已写好的中文日期）", () => {
+    expect(formatChineseDate("2026年7月31日")).toBe("2026年7月31日")
+    expect(formatChineseDate("")).toBe("")
+  })
+
+  it("落款成文日期渲染为中文日期（月日不编虚位）", () => {
+    const markdown = toMarkdown(buildDoc({ date: "2026-07-31" }))
+    expect(markdown).toContain("2026年7月31日")
+    expect(markdown).not.toContain("2026-07-31")
+  })
+
+  it("版记印发日期同样渲染为中文日期", () => {
+    const markdown = toMarkdown(
+      buildDoc({ printingOffice: "国务院办公厅", printingDate: "2026-08-01" })
+    )
+    expect(markdown).toContain("国务院办公厅\n2026年8月1日")
+    expect(markdown).not.toContain("2026-08-01")
   })
 })

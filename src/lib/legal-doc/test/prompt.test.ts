@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { buildSystemPrompt, buildUserPrompt } from "../prompt"
+import { DOC_TYPE_SPECS } from "../doc-type-spec"
 import { DOC_TYPES } from "../types"
 
 describe("buildUserPrompt", () => {
@@ -106,5 +107,46 @@ describe("buildSystemPrompt", () => {
   it("包含 GB/T 9704 规范引用", () => {
     const system = buildSystemPrompt()
     expect(system).toContain("GB/T 9704-2012")
+  })
+})
+
+describe("buildUserPrompt · 中文文种名 + 分文种 few-shot", () => {
+  it("解析出文种时，示例行携带该文种的中文名", () => {
+    const prompt = buildUserPrompt("request\n我处拟购置一批办公设备")
+    expect(prompt).toContain("关于解决基层办公设备不足问题的请示（请示）")
+  })
+
+  it("未解析出文种（自然语言描述）时默认用通知示例", () => {
+    const prompt = buildUserPrompt("帮我写一份加强城市绿化的通知")
+    expect(prompt).toContain("关于加强数字政府建设的通知（通知）")
+  })
+
+  it("request 文种给出请示专属示例，且示例中出现的文种名取自 DOC_TYPE_SPECS", () => {
+    const prompt = buildUserPrompt("request\n我处拟购置一批办公设备")
+    expect(prompt).toContain("关于解决基层办公设备不足问题的请示")
+    expect(prompt).toContain(DOC_TYPE_SPECS.request.name)
+    expect(prompt).toContain("妥否，请批示")
+  })
+
+  it("minutes 文种给出纪要专属示例（含 attendees/absentees/observers）", () => {
+    const prompt = buildUserPrompt("minutes\n关于召开安全生产工作会议的纪要")
+    expect(prompt).toContain("全市安全生产工作会议纪要")
+    expect(prompt).toContain("attendees")
+    expect(prompt).toContain("absentees")
+    expect(prompt).toContain("observers")
+  })
+
+  it("landmine：示例输出 JSON 的键/值引号必须是 ASCII 双引号，不得出现全角引号", () => {
+    for (const docType of DOC_TYPES) {
+      const prompt = buildUserPrompt(`${docType}\n测试内容`)
+      // 示例 JSON 段的键引号必须是 ASCII "；全角 “/” 出现在键/值外侧即破坏 JSON.parse
+      const exampleSection = prompt.split("示例输出")[1] ?? ""
+      expect(exampleSection).not.toContain("“docType”")
+      expect(exampleSection).toContain('"docType"')
+      // 示例 JSON 段整体可被 JSON.parse 解析（不含全角引号混入）
+      const jsonBlock = exampleSection.match(/\{[\s\S]*\}/)?.[0]
+      expect(jsonBlock).toBeTruthy()
+      if (jsonBlock) expect(() => JSON.parse(jsonBlock)).not.toThrow()
+    }
   })
 })

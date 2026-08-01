@@ -6,11 +6,15 @@ import {
   Cancel01Icon,
   CheckmarkCircleIcon,
   AlertCircleIcon,
+  Alert02Icon,
+  InformationCircleIcon,
+  RefreshIcon,
 } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { cn } from "@/lib/utils"
 import {
   Select,
   SelectContent,
@@ -32,10 +36,52 @@ interface AiGenerateDialogProps {
 }
 
 /**
- * "AI 生成公文" dialog. Owns no store state itself — it drives the
- * `useGenerateDocument` hook, which writes the generated Markdown into the
- * doc-store so the CodeMirror editor and preview update together.
+ * 优先用 FormatIssue.severity（legal-doc 新加的字段，缺省视为 warning）；
+ * 对还没有标注 severity 的 issue 按 code 前缀兜底分类。
+ * 纯展示，不改数据。
  */
+type IssueSeverity = "error" | "warning" | "info"
+
+function severityOfIssue(issue: {
+  code: string
+  severity?: "info" | "warning" | "error"
+}): IssueSeverity {
+  if (issue.severity) return issue.severity
+  const code = issue.code
+  if (code.endsWith("_EMPTY")) return "error"
+  if (
+    code.endsWith("_MISSING") ||
+    code.includes("_INVALID") ||
+    code.endsWith("_TOO_LONG") ||
+    code.endsWith("_MISUSED") ||
+    code.endsWith("_SHOULD_BE_EMPTY") ||
+    code.endsWith("_NO_H1_HEADING") ||
+    code.endsWith("_NO_MEASURES") ||
+    code.endsWith("_TONE")
+  ) {
+    return "warning"
+  }
+  return "info"
+}
+
+const ISSUE_VISUAL: Record<
+  IssueSeverity,
+  { icon: typeof AlertCircleIcon; className: string }
+> = {
+  error: {
+    icon: AlertCircleIcon,
+    className: "text-destructive",
+  },
+  warning: {
+    icon: Alert02Icon,
+    className: "text-warning-foreground",
+  },
+  info: {
+    icon: InformationCircleIcon,
+    className: "text-muted-foreground",
+  },
+}
+
 function AiGeneratePanel({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const {
@@ -63,6 +109,7 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
 
   const isGenerating = status === "generating"
   const isDone = status === "done"
+  const isError = status === "error"
 
   return (
     <>
@@ -84,6 +131,20 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        {isGenerating && (
+          <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+            <HugeiconsIcon
+              icon={AiMagicIcon}
+              strokeWidth={2}
+              className="size-4 animate-spin text-primary"
+            />
+            <span className="font-medium text-foreground">
+              {t("aiGenerate.generatingBanner")}
+            </span>
+            <span className="text-xs">{t("aiGenerate.generatingHint")}</span>
+          </div>
+        )}
+
         <div className="grid gap-1.5">
           <Label>{t("aiGenerate.docTypeLabel")}</Label>
           <Select
@@ -135,14 +196,34 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
           </Label>
         </div>
 
-        {errorCode && status === "error" && (
-          <p className="flex items-center gap-1.5 text-xs text-destructive">
-            <HugeiconsIcon
-              icon={AlertCircleIcon}
-              className="size-3.5 shrink-0"
-            />
-            {t(errorCodeToI18nKey(errorCode))}
-          </p>
+        {isError && (
+          <div className="grid gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5">
+            <p className="flex items-start gap-1.5 text-xs text-destructive">
+              <HugeiconsIcon
+                icon={AlertCircleIcon}
+                className="mt-0.5 size-3.5 shrink-0"
+              />
+              <span>{t(errorCodeToI18nKey(errorCode ?? "UNKNOWN"))}</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleGenerate}
+              >
+                <HugeiconsIcon
+                  icon={RefreshIcon}
+                  strokeWidth={2}
+                  className="size-3.5"
+                />
+                {t("aiGenerate.retry")}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {t("aiGenerate.retryHint")}
+              </p>
+            </div>
+          </div>
         )}
 
         {isDone && (
@@ -161,18 +242,27 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
               </p>
               {issues.length > 0 ? (
                 <ul className="grid gap-1.5">
-                  {issues.map((issue) => (
-                    <li
-                      key={`${issue.field}-${issue.code}`}
-                      className="flex items-start gap-1.5 text-xs text-warning-foreground"
-                    >
-                      <HugeiconsIcon
-                        icon={AlertCircleIcon}
-                        className="mt-0.5 size-3.5 shrink-0"
-                      />
-                      <span>{issue.message}</span>
-                    </li>
-                  ))}
+                  {issues.map((issue) => {
+                    const severity = severityOfIssue(issue)
+                    const visual = ISSUE_VISUAL[severity]
+                    return (
+                      <li
+                        key={`${issue.field}-${issue.code}`}
+                        className="flex items-start gap-1.5 text-xs"
+                      >
+                        <HugeiconsIcon
+                          icon={visual.icon}
+                          className={cn(
+                            "mt-0.5 size-3.5 shrink-0",
+                            visual.className
+                          )}
+                        />
+                        <span className={cn("leading-5", visual.className)}>
+                          {issue.message}
+                        </span>
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : (
                 <p className="text-xs text-muted-foreground">

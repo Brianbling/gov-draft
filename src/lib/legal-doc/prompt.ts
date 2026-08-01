@@ -1,5 +1,6 @@
 import type { DocType, LegalDoc } from "./types"
 import { DOC_TYPES } from "./types"
+import { DOC_TYPE_SPECS } from "./doc-type-spec"
 
 const SYSTEM_PROMPT = `你是一名资深的党政机关公文写作助手。请根据用户的写作要求，生成一篇符合 GB/T 9704-2012《党政机关公文格式》精神的公文。
 
@@ -54,7 +55,7 @@ const USER_PROMPT_TEMPLATE = `请根据以下要求撰写公文：
 
 请严格按照系统提示中的 JSON 结构输出。`
 
-const EXAMPLE_OUTPUT: LegalDoc = {
+const EXAMPLE_GONGWEN: LegalDoc = {
   docType: "gongwen",
   title: "关于加强数字政府建设的通知",
   docNumber: "国发〔2026〕12号",
@@ -97,21 +98,56 @@ const EXAMPLE_OUTPUT: LegalDoc = {
   date: "2026-07-31",
 }
 
-/** 文种 → 格式要求映射。key 为 DOC_TYPES 枚举值，value 为附加到用户 prompt 的格式指令。 */
-const DOC_TYPE_FORMAT_REQUIREMENTS: Partial<Record<DocType, string>> = {
-  gongwen: "文种为通知，采用标准正文式结构，正文开头写明目的依据，结尾可使用“特此通知”。",
-  decision: "文种为决定，正文须分条列项写明决定事项：每条用一个 type:\"h1\" 标题（一级标题，text 不带序号，引擎自动编号），标题下用 p 段落写明政策依据与执行要求，语气庄重、明确。",
-  opinion: "文种为意见，正文应分条提出原则性要求或工作建议，语气平实、可操作。",
-  request:
-    "文种为请示，主送机关（recipient）必填且只写一个上级机关；正文写明请示事项、理由与建议，结尾使用“妥否，请批示”。",
-  report: "文种为报告，主送机关填写上级机关；正文汇报工作情况、存在问题及下一步打算，结尾不使用请示用语。",
-  reply:
-    "文种为批复，主送机关（recipient）必填且为单一下级机关；正文开头采用“你（单位）《××请示》收悉。现批复如下”，随后给出明确的批复意见。",
-  letter: "文种为函，用于平行或不相隶属机关之间商洽工作、询问答复，语气协商、平和，不使用命令式表述。",
-  minutes:
-    "文种为会议纪要，正文开头须写明会议名称、时间、地点、参加人员（或主持人），随后按议题分条记录议定事项；必须在 attendees、absentees、observers 三个字段中分别给出出席、请假、列席人员名单（格式为“单位、姓名”，多人用“、”连接），正文末尾的版记按“出席：…\n请假：…\n列席：…”顺序编排。",
-  announcement:
-    "文种为通告/公告，面向社会公开发布，无主送机关（recipient 留空）；正文写明发布事项、时间、范围及要求。",
+const EXAMPLE_OUTPUTS: Record<DocType, LegalDoc> = {
+  gongwen: EXAMPLE_GONGWEN,
+  request: {
+    docType: "request",
+    title: "关于解决基层办公设备不足问题的请示",
+    recipient: "省人民政府：",
+    body: [
+      {
+        type: "p",
+        text: "近年来，随着基层治理任务不断加重，我局部分办公设备老化严重，已难以满足日常工作需要。现申请更新购置一批办公设备，妥否，请批示。",
+      },
+      {
+        type: "p",
+        text: "下一步，我局将严格落实政府采购有关规定，确保设备购置工作公开、透明、规范。",
+      },
+    ],
+    issuer: "市财政局",
+    date: "2026-07-31",
+  },
+  minutes: {
+    docType: "minutes",
+    title: "全市安全生产工作会议纪要",
+    body: [
+      {
+        type: "p",
+        text: "2026年7月20日，全市安全生产工作会议在市政府会议室召开，会议由副市长××主持。",
+      },
+      {
+        type: "p",
+        text: "会议听取了市应急管理局关于上半年安全生产工作的汇报，并对下半年重点任务进行了部署。",
+      },
+      {
+        type: "h1",
+        text: "议定事项",
+      },
+      {
+        type: "p",
+        text: "会议确定，深入开展安全生产大排查大整治，坚决防范和遏制重特大事故发生。",
+      },
+    ],
+    attendees: ["××（市应急管理局）", "××（市住建局）"],
+    absentees: ["××（市教育局）"],
+    observers: ["××（市消防支队）"],
+  },
+  decision: { ...EXAMPLE_GONGWEN, docType: "decision" },
+  opinion: { ...EXAMPLE_GONGWEN, docType: "opinion" },
+  report: { ...EXAMPLE_GONGWEN, docType: "report" },
+  reply: { ...EXAMPLE_GONGWEN, docType: "reply" },
+  letter: { ...EXAMPLE_GONGWEN, docType: "letter" },
+  announcement: { ...EXAMPLE_GONGWEN, docType: "announcement" },
 }
 
 /** 从用户描述首行解析出文种枚举值。 */
@@ -124,7 +160,7 @@ function extractDocType(userDescription: string): DocType | null {
 
 function buildFormatRequirement(userDescription: string): string {
   const docType = extractDocType(userDescription)
-  return docType ? DOC_TYPE_FORMAT_REQUIREMENTS[docType] ?? "" : ""
+  return docType ? DOC_TYPE_SPECS[docType].promptRequirement : ""
 }
 
 export function buildSystemPrompt(): string {
@@ -146,11 +182,15 @@ export function buildUserPrompt(
     ? `${userDescription.trim()}\n\n附加格式要求：\n${instructions.join("\n")}`
     : userDescription.trim()
 
-  const example = JSON.stringify(EXAMPLE_OUTPUT, null, 2)
+  const docType = extractDocType(userDescription)
+  const spec = docType ? DOC_TYPE_SPECS[docType] : null
+  const exampleDoc = docType ? EXAMPLE_OUTPUTS[docType] : EXAMPLE_OUTPUTS.gongwen
+  const example = JSON.stringify(exampleDoc, null, 2)
+  const selectedExample = `${exampleDoc.title}（${spec?.name ?? "通知"}）\n${example}`
   // 用 split/join 而非 replace：replace 会把用户描述里的 $& / $1 等当替换模式吞掉
   const prompt = USER_PROMPT_TEMPLATE.split("{userDescription}").join(userContent)
   return `${prompt}
 
 示例输出（仅作格式参考，内容需按本次要求重写）：
-${example}`
+${selectedExample}`
 }

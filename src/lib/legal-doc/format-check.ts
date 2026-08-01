@@ -10,6 +10,11 @@ export interface FormatIssue {
   field: string
   code: string
   message: string
+  /**
+   * 严重程度：error 为结构性硬伤（缺标题/空段落），warning 为格式瑕疵（默认），
+   * info 为自动修复的提示（repairDoc 产物）。缺省视为 warning。
+   */
+  severity?: "info" | "warning" | "error"
 }
 
 function textLength(value: string): number {
@@ -29,6 +34,7 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
       field: "title",
       code: "TITLE_EMPTY",
       message: "公文标题不能为空或纯空格。",
+      severity: "error",
     })
   }
 
@@ -81,6 +87,7 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
         field: `body[${index}].text`,
         code: "PARAGRAPH_EMPTY",
         message: "正文段落内容为空，请补充完整表述。",
+        severity: "error",
       })
     }
   })
