@@ -136,6 +136,65 @@ describe("buildUserPrompt · 中文文种名 + 分文种 few-shot", () => {
     expect(prompt).toContain("observers")
   })
 
+  it("announcement 文种示例符合自身规则：recipient 留空、通告式标题与正文", () => {
+    const prompt = buildUserPrompt("announcement\n关于城区限行通告")
+    const example = JSON.parse(
+      prompt.split("示例输出")[1]!.match(/\{[\s\S]*\}/)?.[0] ?? "{}"
+    )
+    // 不得克隆通知示例：无主送机关，标题为通告式，而非“关于加强数字政府建设的通知”
+    expect(prompt).not.toContain("关于加强数字政府建设的通知")
+    expect(example.recipient).toBeUndefined()
+    expect(example.title).toBe("关于加强城区机动车限行管理的通告")
+    expect(example.body.some((p: { text: string }) => p.text.includes("通告如下"))).toBe(true)
+  })
+
+  it("reply 文种示例符合自身规则：单一主送 + “收悉。现批复如下”开头 + 批复意见", () => {
+    const prompt = buildUserPrompt("reply\n同意你局关于组建综合执法队的请示")
+    const example = JSON.parse(
+      prompt.split("示例输出")[1]!.match(/\{[\s\S]*\}/)?.[0] ?? "{}"
+    )
+    // 不得克隆通知示例
+    expect(prompt).not.toContain("关于加强数字政府建设的通知")
+    expect(example.recipient).toBe("××公司：")
+    expect(
+      example.body.some((p: { text: string }) =>
+        p.text.includes("《关于申请开展××业务的请示》收悉")
+      )
+    ).toBe(true)
+    expect(
+      example.body.some((p: { text: string }) => p.text.startsWith("同意"))
+    ).toBe(true)
+  })
+
+  it("decision/opinion/report/letter 文种示例不再克隆通知，各具文种特征", () => {
+    const decisionPrompt = buildUserPrompt("decision\n处理决定")
+    expect(decisionPrompt).not.toContain("关于加强数字政府建设的通知")
+    const decision = JSON.parse(
+      decisionPrompt.split("示例输出")[1]!.match(/\{[\s\S]*\}/)?.[0] ?? "{}"
+    )
+    expect(decision.body.some((p: { type: string }) => p.type === "h1")).toBe(true)
+
+    const opinionPrompt = buildUserPrompt("opinion\n加强基层治理意见")
+    const opinion = JSON.parse(
+      opinionPrompt.split("示例输出")[1]!.match(/\{[\s\S]*\}/)?.[0] ?? "{}"
+    )
+    expect(opinion.body.some((p: { text: string }) => p.text.startsWith("要"))).toBe(true)
+
+    const reportPrompt = buildUserPrompt("report\n经济运行报告")
+    const report = JSON.parse(
+      reportPrompt.split("示例输出")[1]!.match(/\{[\s\S]*\}/)?.[0] ?? "{}"
+    )
+    expect(report.title).toContain("报告")
+    expect(report.body.some((p: { text: string }) => p.text.includes("报告如下"))).toBe(true)
+
+    const letterPrompt = buildUserPrompt("letter\n商洽合作函")
+    const letter = JSON.parse(
+      letterPrompt.split("示例输出")[1]!.match(/\{[\s\S]*\}/)?.[0] ?? "{}"
+    )
+    expect(letter.title).toContain("函")
+    expect(letter.body.some((p: { text: string }) => p.text.includes("商请"))).toBe(true)
+  })
+
   it("landmine：示例输出 JSON 的键/值引号必须是 ASCII 双引号，不得出现全角引号", () => {
     for (const docType of DOC_TYPES) {
       const prompt = buildUserPrompt(`${docType}\n测试内容`)

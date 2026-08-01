@@ -27,41 +27,13 @@ import {
   errorCodeToI18nKey,
 } from "@/hooks/use-generate-document"
 import { DOC_TYPES, type DocType } from "@/lib/legal-doc"
+import { severityOfIssue, type IssueSeverity } from "./issue-severity"
 
 const DOC_TYPE_ITEMS: DocType[] = [...DOC_TYPES]
 
 interface AiGenerateDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-/**
- * 优先用 FormatIssue.severity（legal-doc 新加的字段，缺省视为 warning）；
- * 对还没有标注 severity 的 issue 按 code 前缀兜底分类。
- * 纯展示，不改数据。
- */
-type IssueSeverity = "error" | "warning" | "info"
-
-function severityOfIssue(issue: {
-  code: string
-  severity?: "info" | "warning" | "error"
-}): IssueSeverity {
-  if (issue.severity) return issue.severity
-  const code = issue.code
-  if (code.endsWith("_EMPTY")) return "error"
-  if (
-    code.endsWith("_MISSING") ||
-    code.includes("_INVALID") ||
-    code.endsWith("_TOO_LONG") ||
-    code.endsWith("_MISUSED") ||
-    code.endsWith("_SHOULD_BE_EMPTY") ||
-    code.endsWith("_NO_H1_HEADING") ||
-    code.endsWith("_NO_MEASURES") ||
-    code.endsWith("_TONE")
-  ) {
-    return "warning"
-  }
-  return "info"
 }
 
 const ISSUE_VISUAL: Record<
@@ -210,6 +182,7 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={prompt.trim().length === 0}
                 onClick={handleGenerate}
               >
                 <HugeiconsIcon

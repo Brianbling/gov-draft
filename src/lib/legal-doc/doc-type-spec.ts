@@ -33,8 +33,9 @@ function issue(
   code: string,
   field: string,
   message: string,
+  severity?: "info" | "warning" | "error",
 ): FormatIssue {
-  return { field, code, message }
+  return { field, code, message, ...(severity ? { severity } : {}) }
 }
 
 /** 全文（标题 + 正文）是否出现任一关键词。 */
@@ -81,9 +82,40 @@ function mentionedTitleCore(name: string): string {
 }
 
 /**
+ * 引述语境分两类：
+ * - 前置引述词：书名号前的引述/依据词（"你局报送的《××请示》"、"依据《××法》"）；
+ * - 后置收尾词：书名号后的收尾语（"《××请示》收悉"、"此复"）。
+ * 依据/遵照等词常出现在书名号之后（"…一并印发，请遵照执行"），若作为后置词会把真实
+ * 附件声明误判为引述，因此只作前置词。前置窗口 12 字已限定近距，无需锚定。
+ */
+const CITATION_BEFORE_PATTERN =
+  /(?:你局|你单位|你厅|你部|你公司|你处|贵局|来文|依据|根据|按照|遵照|参照)/
+const CITATION_AFTER_PATTERN = /^(?:收悉|此复)/
+
+/**
+ * 判断单个书名号是否处于引述语境（引述来文/法规名则跳过附件核对）：
+ * 1. 书名号前紧邻"附件："或"另附"/"附" → 真实附件声明，无论附近有无引述词都参与核对；
+ * 2. 书名号前 12 字内出现前置引述词（"你局报送的《××请示》"、"依据《××法》" → 引述）；
+ * 3. 书名号后 12 字内出现后置收尾词（"《××请示》收悉" → 引述，"《××请示》请查收"不是）。
+ * 同一段里真实声明的"附件：《实施方案》"仍参与核对。
+ */
+function isCitationTitle(paragraph: string, title: string): boolean {
+  const idx = paragraph.indexOf(`《${title}》`)
+  if (idx < 0) return false
+  const before6 = paragraph.slice(Math.max(0, idx - 6), idx)
+  if (/附件[：:]?$|另附$|附$/.test(before6)) return false
+  const before = paragraph.slice(Math.max(0, idx - 12), idx)
+  if (CITATION_BEFORE_PATTERN.test(before)) return true
+  const after = paragraph.slice(idx + title.length + 2, idx + title.length + 2 + 12)
+  return CITATION_AFTER_PATTERN.test(after)
+}
+
+/**
  * 附件一致性：正文用《书名号》提及的名称与 attachments[] 交叉核对。
  * 只有当文档明确声明了 attachments 时才判定"漏列"——正文引用的《××请示》这类
  * 引述（未声明附件）属于正常行文，不报；反之未声明 attachments 也无从谈起漏列。
+ * 引述语境（如批复"你局《××请示》收悉"）的《》名按逐条书名号判定，仅跳过真正
+ * 引述来文的书名号；同一段里真实声明的"附件：《实施方案》"仍参与核对。宁可漏报不误报。
  * 仅当"正文提到的《X》的核心名在任一附件核心名中完全找得到"才判定为已列入。
  */
 function buildAttachmentMismatchRule(): DocFormatRequirement {
@@ -96,6 +128,7 @@ function buildAttachmentMismatchRule(): DocFormatRequirement {
     const mentioned = new Set<string>()
     for (const paragraph of doc.body) {
       for (const title of extractTitles(paragraph.text)) {
+        if (isCitationTitle(paragraph.text, title)) continue
         const core = mentionedTitleCore(title)
         if (attachmentCores.includes(core)) continue
         if (!mentioned.has(core)) mentioned.add(core)
@@ -116,7 +149,6 @@ const COLLOQUIAL_WORDS = [
   "大家",
   "咱们",
   "搞定",
-  "抓紧",
   "赶紧",
   "挺好的",
   "不错",
@@ -205,12 +237,39 @@ function buildMinutesDecisionRule(): DocFormatRequirement {
   }
 }
 
+/** 正文 p 段首“一、”等序号残留：只提示不自动改（信息保留，避免误剥合法列举）。 */
+const PARAGRAPH_LEADING_ORDER_PATTERN = /^[一二三四五六七八九十]+、/
+
+function buildParagraphLeadingOrderRule(): DocFormatRequirement {
+  return {
+    code: "P_LEADING_ORDER_SUGGESTION",
+    field: "body",
+    check: (doc) => {
+      const hit = doc.body.find(
+        (paragraph) =>
+          paragraph.type === "p" &&
+          PARAGRAPH_LEADING_ORDER_PATTERN.test(paragraph.text),
+      )
+      if (hit) {
+        return issue(
+          "P_LEADING_ORDER_SUGGESTION",
+          "body",
+          "正文段首的“一、”序号建议改用 h1/h2 标题层级，避免渲染时序号与段落混排。",
+          "warning",
+        )
+      }
+      return null
+    },
+  }
+}
+
 /** 全部文种共享的通用规则（L2 尾部执行）。 */
 function buildUniversalRules(docType: DocType): DocFormatRequirement[] {
   const rules: DocFormatRequirement[] = [
     buildDocNumberLeadingZeroRule(),
     buildColloquialRule(),
     buildAttachmentMismatchRule(),
+    buildParagraphLeadingOrderRule(),
   ]
   if (docType === "minutes") {
     rules.push(buildMinutesDecisionRule())

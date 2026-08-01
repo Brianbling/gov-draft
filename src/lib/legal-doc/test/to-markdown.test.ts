@@ -273,6 +273,24 @@ describe("formatChineseDate · GB/T 9704 §6.5 中文日期", () => {
     expect(formatChineseDate("")).toBe("")
   })
 
+  it("月/日越界或为 0 的无效日期原样返回，不产生“2026年13月1日”", () => {
+    expect(formatChineseDate("2026-13-01")).toBe("2026-13-01")
+    expect(formatChineseDate("2026-00-10")).toBe("2026-00-10")
+    expect(formatChineseDate("2026-01-00")).toBe("2026-01-00")
+    expect(formatChineseDate("2026-00-00")).toBe("2026-00-00")
+  })
+
+  it("超出当月实有天数的无效日期原样返回（4月31日/2月30日/6月31日）", () => {
+    expect(formatChineseDate("2026-04-31")).toBe("2026-04-31")
+    expect(formatChineseDate("2026-02-30")).toBe("2026-02-30")
+    expect(formatChineseDate("2026-06-31")).toBe("2026-06-31")
+  })
+
+  it("边界日期正常转换：1月1日 / 12月31日", () => {
+    expect(formatChineseDate("2026-01-01")).toBe("2026年1月1日")
+    expect(formatChineseDate("2026-12-31")).toBe("2026年12月31日")
+  })
+
   it("落款成文日期渲染为中文日期（月日不编虚位）", () => {
     const markdown = toMarkdown(buildDoc({ date: "2026-07-31" }))
     expect(markdown).toContain("2026年7月31日")

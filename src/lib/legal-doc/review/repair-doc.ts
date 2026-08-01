@@ -22,17 +22,22 @@ function makeRepair(code: string, message: string): RepairInfo {
   return { code, message }
 }
 
-/** 主送机关末尾应带全角冒号（通告/公告无主送机关，不适用）。 */
+/** 主送机关末尾应带全角冒号（通告/公告无主送机关，不适用）。
+ * 只在末尾确为机关名（非标点）且非纯空白时补，避免把“省人民政府。”补成“省人民政府。：”，
+ * 也避免纯空白主送被“修复”成“：”掩盖缺失（缺失由 L2 规则上报）。 */
 function repairRecipientColon(
   doc: LegalDoc,
   repairs: RepairInfo[],
 ): LegalDoc {
   if (doc.docType === "announcement") return doc
   if (!doc.recipient) return doc
-  if (/:|：/.test(doc.recipient.trimEnd())) return doc
+  const trimmed = doc.recipient.trimEnd()
+  if (trimmed.length === 0) return doc
+  if (/[:：]/.test(trimmed)) return doc
+  if (/[。、；，？！]$/.test(trimmed)) return doc
   const repaired = {
     ...doc,
-    recipient: doc.recipient.trimEnd() + "：",
+    recipient: trimmed + "：",
   }
   repairs.push(
     makeRepair(
@@ -44,6 +49,26 @@ function repairRecipientColon(
 }
 
 const ATTACHMENT_PARAGRAPH_PATTERN = /^附件[：:]\s*(.+)$/
+
+/**
+ * 按编号结构拆分附件内容并去序号前缀。覆盖三种真实写法：
+ * - 编号列表（分号/逗号/顿号分隔）："1.任务清单；2.责任分工表" → ["任务清单", "责任分工表"]
+ * - 单编号项："1.任务清单" → ["任务清单"]
+ * - 无编号："任务清单" 或 "任务清单；责任分工表" → 整段作为一个附件（不拆、不丢内容）
+ * 只有全部项都带编号前缀才拆，避免把普通句段误拆成多个附件。
+ */
+function splitAttachments(content: string): string[] {
+  const rawParts = content
+    .split(/[；;\n，,、]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+  const allNumbered = rawParts.every((part) => /^\d+[．.、]/.test(part))
+  if (rawParts.length > 1 && allNumbered)
+    return rawParts.map((part) => part.replace(/^\d+[．.、]/, "").trim())
+  if (rawParts.length === 1 && /^\d+[．.、]/.test(rawParts[0]))
+    return [rawParts[0].replace(/^\d+[．.、]/, "").trim()]
+  return [content]
+}
 
 /** 正文 type:"p" 且整段形如 `^附件[:：]` 且 attachments 为空 → 提取为附件条目并从正文移除。 */
 function extractAttachmentParagraphs(
@@ -58,7 +83,7 @@ function extractAttachmentParagraphs(
     if (!match) return true
     const name = match[1].trim()
     if (name.length === 0) return true
-    added.push(name)
+    added.push(...splitAttachments(name))
     return false
   })
   if (added.length === 0) return doc
@@ -71,31 +96,6 @@ function extractAttachmentParagraphs(
     makeRepair(
       "REPAIR_EXTRACT_ATTACHMENT",
       `正文中“附件：…”段落已提取为附件条目（${added.join("、")}），避免版记与正文重复。`,
-    ),
-  )
-  return repaired
-}
-
-/** 正文 p 段首序号残留（如 `一、…`）→ 只剥离序号，不升级为标题（避免改变层级）。 */
-function stripParagraphLeadingNumber(
-  doc: LegalDoc,
-  repairs: RepairInfo[],
-): LegalDoc {
-  const pattern = /^[一二三四五六七八九十]+、/
-  let changed = false
-  const body = doc.body.map((paragraph) => {
-    if (paragraph.type !== "p") return paragraph
-    const stripped = paragraph.text.replace(pattern, "").trim()
-    if (stripped === paragraph.text) return paragraph
-    changed = true
-    return { ...paragraph, text: stripped }
-  })
-  if (!changed) return doc
-  const repaired = { ...doc, body }
-  repairs.push(
-    makeRepair(
-      "REPAIR_STRIP_PARAGRAPH_ORDER",
-      "正文段落开头的序号残留（如“一、”）已剥离；若需分层请改用 h1/h2 标题。",
     ),
   )
   return repaired
@@ -123,7 +123,7 @@ function normalizeDocNumberYearBracket(
 }
 
 /**
- * 依次执行全部保守修复（顺序敏感：先补 recipient 冒号，再提取附件段，再剥序号，
+ * 依次执行全部保守修复（顺序敏感：先补 recipient 冒号，再提取附件段，
  * 最后统一文号括号）。返回修复后的 doc 与所有本次执行的修复说明。
  */
 export function repairDoc(doc: LegalDoc): RepairResult {
@@ -131,7 +131,6 @@ export function repairDoc(doc: LegalDoc): RepairResult {
   let current = doc
   current = repairRecipientColon(current, repairs)
   current = extractAttachmentParagraphs(current, repairs)
-  current = stripParagraphLeadingNumber(current, repairs)
   current = normalizeDocNumberYearBracket(current, repairs)
   return { doc: current, repairs }
 }

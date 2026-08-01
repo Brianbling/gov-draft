@@ -142,12 +142,139 @@ const EXAMPLE_OUTPUTS: Record<DocType, LegalDoc> = {
     absentees: ["××（市教育局）"],
     observers: ["××（市消防支队）"],
   },
-  decision: { ...EXAMPLE_GONGWEN, docType: "decision" },
-  opinion: { ...EXAMPLE_GONGWEN, docType: "opinion" },
-  report: { ...EXAMPLE_GONGWEN, docType: "report" },
-  reply: { ...EXAMPLE_GONGWEN, docType: "reply" },
-  letter: { ...EXAMPLE_GONGWEN, docType: "letter" },
-  announcement: { ...EXAMPLE_GONGWEN, docType: "announcement" },
+  decision: {
+    docType: "decision",
+    title: "关于对××公司违规经营行为的处理决定",
+    recipient: "××公司，各相关部门：",
+    body: [
+      {
+        type: "p",
+        text: "经查，××公司存在未按规定履行信息公示义务等违规经营行为。为维护市场秩序，现作出如下处理决定。",
+      },
+      {
+        type: "h1",
+        text: "责令限期改正",
+      },
+      {
+        type: "p",
+        text: "责令××公司自收到本决定之日起三十日内完成整改，并将整改情况书面报告我局。",
+      },
+      {
+        type: "h1",
+        text: "依法给予处罚",
+      },
+      {
+        type: "p",
+        text: "依据《××条例》有关规定，对××公司处以罚款，并纳入经营异常名录。",
+      },
+    ],
+    issuer: "××市市场监督管理局",
+    date: "2026-07-31",
+  },
+  opinion: {
+    docType: "opinion",
+    title: "关于进一步加强基层社会治理工作的意见",
+    recipient: "各区人民政府，市政府各委、办、局：",
+    body: [
+      {
+        type: "p",
+        text: "为深入贯彻落实党中央、国务院关于加强基层治理体系和治理能力现代化建设的决策部署，现就进一步加强基层社会治理工作提出如下意见。",
+      },
+      {
+        type: "p",
+        text: "要健全党组织领导的基层治理体系，推动治理重心下移、资源下沉。",
+      },
+      {
+        type: "p",
+        text: "应当完善社区议事协商机制，引导群众积极参与基层治理。",
+      },
+    ],
+    issuer: "××市人民政府",
+    date: "2026-07-31",
+  },
+  report: {
+    docType: "report",
+    title: "关于上半年经济运行情况的报告",
+    recipient: "市人民政府：",
+    body: [
+      {
+        type: "p",
+        text: "按照工作部署，现将全市上半年经济运行情况报告如下。",
+      },
+      {
+        type: "p",
+        text: "上半年，全市地区生产总值同比增长百分之六，经济运行总体平稳、稳中有进。",
+      },
+      {
+        type: "p",
+        text: "下一步，我们将坚持稳中求进工作总基调，全力完成全年目标任务。",
+      },
+    ],
+    issuer: "市发展改革委",
+    date: "2026-07-31",
+  },
+  reply: {
+    docType: "reply",
+    title: "关于同意××公司开展××业务的批复",
+    recipient: "××公司：",
+    body: [
+      {
+        type: "p",
+        text: "你公司《关于申请开展××业务的请示》收悉。经研究，现批复如下。",
+      },
+      {
+        type: "p",
+        text: "同意你公司在××范围内开展××业务，请严格按照相关法律法规组织实施。",
+      },
+      {
+        type: "p",
+        text: "此复。",
+      },
+    ],
+    issuer: "××市××局",
+    date: "2026-07-31",
+  },
+  letter: {
+    docType: "letter",
+    title: "关于商请协助办理××事项的函",
+    recipient: "××大学：",
+    body: [
+      {
+        type: "p",
+        text: "为进一步深化产学研合作，我局拟组织科技人员赴贵校开展调研交流，商请贵校予以支持。",
+      },
+      {
+        type: "p",
+        text: "如蒙同意，请函复我局，以便安排后续行程。",
+      },
+    ],
+    issuer: "××市科学技术局",
+    date: "2026-07-31",
+  },
+  announcement: {
+    docType: "announcement",
+    title: "关于加强城区机动车限行管理的通告",
+    body: [
+      {
+        type: "p",
+        text: "为进一步改善城区道路交通环境，减少机动车污染物排放，现就加强城区机动车限行管理有关事项通告如下。",
+      },
+      {
+        type: "p",
+        text: "自2026年9月1日起，每日7时至22时，对号牌尾号为单、双数的机动车在限行区域内实行交替限行。",
+      },
+      {
+        type: "p",
+        text: "执行任务的军车、警车、消防车、救护车、工程救险车及公共交通车辆不受限行措施限制。",
+      },
+      {
+        type: "p",
+        text: "对违反限行规定的，由公安机关交通管理部门依法处理。请广大市民合理安排出行。",
+      },
+    ],
+    issuer: "××市公安局交通管理局",
+    date: "2026-07-31",
+  },
 }
 
 /** 从用户描述首行解析出文种枚举值。 */

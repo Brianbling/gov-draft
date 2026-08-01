@@ -307,10 +307,21 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
   it("正文含口语化词时给出 COLLOQUIAL_WORD", () => {
     const issues = checkDocFormat(
       buildDoc({
-        body: [{ type: "p", text: "大家要提高认识，抓紧落实。" }],
+        body: [{ type: "p", text: "大家要提高认识，赶紧落实。" }],
       })
     )
     expect(codes(issues)).toContain("COLLOQUIAL_WORD")
+  })
+
+  it("“抓紧制定”“抓紧抓实”是标准公文用语，不报 COLLOQUIAL_WORD", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [
+          { type: "p", text: "要抓紧制定实施方案，抓紧抓实各项任务。" },
+        ],
+      })
+    )
+    expect(codes(issues)).not.toContain("COLLOQUIAL_WORD")
   })
 
   it("正文纯书面语时不报 COLLOQUIAL_WORD", () => {
@@ -354,6 +365,123 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
       })
     )
     expect(codes(issues)).toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("引述语境（批复“你局《××请示》收悉”）不参与附件核对，不误报 ATTACHMENT_MISMATCH", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "reply",
+        recipient: "市财政局：",
+        attachments: ["批复意见"],
+        body: [{ type: "p", text: "你局《关于申请追加预算的请示》收悉。现批复如下。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("同一段既含引述词又声明“附件：”时，附件声明仍参与核对", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "reply",
+        recipient: "市财政局：",
+        attachments: ["批复意见"],
+        body: [
+          {
+            type: "p",
+            text: "你局来文收悉。另附《实施方案》一份，请一并查收。",
+          },
+        ],
+      })
+    )
+    expect(codes(issues)).toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("附件段落（“附件：《××清单》”）不受引述词影响，仍参与核对", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        attachments: ["批复意见"],
+        body: [
+          {
+            type: "p",
+            text: "你局来文收悉。附件：《实施方案》",
+          },
+        ],
+      })
+    )
+    expect(codes(issues)).toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("非引述语境的法律依据引用（依据《××条例》）不属于附件声明，不报 ATTACHMENT_MISMATCH", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        attachments: ["年度工作要点"],
+        body: [
+          {
+            type: "p",
+            text: "依据《行政处罚法》第二十一条，现就有关工作通知如下。",
+          },
+        ],
+      })
+    )
+    expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("引述词仅在引述来文书名号之后（《××请示》请查收）时，该《》不报，但同段附件声明仍报", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "reply",
+        recipient: "市财政局：",
+        attachments: ["批复意见"],
+        body: [
+          {
+            type: "p",
+            text: "《关于申请追加预算的请示》请查收，另附《实施方案》一并办理。",
+          },
+        ],
+      })
+    )
+    expect(codes(issues)).toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("正文声明附件（“附件：××清单”）但 attachments 未列该名时给出 ATTACHMENT_MISMATCH", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        attachments: ["批复意见"],
+        body: [{ type: "p", text: "附件：《××清单》" }],
+      })
+    )
+    expect(codes(issues)).toContain("ATTACHMENT_MISMATCH")
+  })
+
+  it("正文 p 段首“一、”序号时给出 P_LEADING_ORDER_SUGGESTION（只提示不自动改）", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [
+          { type: "p", text: "一、加强组织领导，压实工作责任。" },
+          { type: "p", text: "二、强化督促检查。" },
+        ],
+      })
+    )
+    expect(codes(issues)).toContain("P_LEADING_ORDER_SUGGESTION")
+    expect(
+      issues.find((i) => i.code === "P_LEADING_ORDER_SUGGESTION")?.severity
+    ).toBe("warning")
+  })
+
+  it("“一体化推进”这类纯中文词开头的段落不报 P_LEADING_ORDER_SUGGESTION", () => {
+    const issues = checkDocFormat(
+      buildDoc({ body: [{ type: "p", text: "一体化推进政务服务改革。" }] })
+    )
+    expect(codes(issues)).not.toContain("P_LEADING_ORDER_SUGGESTION")
+  })
+
+  it("h1/h2 标题段首序号不报 P_LEADING_ORDER_SUGGESTION（只查 p）", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [{ type: "h1", text: "一、总体要求" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("P_LEADING_ORDER_SUGGESTION")
   })
 
   it("正文提到的《X》已列入 attachments（去书名号/后缀模糊匹配）时不报", () => {

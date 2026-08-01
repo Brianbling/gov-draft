@@ -115,6 +115,8 @@ describe("checkFormat", () => {
     expect(issues[0]).toMatchObject({
       field: "attachments[1]",
       code: "ATTACHMENT_EMPTY",
+      // 附件名为空是格式瑕疵，非缺标题/空正文那样的结构性硬伤
+      severity: "warning",
     })
   })
 

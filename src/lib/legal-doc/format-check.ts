@@ -99,6 +99,8 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
         field: `attachments[${index}]`,
         code: "ATTACHMENT_EMPTY",
         message: "附件名称不能为空。",
+        // 附件名为空是格式瑕疵，非缺标题/空正文那样的结构性硬伤。
+        severity: "warning",
       })
     }
   })

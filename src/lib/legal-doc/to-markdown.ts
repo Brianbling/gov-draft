@@ -45,7 +45,18 @@ export function formatChineseDate(iso: string): string {
   const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (!match) return iso
   const [, year, month, day] = match
-  return `${year}年${Number(month)}月${Number(day)}日`
+  const monthNum = Number(month)
+  const dayNum = Number(day)
+  // 月/日越界或超出当月实有天数属无效日期，原样返回，不产生“2026年4月31日”这类错误日期。
+  const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  if (
+    monthNum < 1 ||
+    monthNum > 12 ||
+    dayNum < 1 ||
+    dayNum > daysInMonth[monthNum - 1]
+  )
+    return iso
+  return `${year}年${monthNum}月${dayNum}日`
 }
 
 function renderBody(doc: LegalDoc): string[][] {
