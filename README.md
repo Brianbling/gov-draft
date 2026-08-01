@@ -5,7 +5,6 @@
 [![Bun](https://img.shields.io/badge/built%20with-Bun-fbf0df?logo=bun)](https://bun.sh)
 [![Tauri](https://img.shields.io/badge/built%20with-Tauri%202-ffc131?logo=tauri)](https://v2.tauri.app/)
 [![shadcn/ui](https://img.shields.io/badge/built%20with-shadcn%2Fui-000000?logo=shadcnui)](https://ui.shadcn.com/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **AI 一键生成 + 标准公文排版**。输入一段需求描述，一键生成格式正确的党政机关公文；用 Markdown 写作，按 GB/T 9704 标准实时预览 A4 纸面效果并导出。
 
@@ -84,7 +83,3 @@ bun run release       # 发布脚本（tag 驱动，推送 v* tag 触发 GitHub 
 - **AI 生成配置**：`.env` 中配置 `VITE_LLM_ENDPOINT` / `VITE_LLM_API_KEY` / `VITE_LLM_MODEL` 注入 LLM 的 endpoint / key / model（Vite 把 `VITE_*` 前缀变量注入 `import.meta.env`）。`.env` 已被 `.gitignore` 排除，切勿提交密钥。
 - 路径别名 `@/` → `src/`；引擎层禁止导入 `lib/`、`hooks/`、`stores/`、`components/`。
 - 发布流程：推送 `v*` tag 触发 GitHub Actions 跨平台构建（Windows / macOS / Linux）。
-
-## 许可证
-
-[MIT](LICENSE)
