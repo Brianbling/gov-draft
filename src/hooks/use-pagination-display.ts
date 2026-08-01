@@ -22,10 +22,6 @@ function evalExpression(
   return formatNumber(evaluated, config)
 }
 
-function clampToMargin(offset: string | number, marginVar: string): string {
-  return `min(${offset}, var(${marginVar}))`
-}
-
 export function getPaginationText(meta: PageRenderMeta): string {
   const cfg = meta.pagination
   if (!cfg) return ''
@@ -51,6 +47,10 @@ export function getPaginationInlineStyle(
     fontSize: String(cfg.style.size),
     fontWeight: String(cfg.style.weight),
     color: cfg.style.colors.text,
+    // 页码行高必须归 1：正文行高 28.95pt 会撑大元素盒，使"距版心下边缘"按盒高
+    // 而不是行框计算，垂直定位整体失真；nowrap 防止溢出到换行。
+    lineHeight: '1',
+    whiteSpace: 'nowrap',
   }
   const { vertical, horizontal } = cfg.position
   // The vertical offset is measured from the content-area (版心) edge,
@@ -60,6 +60,8 @@ export function getPaginationInlineStyle(
     style.top = `calc(var(--page-margins-top) + ${vertical.offset})`
   } else {
     // 0 sits at the content bottom edge; growing offset moves down into the margin.
+    // 版心下边缘在纸底上方 page-margins-bottom 处，bottom 减去 offset 即让元素
+    // 底缘落在版心下边缘下方 offset 处（GB/T 9704 §7.5：一字线上距版心下边缘 7mm）。
     style.bottom = `calc(var(--page-margins-bottom) - ${vertical.offset})`
   }
   if (horizontal.anchor === 'center') {
@@ -67,20 +69,23 @@ export function getPaginationInlineStyle(
     style.transform = 'translateX(-50%)'
     return style
   }
+  // 空一字（offset，如 14pt）相对版心边缘起算：left 定位到版心盒左缘再右移 offset，
+  // 即"双页码居左空一字"。定位基准是版心盒（.preview-content，其 padding 即页边距），
+  // 而非纸面边缘——否则数字会落入左边距贴纸边（靠左顶格）。
   if (horizontal.anchor === 'left') {
-    style.left = clampToMargin(horizontal.offset, '--page-margins-left')
+    style.left = `calc(var(--page-margins-left) + ${horizontal.offset})`
     return style
   }
   if (horizontal.anchor === 'right') {
-    style.right = clampToMargin(horizontal.offset, '--page-margins-right')
+    style.right = `calc(var(--page-margins-right) + ${horizontal.offset})`
     return style
   }
   const isOdd = (pageIndex + 1) % 2 === 1
   const useRight = horizontal.anchor === 'outside' ? isOdd : !isOdd
   if (useRight) {
-    style.right = clampToMargin(horizontal.offset, '--page-margins-right')
+    style.right = `calc(var(--page-margins-right) + ${horizontal.offset})`
   } else {
-    style.left = clampToMargin(horizontal.offset, '--page-margins-left')
+    style.left = `calc(var(--page-margins-left) + ${horizontal.offset})`
   }
   return style
 }

@@ -112,7 +112,9 @@ pagination:
   numberStyle: arabic
   style:
     fonts:
-      latinFamily: Times New Roman, serif
+      # GB/T 9704 §7.5：页码用 4 号半角宋体阿拉伯数字。latinFamily 与 cjkFamily 同置宋体，
+      # 避免阿拉伯数字回落到 Times New Roman 等西文字体。
+      latinFamily: 宋体, SimSun, STSong, serif
       cjkFamily: 宋体, SimSun, STSong, serif
     size: 14pt
     weight: 400
@@ -121,9 +123,11 @@ pagination:
   position:
     vertical:
       anchor: bottom
-      offset: 17mm
+      # GB/T 9704 §7.5：一字线上距版心下边缘 7mm。offset 为页码行盒底缘相对版心下边缘的
+      # 下移量；行盒高 = 4号(14pt)×line-height:1 ≈ 4.94mm，底缘下移 10mm → 一字线上沿 ≈ 7mm。
+      offset: 10mm
     horizontal:
-      # 单页码居右空一字、双页码居左空一字，用 outside 锚点（奇页右、偶页左）；offset 14pt 即 4 号字一字宽
+      # 单页码居右空一字、双页码居左空一字，用 outside 锚点（奇页右、偶页左）；offset 14pt 即 4 号字一字宽，相对版心边缘起算
       anchor: outside
       offset: 14pt
 page:

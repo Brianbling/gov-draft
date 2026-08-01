@@ -70,6 +70,8 @@ describe("getPaginationInlineStyle", () => {
     expect(style.top).toBeUndefined()
     expect(style.bottom).toBeDefined()
     expect(style.bottom).toContain("7mm")
+    // 版心下边缘在纸底上方 page-margins-bottom 处，元素底缘应落在其下方 offset 处
+    expect(style.bottom).toBe("calc(var(--page-margins-bottom) - 7mm)")
     expect(style.bottom).toContain("--page-margins-bottom")
   })
 
@@ -81,10 +83,11 @@ describe("getPaginationInlineStyle", () => {
     expect(style.bottom).toBeUndefined()
     expect(style.top).toBeDefined()
     expect(style.top).toContain("7mm")
+    expect(style.top).toBe("calc(var(--page-margins-top) + 7mm)")
     expect(style.top).toContain("--page-margins-top")
   })
 
-  it("left anchor references the left margin", () => {
+  it("left anchor offsets from the content left edge (版心左缘 + 空一字)", () => {
     const style = getPaginationInlineStyle(
       makeMeta(makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "left", offset: "10mm" } } })),
       0,
@@ -92,10 +95,12 @@ describe("getPaginationInlineStyle", () => {
     expect(style.right).toBeUndefined()
     expect(style.left).toBeDefined()
     expect(style.left).toContain("--page-margins-left")
+    // 空一字相对版心边缘起算，而非纸面边缘：left = page-margins-left + offset
+    expect(style.left).toBe("calc(var(--page-margins-left) + 10mm)")
     expect(style.left).toContain("10mm")
   })
 
-  it("right anchor references the right margin", () => {
+  it("right anchor offsets from the content right edge (版心右缘 + 空一字)", () => {
     const style = getPaginationInlineStyle(
       makeMeta(makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "right", offset: "10mm" } } })),
       0,
@@ -103,6 +108,7 @@ describe("getPaginationInlineStyle", () => {
     expect(style.left).toBeUndefined()
     expect(style.right).toBeDefined()
     expect(style.right).toContain("--page-margins-right")
+    expect(style.right).toBe("calc(var(--page-margins-right) + 10mm)")
     expect(style.right).toContain("10mm")
   })
 
@@ -110,11 +116,11 @@ describe("getPaginationInlineStyle", () => {
     const pagination = makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "outside", offset: "10mm" } } })
 
     const oddStyle = getPaginationInlineStyle(makeMeta(pagination, 1, 10), 0)
-    expect(oddStyle.right).toBeDefined()
+    expect(oddStyle.right).toBe("calc(var(--page-margins-right) + 10mm)")
     expect(oddStyle.left).toBeUndefined()
 
     const evenStyle = getPaginationInlineStyle(makeMeta(pagination, 1, 10), 1)
-    expect(evenStyle.left).toBeDefined()
+    expect(evenStyle.left).toBe("calc(var(--page-margins-left) + 10mm)")
     expect(evenStyle.right).toBeUndefined()
   })
 
@@ -122,12 +128,21 @@ describe("getPaginationInlineStyle", () => {
     const pagination = makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "inside", offset: "10mm" } } })
 
     const oddStyle = getPaginationInlineStyle(makeMeta(pagination, 1, 10), 0)
-    expect(oddStyle.left).toBeDefined()
+    expect(oddStyle.left).toBe("calc(var(--page-margins-left) + 10mm)")
     expect(oddStyle.right).toBeUndefined()
 
     const evenStyle = getPaginationInlineStyle(makeMeta(pagination, 1, 10), 1)
-    expect(evenStyle.right).toBeDefined()
+    expect(evenStyle.right).toBe("calc(var(--page-margins-right) + 10mm)")
     expect(evenStyle.left).toBeUndefined()
+  })
+
+  it("always resets line-height to 1 and forbids wrapping", () => {
+    const style = getPaginationInlineStyle(
+      makeMeta(makePagination()),
+      0,
+    )
+    expect(style.lineHeight).toBe("1")
+    expect(style.whiteSpace).toBe("nowrap")
   })
 
   it("returns empty object when pagination config is absent", () => {
