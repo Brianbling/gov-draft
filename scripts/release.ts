@@ -39,7 +39,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 
 const SEMVER = /^\d+\.\d+\.\d+$/
 const CARGO_PKG_NAME = "tauri-native"
-const REPO_URL = "https://github.com/LeonardoTan19/ezdoc"
+const REPO_URL = "https://github.com/Brianbling/gov-draft"
 
 // Conventional-commit type → CHANGELOG section heading. Types not listed
 // (chore, test, ci, style, build) are kept out of the semantic sections but

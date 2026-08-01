@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-08-01
+
+### Added
+
+- **设置页 AI 服务**：新增 LLM API Key 输入框，key 仅存本机（localStorage），生成时运行时传给 Rust 侧，不打包进安装包（内测分发安全）。
+- **表单辅助 + 要素编辑面板**：分文种要素集（9 文种差异化填入项）、按需盖章默认、生成后编辑面板实时回填 markdown。
+- **AI 描述栏**：多行 textarea + 分文种引导语。
+
+### Changed
+
+- **审查管线**：单一事实源 DocTypeSpec（prompt 与 L2 规则共用一份文种知识）、保守修复带（repairDoc：补主送机关冒号、提取附件段、统一文号六角括号）、severity 分级。
+- **落款排版**：盖章/不盖章双布局（GB/T 9704 §6.4）——盖章右对齐预留骑年盖月印章空间、不盖章署名居中成文日期右空四字；移除"（此处加盖公章）"占位文字。
+- **附件逻辑**：多附件续行按 §7.3.4 对齐、附件识别增强（"附件1：""附件2．"变体）。
+- **页码定位**：GB/T 9704 §7.5 版心参照系修正。
+- **端口 1420→1421**：错开 v1。
+
+### Fixed
+
+- **标题误拦**：标题不再作为生成前表单必填（此前填了任意表单字段就触发全部必填校验，导致"写个通知老是不给过"），缺失由生成后 L1 审查 TITLE_EMPTY 兜底。
+
+### Commits
+
+- 927d3ee fix(ai-generate): 标题不再作为生成前表单必填，消除误拦
+- ec0c569 fix(legal-doc): 公章占位移除 + 盖章/不盖章双落款布局 + 附件识别增强
+- b5dee34 feat: 设置页新增 LLM API Key 输入（localStorage，运行时传 key，不打包进 bundle）
+- 132ce45 chore: 开发端口 1420→1421，错开 v1 的 tauri dev
+- c7f8ee5 feat: 描述栏改造为多行 textarea + 分文种引导语 + 9 文种差异化填入项
+- dd81090 feat: 要素编辑面板（v2 增量3）+ 编辑面板联动修复（增量4）
+- bf1ab64 fix: 页码定位修正 GB/T 9704 §7.5（版心参照系 + 垂直7mm + 行高归位）
+- 6d0fbe1 feat: AI 生成对话框表单辅助 + 自然语言双适配器（v2 增量2）
+- 7ff8f7d feat: 分文种要素集 + 按需盖章默认（v2 表单辅助基础）
+- 9ad8660 fix: 页码标准对齐 GB/T 9704 §7.5（单页右双页左 + 4号宋体 + 空一字）
+- 0c8a5fe fix: 审查复核的 8 处边界修复（附件一致性/附件拆分/severity/日期）
+- 045a277 feat: 单一事实源 DocTypeSpec + 保守修复带 + UI 优化
+
 ## [0.1.4] - 2026-07-25
 
 ### Added
@@ -136,9 +171,10 @@ First release of ezdoc — a Tauri + React Markdown-to-styled-document editor.
 - 0da19ff feat(engine): migrate engine layer from gov-draft with green test baseline
 - 6a6449c feat: initial commit
 
-[Unreleased]: https://github.com/LeonardoTan19/ezdoc/compare/v0.1.4...HEAD
-[0.1.4]: https://github.com/LeonardoTan19/ezdoc/compare/v0.1.3...v0.1.4
-[0.1.3]: https://github.com/LeonardoTan19/ezdoc/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/LeonardoTan19/ezdoc/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/LeonardoTan19/ezdoc/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/LeonardoTan19/ezdoc/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/Brianbling/gov-draft/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/Brianbling/gov-draft/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/Brianbling/gov-draft/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/Brianbling/gov-draft/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/Brianbling/gov-draft/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/Brianbling/gov-draft/releases/tag/v0.1.0
