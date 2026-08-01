@@ -272,7 +272,11 @@
 			"pdfGroup": "PDF 导出",
 			"chromiumPath": "Chromium 浏览器路径",
 			"chromiumPathPlaceholder": "留空则自动检测",
-			"chromiumPathDetected": "已检测到:"
+			"chromiumPathDetected": "已检测到:",
+			"llmGroup": "AI 服务",
+			"llmApiKey": "API Key",
+			"llmApiKeyPlaceholder": "粘贴你的 API Key",
+			"llmApiKeyHint": "仅保存在本机，不会写入安装包。留空则使用构建时的内置密钥。"
 	},
 	"codemirror": {
 		"editorAria": "公文 Markdown 编辑器",

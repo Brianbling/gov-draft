@@ -96,6 +96,7 @@ function bootstrapDraft(): SettingsDraft {
           ? ruleAutoSave.interval
           : s.autoSaveInterval,
       chromiumPath: s.chromiumPath,
+      llmApiKey: s.llmApiKey,
     },
   }
 }
@@ -275,7 +276,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
       setDraft({
         rule,
         baseline: null,
-        editor: { editorSettings, previewSettings, autoSave, autoSaveInterval, chromiumPath: draft.editor.chromiumPath },
+        editor: { editorSettings, previewSettings, autoSave, autoSaveInterval, chromiumPath: draft.editor.chromiumPath, llmApiKey: draft.editor.llmApiKey },
       })
       setSelectedId("basic")
       setError("")
@@ -323,6 +324,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
       settings.setAutoSave(draft.editor.autoSave)
       settings.setAutoSaveInterval(draft.editor.autoSaveInterval)
       settings.setChromiumPath(draft.editor.chromiumPath)
+      settings.setLlmApiKey(draft.editor.llmApiKey)
 
       onClose()
     } catch {

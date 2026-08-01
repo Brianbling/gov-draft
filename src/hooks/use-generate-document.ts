@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useDocStore } from "@/stores/doc-store"
+import { useSettingsStore } from "@/stores/settings-store"
 import { generateDocument } from "@/lib/llm"
 import {
   buildUserPrompt,
@@ -131,8 +132,12 @@ export function useGenerateDocument() {
         // Vite 构建注入 import.meta.env.VITE_*；Node/vitest 用 process.env.EZDOC_*。
         endpoint:
           import.meta.env.VITE_LLM_ENDPOINT || getEzdocEnv("EZDOC_LLM_ENDPOINT"),
+        // 内测分发：优先设置页保存的 key（localStorage，不打包进 bundle），
+        // 其次是 VITE_*（构建注入）/ EZDOC_*（Node/vitest 环境变量）。
         apiKey:
-          import.meta.env.VITE_LLM_API_KEY || getEzdocEnv("EZDOC_API_KEY"),
+          useSettingsStore.getState().llmApiKey ||
+          import.meta.env.VITE_LLM_API_KEY ||
+          getEzdocEnv("EZDOC_API_KEY"),
         model:
           import.meta.env.VITE_LLM_MODEL || getEzdocEnv("EZDOC_LLM_MODEL"),
         signal: abortController.signal,

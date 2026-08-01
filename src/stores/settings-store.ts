@@ -22,12 +22,15 @@ interface SettingsState {
   autoSave: boolean
   autoSaveInterval: number
   chromiumPath: string
+  /** 内测分发：LLM API key 存在本地 localStorage，不打包进前端 bundle。 */
+  llmApiKey: string
 
   updateEditorSettings: (settings: Partial<EditorSettings>) => void
   updatePreviewSettings: (settings: Partial<PreviewSettings>) => void
   setAutoSave: (enabled: boolean) => void
   setAutoSaveInterval: (interval: number) => void
   setChromiumPath: (path: string) => void
+  setLlmApiKey: (key: string) => void
   resetSettings: () => void
 }
 
@@ -45,6 +48,7 @@ const DEFAULT_PREVIEW: PreviewSettings = {
 const DEFAULT_AUTO_SAVE = true
 const DEFAULT_AUTO_SAVE_INTERVAL = 30000
 const DEFAULT_CHROMIUM_PATH = ""
+const DEFAULT_LLM_API_KEY = ""
 
 /**
  * Bounds for the numeric settings, matching the min/max on their form inputs.
@@ -78,6 +82,7 @@ export const useSettingsStore = create<SettingsState>()(
       autoSave: DEFAULT_AUTO_SAVE,
       autoSaveInterval: DEFAULT_AUTO_SAVE_INTERVAL,
       chromiumPath: DEFAULT_CHROMIUM_PATH,
+      llmApiKey: DEFAULT_LLM_API_KEY,
 
       updateEditorSettings(settings) {
         set((s) => {
@@ -132,6 +137,10 @@ export const useSettingsStore = create<SettingsState>()(
         set({ chromiumPath: path.trim() })
       },
 
+      setLlmApiKey(key) {
+        set({ llmApiKey: key.trim() })
+      },
+
       resetSettings() {
         set({
           editorSettings: { ...DEFAULT_EDITOR },
@@ -139,6 +148,7 @@ export const useSettingsStore = create<SettingsState>()(
           autoSave: DEFAULT_AUTO_SAVE,
           autoSaveInterval: DEFAULT_AUTO_SAVE_INTERVAL,
           chromiumPath: DEFAULT_CHROMIUM_PATH,
+          llmApiKey: DEFAULT_LLM_API_KEY,
         })
       },
     }),

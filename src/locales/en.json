@@ -272,7 +272,11 @@
 			"pdfGroup": "PDF Export",
 			"chromiumPath": "Chromium browser path",
 			"chromiumPathPlaceholder": "Leave empty for auto-detection",
-			"chromiumPathDetected": "Detected:"
+			"chromiumPathDetected": "Detected:",
+			"llmGroup": "AI Service",
+			"llmApiKey": "API Key",
+			"llmApiKeyPlaceholder": "Paste your API key",
+			"llmApiKeyHint": "Stored locally only; not bundled into the installer. Leave empty to use the key baked in at build time."
 	},
 	"codemirror": {
 		"editorAria": "Official document Markdown editor",
