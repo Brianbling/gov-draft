@@ -113,7 +113,7 @@ pagination:
   style:
     fonts:
       latinFamily: Times New Roman, serif
-      cjkFamily: 仿宋_GB2312, FangSong, STFangsong, serif
+      cjkFamily: 宋体, SimSun, STSong, serif
     size: 14pt
     weight: 400
     colors:
@@ -123,8 +123,10 @@ pagination:
       anchor: bottom
       offset: 17mm
     horizontal:
-      anchor: center
-      offset: 0mm
+      # GB/T 9704 §7.5：单页码居右空一字、双页码居左空一字，用 outside 锚点（奇页右、偶页左）；
+      # offset 14pt 即 4 号字一字宽（空一字）
+      anchor: outside
+      offset: 14pt
 page:
   size: A4
   orientation: portrait
