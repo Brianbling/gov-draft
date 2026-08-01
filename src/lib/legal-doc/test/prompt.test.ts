@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest"
+import { buildSystemPrompt, buildUserPrompt } from "../prompt"
+import { DOC_TYPES } from "../types"
+
+describe("buildUserPrompt", () => {
+  it("keeps the user description when no docType-specific requirement applies", () => {
+    const prompt = buildUserPrompt("帮我写一份加强城市绿化的通知")
+    expect(prompt).toContain("帮我写一份加强城市绿化的通知")
+    expect(prompt).not.toContain("附加格式要求")
+  })
+
+  it("appends the request-specific format requirement when docType is request", () => {
+    const prompt = buildUserPrompt("request\n我处拟购置一批办公设备")
+    expect(prompt).toContain("文种为请示")
+    expect(prompt).toContain("妥否，请批示")
+    expect(prompt).toContain("主送机关")
+  })
+
+  it("appends the reply-specific format requirement when docType is reply", () => {
+    const prompt = buildUserPrompt("reply\n同意你局关于组建综合执法队的请示")
+    expect(prompt).toContain("你（单位）《××请示》收悉。现批复如下")
+  })
+
+  it("appends the minutes-specific format requirement when docType is minutes", () => {
+    const prompt = buildUserPrompt("minutes\n关于召开安全生产工作会议的纪要")
+    expect(prompt).toContain("会议名称、时间、地点、参加人员")
+  })
+
+  it("appends the announcement-specific format requirement when docType is announcement", () => {
+    const prompt = buildUserPrompt("announcement\n关于城区限行通告")
+    expect(prompt).toContain("面向社会公开发布")
+    expect(prompt).toContain("无主送机关")
+  })
+
+  it("covers every DOC_TYPES enum with a format requirement", () => {
+    for (const docType of DOC_TYPES) {
+      const prompt = buildUserPrompt(`${docType}\n测试内容`)
+      expect(prompt).toContain("附加格式要求")
+    }
+  })
+
+  it("adds a seal instruction when seal option is true", () => {
+    const prompt = buildUserPrompt("gongwen\n举办培训班的通知", {
+      seal: true,
+    })
+    expect(prompt).toContain("该公文需要加盖公章")
+    expect(prompt).toContain("（此处加盖公章）")
+  })
+
+  it("omits the seal instruction when seal option is false or absent", () => {
+    expect(buildUserPrompt("gongwen\n举办培训班的通知")).not.toContain(
+      "该公文需要加盖公章"
+    )
+    expect(
+      buildUserPrompt("gongwen\n举办培训班的通知", { seal: false })
+    ).not.toContain("该公文需要加盖公章")
+  })
+
+  it("still emits the JSON structure instruction", () => {
+    const prompt = buildUserPrompt("gongwen\n测试")
+    expect(prompt).toContain("请严格按照系统提示中的 JSON 结构输出")
+    expect(prompt).toContain('"docType"')
+  })
+
+  it("用户描述含换行时不破坏 prompt 结构", () => {
+    const prompt = buildUserPrompt("帮我写一份通知\n关于垃圾分类\n请正式一些")
+    expect(prompt).toContain("帮我写一份通知\n关于垃圾分类\n请正式一些")
+    expect(prompt).toContain("JSON")
+  })
+
+  it("用户描述含引号与反斜杠时仍为合法字符串", () => {
+    const description = '写一份含"引号"和\\反斜杠的通知'
+    const prompt = buildUserPrompt(description)
+    expect(prompt).toContain(description)
+    expect(prompt).toContain("JSON")
+  })
+
+  it("用户描述含 $& 特殊序列时不被字符串替换破坏（回归：String.replace 的 $ 模式）", () => {
+    // 已知缺陷：buildUserPrompt 用 String.replace(search, replacement)，
+    // replacement 中的 `$&` 会被替换为整个匹配串 `{userDescription}`，
+    // `$1` 被替换为空串 → 用户描述被破坏、占位符残留。
+    // 修复方向：用 split/join 或带 replaceAll 的 safeReplace。
+    // bug agent 确认修复后去掉 it.skip。
+    const description = "预算 $& 项目，经费 $1 万元"
+    const prompt = buildUserPrompt(description)
+    expect(prompt).not.toContain("{userDescription}")
+    expect(prompt).toContain("预算 $& 项目")
+    expect(prompt).toContain("经费 $1 万元")
+  })
+})
+
+describe("buildSystemPrompt", () => {
+  it("包含严格 JSON 输出约束", () => {
+    const system = buildSystemPrompt()
+    expect(system).toContain("JSON")
+    expect(system).toContain("严格")
+  })
+
+  it("包含字段说明", () => {
+    const system = buildSystemPrompt()
+    expect(system).toContain("docType")
+    expect(system).toContain("title")
+    expect(system).toContain("body")
+  })
+
+  it("包含 GB/T 9704 规范引用", () => {
+    const system = buildSystemPrompt()
+    expect(system).toContain("GB/T 9704-2012")
+  })
+})

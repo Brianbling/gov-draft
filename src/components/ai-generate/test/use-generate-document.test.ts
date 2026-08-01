@@ -1,0 +1,277 @@
+import { describe, expect, it, vi, beforeEach } from "vitest"
+import { renderHook, act } from "@testing-library/react"
+
+// zustand persist 在模块求值期读取 localStorage；jsdom 无此实现，先装内存 shim。
+if (typeof globalThis.localStorage === "undefined") {
+  const backing = new Map<string, string>()
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => void backing.set(k, v),
+      removeItem: (k: string) => void backing.delete(k),
+      clear: () => backing.clear(),
+    },
+  })
+}
+
+// mock generateDocument：不真实调 API，返回可注入的 LLM 输出。
+vi.mock("@/lib/llm", () => ({
+  generateDocument: vi.fn(),
+  DEFAULT_MODEL: "gpt-4o-mini",
+  DEFAULT_ENDPOINT: "https://api.openai.com/v1/chat/completions",
+}))
+
+const { generateDocument } = await import("@/lib/llm")
+const { useGenerateDocument } = await import(
+  "@/hooks/use-generate-document"
+)
+const { useDocStore } = await import("@/stores/doc-store")
+
+const mockGenerateDocument = vi.mocked(generateDocument)
+
+const VALID_LLM_OUTPUT = JSON.stringify({
+  docType: "gongwen",
+  title: "关于推进垃圾分类工作的通知",
+  recipient: "各区人民政府，市政府各委、办、局：",
+  body: [
+    {
+      type: "p",
+      text: "为深入推进垃圾分类工作，经市政府同意，现就有关工作通知如下。",
+    },
+  ],
+  issuer: "市人民政府",
+  date: "2026-07-31",
+})
+
+describe("useGenerateDocument 状态流", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useDocStore.getState().reset()
+  })
+
+  it("初始态 idle", () => {
+    const { result } = renderHook(() => useGenerateDocument())
+    expect(result.current.status).toBe("idle")
+    expect(result.current.errorCode).toBeNull()
+    expect(result.current.issues).toEqual([])
+    expect(result.current.result).toBeNull()
+  })
+
+  it("输入描述 → 点生成 → loading → done → 写入 doc-store → 返回 issues", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("帮我写一份关于垃圾分类的通知"))
+
+    let generatePromise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      generatePromise = result.current.generate()
+    })
+    expect(result.current.status).toBe("generating")
+    expect(mockGenerateDocument).toHaveBeenCalledOnce()
+
+    const generateResult = await generatePromise
+    await act(async () => {
+      await generatePromise
+    })
+
+    expect(result.current.status).toBe("done")
+    expect(result.current.errorCode).toBeNull()
+    expect(result.current.issues).toEqual([])
+    expect(result.current.result?.title).toBe("关于推进垃圾分类工作的通知")
+    expect(generateResult).toEqual({
+      markdown: expect.stringContaining("# 关于推进垃圾分类工作的通知"),
+      title: "关于推进垃圾分类工作的通知",
+    })
+
+    // 写入 doc-store，供编辑器/预览消费
+    const { content, title } = useDocStore.getState()
+    expect(content).toContain("# 关于推进垃圾分类工作的通知")
+    expect(content).toContain("为深入推进垃圾分类工作")
+    expect(title).toBe("关于推进垃圾分类工作的通知")
+  })
+
+  it("LLM 返回非法 JSON → status=error，errorCode=LEGAL_DOC_PARSE_FAILED", async () => {
+    mockGenerateDocument.mockResolvedValue("这不是 JSON")
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    const ret = await promise
+    await act(async () => {
+      await promise
+    })
+
+    expect(result.current.status).toBe("error")
+    expect(result.current.errorCode).toBe("LEGAL_DOC_PARSE_FAILED")
+    expect(ret).toBeNull()
+    // 失败时不应污染编辑器内容
+    expect(useDocStore.getState().content).toBe("")
+  })
+
+  it("LLM 返回空串 → status=error，errorCode=LLM_EMPTY_RESULT", async () => {
+    mockGenerateDocument.mockResolvedValue("")
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await promise
+    await act(async () => {
+      await promise
+    })
+
+    expect(result.current.status).toBe("error")
+    expect(result.current.errorCode).toBe("LLM_EMPTY_RESULT")
+  })
+
+  it("LLM 抛出字符串错误（如网络错误）→ 透传到 errorCode", async () => {
+    mockGenerateDocument.mockRejectedValue("LLM_NETWORK_ERROR")
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await promise
+    await act(async () => {
+      await promise
+    })
+
+    expect(result.current.status).toBe("error")
+    expect(result.current.errorCode).toBe("LLM_NETWORK_ERROR")
+  })
+
+  it("generate 把 AbortSignal 透传给 generateDocument（供关闭时取消）", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await act(async () => {
+      await promise
+    })
+
+    expect(mockGenerateDocument).toHaveBeenCalledOnce()
+    const request = mockGenerateDocument.mock.calls[0][0] as {
+      signal?: AbortSignal
+    }
+    expect(request.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it("生成中 reset → abort 在途请求 → 状态回 idle，不写 store", async () => {
+    mockGenerateDocument.mockImplementation(
+      ({ signal }: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject("LLM_ABORTED"))
+        }),
+    )
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    expect(result.current.status).toBe("generating")
+
+    act(() => result.current.reset())
+    await act(async () => {
+      await promise
+    })
+
+    expect(result.current.status).toBe("idle")
+    expect(result.current.errorCode).toBeNull()
+    expect(useDocStore.getState().content).toBe("")
+  })
+
+  it("卸载（关闭对话框）后 generate 完成不写 store、不 setState", async () => {
+    let resolveFn!: (value: string) => void
+    mockGenerateDocument.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveFn = resolve
+        }),
+    )
+    const { result, unmount } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    expect(result.current.status).toBe("generating")
+
+    // 关闭对话框 → 面板卸载 → cleanup 置 mounted=false 并 abort
+    act(() => unmount())
+
+    act(() => {
+      resolveFn(VALID_LLM_OUTPUT)
+    })
+    await act(async () => {
+      await promise
+    })
+
+    expect(useDocStore.getState().content).toBe("")
+  })
+
+  it("reset 清空状态与 store", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("帮我写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await promise
+    await act(async () => {
+      await promise
+    })
+    expect(result.current.status).toBe("done")
+
+    act(() => result.current.reset())
+
+    expect(result.current.status).toBe("idle")
+    expect(result.current.prompt).toBe("")
+    expect(result.current.errorCode).toBeNull()
+    expect(result.current.issues).toEqual([])
+    expect(result.current.result).toBeNull()
+  })
+
+  it("生成超长标题时 issues 含 TITLE_TOO_LONG（格式自检结果透出）", async () => {
+    const longTitle = "关于进一步加强和完善新时代基层数字政府建设工作若干重大事项的通知"
+    mockGenerateDocument.mockResolvedValue(
+      JSON.stringify({
+        docType: "gongwen",
+        title: longTitle,
+        body: [{ type: "p", text: "正文内容" }],
+      })
+    )
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await promise
+    await act(async () => {
+      await promise
+    })
+
+    expect(result.current.status).toBe("done")
+    expect(result.current.issues.map((i) => i.code)).toContain("TITLE_TOO_LONG")
+    expect(useDocStore.getState().title).toBe(longTitle)
+  })
+})

@@ -1,0 +1,5 @@
+# 本机默认工具链是 x86_64-pc-windows-gnu，但 rust-mingw 缺 dlltool.exe（GNU binutils），
+# windows-sys/parking_lot_core 编不过。MSVC 工具链 + VS2022 BuildTools 的 cl.exe 完整可用，
+# 强制本项目用 MSVC，否则 `bun run tauri dev` 走 GNU 链路必然报 "dlltool.exe not found"。
+[build]
+target = "x86_64-pc-windows-msvc"
