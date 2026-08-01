@@ -1,7 +1,7 @@
 import { isTauri, trackedInvoke } from "./tauri"
 
-export const DEFAULT_MODEL = "gpt-4o-mini"
-export const DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+export const DEFAULT_MODEL = "deepseek-v4-flash"
+export const DEFAULT_ENDPOINT = "https://api.deepseek.com/chat/completions"
 const REQUEST_TIMEOUT_MS = 120_000
 const MAX_CONTENT_CHARS = 50_000
 

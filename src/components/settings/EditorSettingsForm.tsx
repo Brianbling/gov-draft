@@ -17,6 +17,8 @@ export interface EditorSettingsDraft {
   autoSaveInterval: number
   chromiumPath: string
   llmApiKey: string
+  llmEndpoint: string
+  llmModel: string
 }
 
 interface EditorSettingsFormProps {

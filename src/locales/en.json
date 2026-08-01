@@ -276,7 +276,11 @@
 			"llmGroup": "AI Service",
 			"llmApiKey": "API Key",
 			"llmApiKeyPlaceholder": "Paste your API key",
-			"llmApiKeyHint": "Stored locally only; not bundled into the installer. Leave empty to use the key baked in at build time."
+			"llmApiKeyHint": "Stored locally only; not bundled into the installer. Leave empty to use the key baked in at build time.",
+			"llmEndpoint": "Endpoint",
+			"llmEndpointPlaceholder": "https://api.deepseek.com/chat/completions",
+			"llmModel": "Model",
+			"llmModelPlaceholder": "deepseek-v4-flash"
 	},
 	"codemirror": {
 		"editorAria": "Official document Markdown editor",
