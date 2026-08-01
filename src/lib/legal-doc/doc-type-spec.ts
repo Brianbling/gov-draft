@@ -21,12 +21,44 @@ export interface DocTypeSpec {
   promptRequirement: string
   /** L2 文种规范规则（原 format-rules.ts 各文种规则 + 通用规则）。 */
   rules: DocFormatRequirement[]
+  /** 表单辅助模式下可编辑的要素子集（不含 body，正文走自然语言）。 */
+  formFields: FormField[]
+  /** 该文种默认是否加盖公章（GB/T 9704 §6.4 落款盖章惯例：决定/请示/批复/函等须盖章）。 */
+  sealDefault: boolean
 }
 
 export interface DocFormatRequirement {
   code: string
   field: string
   check: (doc: LegalDoc) => FormatIssue | null
+}
+
+/** 表单辅助模式下可编辑的要素子集（按 GB/T 9704 各文种要素构成，不含 body——正文走自然语言）。 */
+export type FormFieldKey =
+  | "title"
+  | "docNumber"
+  | "recipient"
+  | "issuer"
+  | "date"
+  | "securityLevel"
+  | "urgency"
+  | "attachments"
+  | "cc"
+  | "attendees"
+  | "absentees"
+  | "observers"
+  | "seal"
+
+export interface FormField {
+  /** 映射的 LegalDoc 字段名。 */
+  key: FormFieldKey
+  /** 中文标签（表单展示用）。 */
+  label: string
+  /** 控件类型：text 单行、array 多值、boolean 开关。 */
+  type: "text" | "array" | "boolean"
+  /** 该文种此要素是否必填（表单校验提示用）。 */
+  required?: boolean
+  placeholder?: string
 }
 
 function issue(
@@ -275,6 +307,121 @@ function buildUniversalRules(docType: DocType): DocFormatRequirement[] {
     rules.push(buildMinutesDecisionRule())
   }
   return rules
+}
+
+/** 表单字段构造器：单行文本。 */
+function textField(
+  key: FormFieldKey,
+  label: string,
+  opts?: { required?: boolean; placeholder?: string },
+): FormField {
+  return { key, label, type: "text", ...opts }
+}
+
+/** 表单字段构造器：多值数组。 */
+function arrayField(
+  key: FormFieldKey,
+  label: string,
+  opts?: { required?: boolean; placeholder?: string },
+): FormField {
+  return { key, label, type: "array", ...opts }
+}
+
+/** 表单字段构造器：布尔开关。 */
+function booleanField(
+  key: FormFieldKey,
+  label: string,
+  opts?: { required?: boolean },
+): FormField {
+  return { key, label, type: "boolean", ...opts }
+}
+
+/** 各文种表单可编辑要素 + 默认盖章（v2 表单辅助模式用）。 */
+function buildFormFields(docType: DocType): FormField[] {
+  switch (docType) {
+    case "request":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于…的请示" }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("recipient", "主送机关", { required: true, placeholder: "省人民政府" }),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        textField("attachments", "附件"),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "reply":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于同意…的批复" }),
+        textField("docNumber", "发文字号", { placeholder: "×政函〔2026〕×号" }),
+        textField("recipient", "主送机关", { required: true, placeholder: "市财政局" }),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        textField("attachments", "附件"),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "report":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于…的报告" }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("recipient", "主送机关", { placeholder: "市人民政府" }),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        textField("attachments", "附件"),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "minutes":
+      return [
+        textField("title", "标题", { required: true, placeholder: "××会议纪要" }),
+        arrayField("attendees", "出席人员", { required: true, placeholder: "张三（市委办）" }),
+        arrayField("absentees", "请假人员", { placeholder: "李四（市政府办）" }),
+        arrayField("observers", "列席人员", { placeholder: "王五（列席）" }),
+        textField("date", "会议日期", { placeholder: "2026-08-01" }),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "announcement":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于…的通告" }),
+        textField("docNumber", "发文字号", { placeholder: "×府发〔2026〕×号" }),
+        textField("issuer", "发布机关署名"),
+        textField("date", "发布日期", { placeholder: "2026-08-01" }),
+        textField("attachments", "附件"),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "letter":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于商请…的函" }),
+        textField("docNumber", "发文字号", { placeholder: "×政函〔2026〕×号" }),
+        textField("recipient", "主送机关", { placeholder: "××大学" }),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        textField("attachments", "附件"),
+        booleanField("seal", "加盖公章"),
+      ]
+    default:
+      return [
+        textField("title", "标题", { required: true }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("recipient", "主送机关"),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        textField("attachments", "附件"),
+        textField("cc", "抄送机关"),
+        booleanField("seal", "加盖公章"),
+      ]
+  }
+}
+
+/** 各文种默认盖章：决定/请示/批复/函/意见等依惯例盖章，通告/纪要/报告一般用版记替代。 */
+function buildSealDefault(docType: DocType): boolean {
+  switch (docType) {
+    case "decision":
+    case "request":
+    case "reply":
+    case "letter":
+      return true
+    default:
+      return false
+  }
 }
 
 /** 各文种专属规则（不含通用规则，通用规则由 buildUniversalRules 统一附加）。 */
@@ -527,6 +674,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("gongwen"),
       ...buildUniversalRules("gongwen"),
     ],
+    formFields: buildFormFields("gongwen"),
+    sealDefault: buildSealDefault("gongwen"),
   },
   decision: {
     docType: "decision",
@@ -537,6 +686,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("decision"),
       ...buildUniversalRules("decision"),
     ],
+    formFields: buildFormFields("decision"),
+    sealDefault: buildSealDefault("decision"),
   },
   opinion: {
     docType: "opinion",
@@ -547,6 +698,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("opinion"),
       ...buildUniversalRules("opinion"),
     ],
+    formFields: buildFormFields("opinion"),
+    sealDefault: buildSealDefault("opinion"),
   },
   request: {
     docType: "request",
@@ -557,6 +710,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("request"),
       ...buildUniversalRules("request"),
     ],
+    formFields: buildFormFields("request"),
+    sealDefault: buildSealDefault("request"),
   },
   report: {
     docType: "report",
@@ -567,6 +722,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("report"),
       ...buildUniversalRules("report"),
     ],
+    formFields: buildFormFields("report"),
+    sealDefault: buildSealDefault("report"),
   },
   reply: {
     docType: "reply",
@@ -577,6 +734,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("reply"),
       ...buildUniversalRules("reply"),
     ],
+    formFields: buildFormFields("reply"),
+    sealDefault: buildSealDefault("reply"),
   },
   letter: {
     docType: "letter",
@@ -587,6 +746,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("letter"),
       ...buildUniversalRules("letter"),
     ],
+    formFields: buildFormFields("letter"),
+    sealDefault: buildSealDefault("letter"),
   },
   minutes: {
     docType: "minutes",
@@ -597,6 +758,8 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("minutes"),
       ...buildUniversalRules("minutes"),
     ],
+    formFields: buildFormFields("minutes"),
+    sealDefault: buildSealDefault("minutes"),
   },
   announcement: {
     docType: "announcement",
@@ -607,5 +770,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
       ...buildDocTypeRules("announcement"),
       ...buildUniversalRules("announcement"),
     ],
+    formFields: buildFormFields("announcement"),
+    sealDefault: buildSealDefault("announcement"),
   },
 }
