@@ -24,6 +24,9 @@ interface SettingsState {
   chromiumPath: string
   /** 内测分发：LLM API key 存在本地 localStorage，不打包进前端 bundle。 */
   llmApiKey: string
+  /** LLM 服务地址/模型覆盖（空 = 使用代码默认 DeepSeek）。 */
+  llmEndpoint: string
+  llmModel: string
 
   updateEditorSettings: (settings: Partial<EditorSettings>) => void
   updatePreviewSettings: (settings: Partial<PreviewSettings>) => void
@@ -31,6 +34,8 @@ interface SettingsState {
   setAutoSaveInterval: (interval: number) => void
   setChromiumPath: (path: string) => void
   setLlmApiKey: (key: string) => void
+  setLlmEndpoint: (endpoint: string) => void
+  setLlmModel: (model: string) => void
   resetSettings: () => void
 }
 
@@ -49,6 +54,8 @@ const DEFAULT_AUTO_SAVE = true
 const DEFAULT_AUTO_SAVE_INTERVAL = 30000
 const DEFAULT_CHROMIUM_PATH = ""
 const DEFAULT_LLM_API_KEY = ""
+const DEFAULT_LLM_ENDPOINT = ""
+const DEFAULT_LLM_MODEL = ""
 
 /**
  * Bounds for the numeric settings, matching the min/max on their form inputs.
@@ -83,6 +90,8 @@ export const useSettingsStore = create<SettingsState>()(
       autoSaveInterval: DEFAULT_AUTO_SAVE_INTERVAL,
       chromiumPath: DEFAULT_CHROMIUM_PATH,
       llmApiKey: DEFAULT_LLM_API_KEY,
+      llmEndpoint: DEFAULT_LLM_ENDPOINT,
+      llmModel: DEFAULT_LLM_MODEL,
 
       updateEditorSettings(settings) {
         set((s) => {
@@ -141,6 +150,14 @@ export const useSettingsStore = create<SettingsState>()(
         set({ llmApiKey: key.trim() })
       },
 
+      setLlmEndpoint(endpoint) {
+        set({ llmEndpoint: endpoint.trim() })
+      },
+
+      setLlmModel(model) {
+        set({ llmModel: model.trim() })
+      },
+
       resetSettings() {
         set({
           editorSettings: { ...DEFAULT_EDITOR },
@@ -149,6 +166,8 @@ export const useSettingsStore = create<SettingsState>()(
           autoSaveInterval: DEFAULT_AUTO_SAVE_INTERVAL,
           chromiumPath: DEFAULT_CHROMIUM_PATH,
           llmApiKey: DEFAULT_LLM_API_KEY,
+          llmEndpoint: DEFAULT_LLM_ENDPOINT,
+          llmModel: DEFAULT_LLM_MODEL,
         })
       },
     }),

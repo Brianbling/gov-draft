@@ -130,8 +130,11 @@ export function useGenerateDocument() {
         prompt: userPrompt,
         // 集成点：endpoint/key/model 可经环境变量注入（dev 手测用）。
         // Vite 构建注入 import.meta.env.VITE_*；Node/vitest 用 process.env.EZDOC_*。
+        // 运行期：设置页可覆盖 endpoint/model/key（localStorage），优先级最高。
         endpoint:
-          import.meta.env.VITE_LLM_ENDPOINT || getEzdocEnv("EZDOC_LLM_ENDPOINT"),
+          useSettingsStore.getState().llmEndpoint ||
+          import.meta.env.VITE_LLM_ENDPOINT ||
+          getEzdocEnv("EZDOC_LLM_ENDPOINT"),
         // 内测分发：优先设置页保存的 key（localStorage，不打包进 bundle），
         // 其次是 VITE_*（构建注入）/ EZDOC_*（Node/vitest 环境变量）。
         apiKey:
@@ -139,7 +142,9 @@ export function useGenerateDocument() {
           import.meta.env.VITE_LLM_API_KEY ||
           getEzdocEnv("EZDOC_API_KEY"),
         model:
-          import.meta.env.VITE_LLM_MODEL || getEzdocEnv("EZDOC_LLM_MODEL"),
+          useSettingsStore.getState().llmModel ||
+          import.meta.env.VITE_LLM_MODEL ||
+          getEzdocEnv("EZDOC_LLM_MODEL"),
         signal: abortController.signal,
       })
       if (!raw || raw.trim().length === 0) throw new Error("LLM_EMPTY_RESULT")

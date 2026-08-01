@@ -10,7 +10,8 @@ interface AiSettingsFormProps {
 /**
  * Dedicated "AI 服务" settings section: the LLM API key is the must-configure
  * step on first run, so it gets its own nav entry instead of being buried at
- * the bottom of the editor settings form.
+ * the bottom of the editor settings form. Endpoint/model are optional overrides
+ * (blank = built-in DeepSeek defaults).
  */
 export function AiSettingsForm({ draft, onChange }: AiSettingsFormProps) {
   const { t } = useTranslation()
@@ -33,6 +34,28 @@ export function AiSettingsForm({ draft, onChange }: AiSettingsFormProps) {
           <span className="text-[11px] text-muted-foreground/70">
             {t("settings.llmApiKeyHint")}
           </span>
+        </label>
+        <label className="grid gap-1 text-xs text-muted-foreground">
+          <span>{t("settings.llmEndpoint")}</span>
+          <Input
+            type="text"
+            className="flex-1"
+            placeholder={t("settings.llmEndpointPlaceholder")}
+            value={draft.llmEndpoint}
+            onChange={(e) =>
+              onChange({ ...draft, llmEndpoint: e.target.value })
+            }
+          />
+        </label>
+        <label className="grid gap-1 text-xs text-muted-foreground">
+          <span>{t("settings.llmModel")}</span>
+          <Input
+            type="text"
+            className="flex-1"
+            placeholder={t("settings.llmModelPlaceholder")}
+            value={draft.llmModel}
+            onChange={(e) => onChange({ ...draft, llmModel: e.target.value })}
+          />
         </label>
       </section>
     </div>

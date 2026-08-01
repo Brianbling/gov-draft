@@ -276,7 +276,11 @@
 			"llmGroup": "AI 服务",
 			"llmApiKey": "API Key",
 			"llmApiKeyPlaceholder": "粘贴你的 API Key",
-			"llmApiKeyHint": "仅保存在本机，不会写入安装包。留空则使用构建时的内置密钥。"
+			"llmApiKeyHint": "仅保存在本机，不会写入安装包。留空则使用构建时的内置密钥。",
+			"llmEndpoint": "服务地址（Endpoint）",
+			"llmEndpointPlaceholder": "https://api.deepseek.com/chat/completions",
+			"llmModel": "模型（Model）",
+			"llmModelPlaceholder": "deepseek-v4-flash"
 	},
 	"codemirror": {
 		"editorAria": "公文 Markdown 编辑器",

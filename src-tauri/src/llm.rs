@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
-const DEFAULT_ENDPOINT: &str = "https://api.openai.com/v1/chat/completions";
-const DEFAULT_MODEL: &str = "gpt-4o-mini";
+const DEFAULT_ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
+const DEFAULT_MODEL: &str = "deepseek-v4-flash";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const API_KEY_ENV_VAR: &str = "EZDOC_API_KEY";
 
