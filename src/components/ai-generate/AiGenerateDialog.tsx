@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Dialog } from "radix-ui"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -13,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import {
@@ -70,6 +72,26 @@ const ISSUE_VISUAL: Record<
 /** 表单错误码 → i18n key（复用错误文案区）。 */
 function formErrorKey(code: string): string {
   return code.startsWith("FORM_REQUIRED_") ? FORM_REQUIRED_I18N : code
+}
+
+/** 文种 → 描述区引导文案 key。placeholder 提示"写什么"，hint 提示"怎么组织"。 */
+function promptGuideKey(docType: DocType, part: "placeholder" | "hint") {
+  return `aiGenerate.prompt.${docType}.${part}`
+}
+
+/** 分区小标题：描述区/表单区共用同风格，形成一致的卡片式分区视觉。 */
+function SectionLabel({
+  htmlFor,
+  children,
+}: {
+  htmlFor?: string
+  children: ReactNode
+}) {
+  return (
+    <Label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
+      {children}
+    </Label>
+  )
 }
 
 /** 表单值读取：array 字段存顿号分隔字符串，提交时按 顿号/逗号 拆成数组。 */
@@ -271,25 +293,27 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
           </Select>
         </div>
 
-        <div className="grid gap-1.5">
-          <Label htmlFor="ai-generate-prompt">
+        <div className="grid gap-2">
+          <SectionLabel htmlFor="ai-generate-prompt">
             {t("aiGenerate.promptLabel")}
-          </Label>
-          <Input
-            id="ai-generate-prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={t("aiGenerate.promptPlaceholder")}
-            disabled={isGenerating}
-          />
-          <p className="text-xs text-muted-foreground">
-            {t("aiGenerate.promptHint")}
-          </p>
+          </SectionLabel>
+          <div className="grid gap-2 rounded-2xl border border-border bg-muted/20 p-3">
+            <Textarea
+              id="ai-generate-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder={t(promptGuideKey(docType, "placeholder"))}
+              disabled={isGenerating}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t(promptGuideKey(docType, "hint"))}
+            </p>
+          </div>
         </div>
 
         {/* 生成前：表单辅助约束；生成后：要素编辑面板（同一组 FieldControl，仅 onChange 语义不同） */}
-        <div className="grid gap-1.5">
-          <Label>{t(isDone ? "aiGenerate.editFieldsLabel" : "aiGenerate.formFieldsLabel")}</Label>
+        <div className="grid gap-2">
+          <SectionLabel>{t(isDone ? "aiGenerate.editFieldsLabel" : "aiGenerate.formFieldsLabel")}</SectionLabel>
           <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-3">
             {(isDone ? editingFields : fields).map((field) => (
               <FieldControl

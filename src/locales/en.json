@@ -83,8 +83,46 @@
 			"report": "Report"
 		},
 		"promptLabel": "Description",
-		"promptPlaceholder": "Describe your document, e.g. the municipal government's implementation plan for waste sorting…",
-		"promptHint": "Describe it in plain language, e.g. “Draft a notice on advancing the digital transformation of the city.”",
+		"promptPlaceholder": "Describe your document in plain language, e.g. the municipal government's implementation plan for waste sorting…",
+		"promptHint": "State the subject, basis and key requirements in one or two sentences; optionally fill the element fields below as hard constraints.",
+		"prompt": {
+			"gongwen": {
+				"placeholder": "e.g. The municipal government's implementation plan for waste sorting, specifying each department's duties and deadlines…",
+				"hint": "A notice (通知) issues rules, forwards documents, or arranges work. State the purpose and concrete requirements."
+			},
+			"decision": {
+				"placeholder": "e.g. A decision commending a unit, specifying the honoree, the title awarded and the reward standard…",
+				"hint": "A decision (决定) arranges important matters, awards or removals. State the decision and the execution requirements."
+			},
+			"opinion": {
+				"placeholder": "e.g. An opinion on advancing the city's digital transformation, proposing principles and concrete measures…",
+				"hint": "An opinion (意见) proposes handling measures or working suggestions. State the problem and the measures you intend to take."
+			},
+			"request": {
+				"placeholder": "e.g. Requesting a 500,000-yuan special fund because flood-prevention supplies are insufficient, stating the use and rationale…",
+				"hint": "A request (请示) asks a superior organ for instructions or approval; it must have a single recipient. State the matter, rationale and recommendation."
+			},
+			"report": {
+				"placeholder": "e.g. A report on work safety in the first half of the year, covering the overall situation, existing problems and next steps…",
+				"hint": "A report (报告) reports work to a superior organ. Describe the content; avoid request-style closings."
+			},
+			"reply": {
+				"placeholder": "e.g. Agreeing to a unit's request to purchase equipment, citing the incoming request and giving a clear reply…",
+				"hint": "A reply (批复) answers a subordinate's request and must have a single recipient. State a clear answer to the incoming request."
+			},
+			"letter": {
+				"placeholder": "e.g. Requesting a university's cooperation on industry-academia research, stating the collaboration content and contact matters…",
+				"hint": "A letter (函) is used between unrelated organs to consult, inquire or reply. State the matter in a consultative tone."
+			},
+			"minutes": {
+				"placeholder": "e.g. Minutes of the city's work-safety conference, recording time, venue, attendees and decisions…",
+				"hint": "Minutes (会议纪要) record the meeting and its decisions. Fill in attendees/absentees/observers in the element fields below."
+			},
+			"announcement": {
+				"placeholder": "e.g. An announcement on implementing traffic restrictions downtown, stating the matter, time, scope and requirements…",
+				"hint": "An announcement (通告/公告) is issued to the public with no recipient. State the matter and its scope of application."
+			}
+		},
 		"formFieldsLabel": "Document elements (optional; used as generation constraints)",
 		"editFieldsLabel": "Document elements (generated; edits update the editor in real time)",
 		"sealLabel": "Require official seal",

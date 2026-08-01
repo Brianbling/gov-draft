@@ -336,9 +336,41 @@ function booleanField(
   return { key, label, type: "boolean", ...opts }
 }
 
-/** 各文种表单可编辑要素 + 默认盖章（v2 表单辅助模式用）。 */
+/**
+ * 各文种表单可编辑要素（v2 表单辅助模式用）。
+ * 按 GB/T 9704 各文种要素构成差异化：gongwen 要素全（通用下行文）；decision 决定事项靠正文，
+ * 不设附件/抄送；opinion 意见可抄送相关单位；request/reply 主送必填且单一；report 汇报性通常
+ * 不盖章；letter 平行文要素全；minutes 名单类；announcement 面向社会无主送机关。
+ */
 function buildFormFields(docType: DocType): FormField[] {
   switch (docType) {
+    case "gongwen":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于…的通知" }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("recipient", "主送机关", { placeholder: "各区人民政府，市政府各委、办、局" }),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        arrayField("attachments", "附件"),
+        arrayField("cc", "抄送机关"),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "decision":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于…的决定" }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("recipient", "主送机关"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "opinion":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于…的意见" }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("recipient", "主送机关"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        arrayField("cc", "抄送机关"),
+      ]
     case "request":
       return [
         textField("title", "标题", { required: true, placeholder: "关于…的请示" }),
@@ -349,6 +381,15 @@ function buildFormFields(docType: DocType): FormField[] {
         arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
+    case "report":
+      return [
+        textField("title", "标题", { required: true, placeholder: "关于…的报告" }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("recipient", "主送机关", { placeholder: "市人民政府" }),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        arrayField("attachments", "附件"),
+      ]
     case "reply":
       return [
         textField("title", "标题", { required: true, placeholder: "关于同意…的批复" }),
@@ -356,14 +397,13 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("recipient", "主送机关", { required: true, placeholder: "市财政局" }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
-    case "report":
+    case "letter":
       return [
-        textField("title", "标题", { required: true, placeholder: "关于…的报告" }),
-        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
-        textField("recipient", "主送机关", { placeholder: "市人民政府" }),
+        textField("title", "标题", { required: true, placeholder: "关于商请…的函" }),
+        textField("docNumber", "发文字号", { placeholder: "×政函〔2026〕×号" }),
+        textField("recipient", "主送机关", { placeholder: "××大学" }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
         arrayField("attachments", "附件"),
@@ -385,27 +425,6 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("issuer", "发布机关署名"),
         textField("date", "发布日期", { placeholder: "2026-08-01" }),
         arrayField("attachments", "附件"),
-        booleanField("seal", "加盖公章"),
-      ]
-    case "letter":
-      return [
-        textField("title", "标题", { required: true, placeholder: "关于商请…的函" }),
-        textField("docNumber", "发文字号", { placeholder: "×政函〔2026〕×号" }),
-        textField("recipient", "主送机关", { placeholder: "××大学" }),
-        textField("issuer", "发文机关署名"),
-        textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        arrayField("attachments", "附件"),
-        booleanField("seal", "加盖公章"),
-      ]
-    default:
-      return [
-        textField("title", "标题", { required: true }),
-        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
-        textField("recipient", "主送机关"),
-        textField("issuer", "发文机关署名"),
-        textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        arrayField("attachments", "附件"),
-        arrayField("cc", "抄送机关"),
         booleanField("seal", "加盖公章"),
       ]
   }

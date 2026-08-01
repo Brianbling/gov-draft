@@ -90,4 +90,66 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
       }
     }
   })
+
+  it("每种文种的要素集互不相同（不再共用 default 兜底，去掉雷同字段）", () => {
+    // 序列化 key+required 作为"填入项"语义：request 与 letter 字段同名但主送必填不同，
+    // 仍算两种不同的填入项；此前 request/reply/report/letter 四者完全雷同、另有三个文种落 default。
+    const signatures = DOC_TYPES.map((docType) =>
+      DOC_TYPE_SPECS[docType].formFields
+        .map((f) => `${f.key}:${f.required ? "req" : "opt"}`)
+        .join(","),
+    )
+    expect(new Set(signatures).size).toBe(DOC_TYPES.length)
+  })
+
+  it("gongwen 要素全（含附件/抄送/盖章）", () => {
+    const keys = DOC_TYPE_SPECS.gongwen.formFields.map((f) => f.key)
+    expect(keys).toEqual([
+      "title",
+      "docNumber",
+      "recipient",
+      "issuer",
+      "date",
+      "attachments",
+      "cc",
+      "seal",
+    ])
+  })
+
+  it("decision 决定事项靠正文，不设附件/抄送", () => {
+    const keys = DOC_TYPE_SPECS.decision.formFields.map((f) => f.key)
+    expect(keys).toContain("title")
+    expect(keys).toContain("date")
+    expect(keys).toContain("seal")
+    expect(keys).not.toContain("attachments")
+    expect(keys).not.toContain("cc")
+  })
+
+  it("opinion 意见可抄送相关单位，默认不盖章故不设盖章开关", () => {
+    const keys = DOC_TYPE_SPECS.opinion.formFields.map((f) => f.key)
+    expect(keys).toContain("cc")
+    expect(keys).not.toContain("seal")
+    expect(keys).not.toContain("attachments")
+  })
+
+  it("report 汇报性公文通常不盖章，不设盖章开关", () => {
+    const keys = DOC_TYPE_SPECS.report.formFields.map((f) => f.key)
+    expect(keys).toContain("attachments")
+    expect(keys).not.toContain("seal")
+    expect(keys).not.toContain("cc")
+  })
+
+  it("request/reply 主送机关必填（单一主送），reply 不设附件", () => {
+    const requestRecipient = DOC_TYPE_SPECS.request.formFields.find(
+      (f) => f.key === "recipient",
+    )
+    const replyRecipient = DOC_TYPE_SPECS.reply.formFields.find(
+      (f) => f.key === "recipient",
+    )
+    expect(requestRecipient?.required).toBe(true)
+    expect(replyRecipient?.required).toBe(true)
+    expect(
+      DOC_TYPE_SPECS.reply.formFields.map((f) => f.key),
+    ).not.toContain("attachments")
+  })
 })
