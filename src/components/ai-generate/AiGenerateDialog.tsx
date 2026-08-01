@@ -24,12 +24,25 @@ import {
 } from "@/components/ui/select"
 import {
   useGenerateDocument,
-  errorCodeToI18nKey,
 } from "@/hooks/use-generate-document"
-import { DOC_TYPES, type DocType } from "@/lib/legal-doc"
+import {
+  DOC_TYPES,
+  type DocType,
+} from "@/lib/legal-doc"
+import {
+  DOC_TYPE_SPECS,
+  type FormField,
+} from "@/lib/legal-doc/doc-type-spec"
 import { severityOfIssue, type IssueSeverity } from "./issue-severity"
+import {
+  hasFormValues,
+  type FormValues,
+} from "@/lib/legal-doc/form-adaptor"
 
 const DOC_TYPE_ITEMS: DocType[] = [...DOC_TYPES]
+
+/** 必填要素缺失时的表单校验错误（非 LLM 调用错误）。 */
+const FORM_REQUIRED_I18N = "aiGenerate.errors.formRequired"
 
 interface AiGenerateDialogProps {
   open: boolean
@@ -54,6 +67,35 @@ const ISSUE_VISUAL: Record<
   },
 }
 
+/** 表单错误码 → i18n key（复用错误文案区）。 */
+function formErrorKey(code: string): string {
+  return code.startsWith("FORM_REQUIRED_") ? FORM_REQUIRED_I18N : code
+}
+
+/** 表单值读取：array 字段存顿号分隔字符串，提交时按 顿号/逗号 拆成数组。 */
+function formValueString(values: FormValues, field: FormField): string {
+  if (field.type === "array") {
+    const arr = values[field.key] as string[] | undefined
+    return arr ? arr.join("、") : ""
+  }
+  return (values[field.key] as string | undefined) ?? ""
+}
+
+function setFormValueString(
+  values: FormValues,
+  field: FormField,
+  next: string,
+): FormValues {
+  if (field.type === "array") {
+    const parts = next
+      .split(/[，,、;；]/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+    return { ...values, [field.key]: parts.length > 0 ? parts : [] }
+  }
+  return { ...values, [field.key]: next }
+}
+
 function AiGeneratePanel({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const {
@@ -61,8 +103,8 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
     setPrompt,
     docType,
     setDocType,
-    seal,
-    setSeal,
+    formValues,
+    setFormValues,
     status,
     errorCode,
     issues,
@@ -70,8 +112,17 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
     reset,
   } = useGenerateDocument()
 
+  const fields = DOC_TYPE_SPECS[docType].formFields
+
   const handleGenerate = async () => {
     await generate()
+  }
+
+  // 切换文种时重置表单：不同文种的要素集与盖章默认不同，
+  // 残留的旧文种值会误触发必填校验（hasFormValues 只看有没有值，不看是否属于当前文种）。
+  const handleDocTypeChange = (next: DocType) => {
+    setDocType(next)
+    setFormValues({})
   }
 
   const handleClose = () => {
@@ -82,6 +133,9 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
   const isGenerating = status === "generating"
   const isDone = status === "done"
   const isError = status === "error"
+  // 表单已填写（任一要素非空）或自然语言描述非空时，生成按钮才可用；
+  // 必填要素缺失时由 hook 校验拦截并给出错误提示。
+  const hasContent = prompt.trim().length > 0 || hasFormValues(formValues)
 
   return (
     <>
@@ -121,7 +175,7 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
           <Label>{t("aiGenerate.docTypeLabel")}</Label>
           <Select
             value={docType}
-            onValueChange={(v) => setDocType(v as DocType)}
+            onValueChange={(v) => handleDocTypeChange(v as DocType)}
             disabled={isGenerating}
           >
             <SelectTrigger size="sm" className="w-full">
@@ -153,19 +207,64 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="ai-generate-seal"
-            checked={seal}
-            onCheckedChange={(checked) => setSeal(checked === true)}
-            disabled={isGenerating}
-          />
-          <Label
-            htmlFor="ai-generate-seal"
-            className="text-sm leading-none"
-          >
-            {t("aiGenerate.sealLabel")}
-          </Label>
+        <div className="grid gap-1.5">
+          <Label>{t("aiGenerate.formFieldsLabel")}</Label>
+          <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-3">
+            {fields.map((field) => {
+              if (field.type === "boolean") {
+                const checked =
+                  formValues[field.key] === true
+                return (
+                  <div
+                    key={field.key}
+                    className="flex items-center gap-2"
+                  >
+                    <Checkbox
+                      id={`ai-generate-${field.key}`}
+                      checked={checked}
+                      onCheckedChange={(c) =>
+                        setFormValues({
+                          ...formValues,
+                          [field.key]: c === true,
+                        })
+                      }
+                      disabled={isGenerating}
+                    />
+                    <Label
+                      htmlFor={`ai-generate-${field.key}`}
+                      className="text-sm leading-none"
+                    >
+                      {field.label}
+                    </Label>
+                  </div>
+                )
+              }
+              return (
+                <div key={field.key} className="grid gap-1.5">
+                  <Label
+                    htmlFor={`ai-generate-${field.key}`}
+                    className="text-sm"
+                  >
+                    {field.label}
+                    {field.required && (
+                      <span className="ml-0.5 text-destructive">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    id={`ai-generate-${field.key}`}
+                    value={formValueString(formValues, field)}
+                    onChange={(e) =>
+                      setFormValues(
+                        setFormValueString(formValues, field, e.target.value)
+                      )
+                    }
+                    placeholder={field.placeholder}
+                    disabled={isGenerating}
+                  />
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {isError && (
@@ -175,14 +274,14 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
                 icon={AlertCircleIcon}
                 className="mt-0.5 size-3.5 shrink-0"
               />
-              <span>{t(errorCodeToI18nKey(errorCode ?? "UNKNOWN"))}</span>
+              <span>{t(formErrorKey(errorCode ?? "UNKNOWN"))}</span>
             </p>
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={prompt.trim().length === 0}
+                disabled={!hasContent}
                 onClick={handleGenerate}
               >
                 <HugeiconsIcon
@@ -266,7 +365,7 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
             <Button
               type="button"
               size="sm"
-              disabled={isGenerating || prompt.trim().length === 0}
+              disabled={isGenerating || !hasContent}
               onClick={handleGenerate}
             >
               {isGenerating ? (

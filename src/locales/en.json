@@ -85,6 +85,7 @@
 		"promptLabel": "Description",
 		"promptPlaceholder": "Describe your document, e.g. the municipal government's implementation plan for waste sorting…",
 		"promptHint": "Describe it in plain language, e.g. “Draft a notice on advancing the digital transformation of the city.”",
+		"formFieldsLabel": "Document elements (optional; used as generation constraints)",
 		"sealLabel": "Require official seal",
 		"success": "Written to editor",
 		"issuesTitle": "Format Check",
@@ -101,7 +102,8 @@
 			"legalDocParseFailed": "Failed to parse the generated document. Please retry.",
 			"legalDocUnsupportedType": "Unsupported document type.",
 			"legalDocMissingTitle": "The generated document has no title.",
-			"legalDocEmptyBody": "The generated document body is empty."
+			"legalDocEmptyBody": "The generated document body is empty.",
+			"formRequired": "Please fill in the required document elements before generating."
 		}
 	},
 	"exportDialog": {

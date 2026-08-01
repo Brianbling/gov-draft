@@ -275,3 +275,117 @@ describe("useGenerateDocument 状态流", () => {
     expect(useDocStore.getState().title).toBe(longTitle)
   })
 })
+
+describe("useGenerateDocument · 表单辅助路径", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useDocStore.getState().reset()
+  })
+
+  it("填写表单要素 → prompt 追加表单约束 → 生成成功", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => {
+      result.current.setFormValues({
+        title: "关于推进垃圾分类工作的通知",
+        recipient: "各区人民政府",
+      })
+    })
+
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await promise
+    await act(async () => {
+      await promise
+    })
+
+    expect(result.current.status).toBe("done")
+    const sentPrompt = mockGenerateDocument.mock.calls[0][0].prompt as string
+    expect(sentPrompt).toContain("已确定的公文要素")
+    expect(sentPrompt).toContain("标题=关于推进垃圾分类工作的通知")
+    expect(sentPrompt).toContain("主送机关=各区人民政府")
+  })
+
+  it("表单已填写但缺必填要素 → status=error，errorCode=FORM_REQUIRED_*，不调 LLM", async () => {
+    const { result } = renderHook(() => useGenerateDocument())
+
+    // request 的标题/主送机关必填；填了标题但缺主送机关 → 拦截
+    act(() => {
+      result.current.setDocType("request")
+      result.current.setFormValues({ title: "关于购置办公设备的请示" })
+    })
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await act(async () => {
+      await promise
+    })
+
+    expect(result.current.status).toBe("error")
+    expect(result.current.errorCode).toBe("FORM_REQUIRED_REQUEST")
+    expect(mockGenerateDocument).not.toHaveBeenCalled()
+  })
+
+  it("request 未触碰盖章 → 沿用 sealDefault=true，prompt 含盖章要求", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => {
+      result.current.setDocType("request")
+      result.current.setFormValues({
+        title: "关于购置办公设备的请示",
+        recipient: "省人民政府",
+      })
+    })
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await promise
+    await act(async () => {
+      await promise
+    })
+
+    const sentPrompt = mockGenerateDocument.mock.calls[0][0].prompt as string
+    expect(sentPrompt).toContain("该公文需要加盖公章")
+  })
+
+  it("显式取消盖章 → 覆盖文种默认，prompt 不含盖章要求", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => {
+      result.current.setDocType("request")
+      result.current.setFormValues({
+        title: "关于购置办公设备的请示",
+        recipient: "省人民政府",
+        seal: false,
+      })
+    })
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await promise
+    await act(async () => {
+      await promise
+    })
+
+    const sentPrompt = mockGenerateDocument.mock.calls[0][0].prompt as string
+    expect(sentPrompt).not.toContain("该公文需要加盖公章")
+    expect(sentPrompt).toContain("seal=false")
+  })
+
+  it("reset 清空表单值", async () => {
+    const { result } = renderHook(() => useGenerateDocument())
+    act(() => result.current.setFormValues({ recipient: "省人民政府" }))
+    expect(result.current.formValues).toEqual({ recipient: "省人民政府" })
+
+    act(() => result.current.reset())
+    expect(result.current.formValues).toEqual({})
+  })
+})

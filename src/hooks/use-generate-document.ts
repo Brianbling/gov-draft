@@ -11,6 +11,13 @@ import {
   repairsToIssues,
 } from "@/lib/legal-doc"
 import type { DocType, LegalDoc, FormatIssue } from "@/lib/legal-doc"
+import {
+  buildFormRequirement,
+  validateFormRequired,
+  hasFormValues,
+  type FormValues,
+} from "@/lib/legal-doc/form-adaptor"
+import { DOC_TYPE_SPECS } from "@/lib/legal-doc/doc-type-spec"
 
 export type GenerateStatus = "idle" | "generating" | "done" | "error"
 
@@ -68,7 +75,9 @@ export interface GenerateResult {
 export function useGenerateDocument() {
   const [prompt, setPrompt] = useState("")
   const [docType, setDocType] = useState<DocType>(DOC_TYPE_DEFAULT)
-  const [seal, setSeal] = useState(false)
+  // 表单辅助模式：按文种 formFields 填写的结构化要素。未触碰时保持 undefined，
+  // 生成的 prompt 约束只包含用户确实填过的字段。
+  const [formValues, setFormValues] = useState<FormValues>({})
   const [status, setStatus] = useState<GenerateStatus>("idle")
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [result, setResult] = useState<LegalDoc | null>(null)
@@ -89,6 +98,16 @@ export function useGenerateDocument() {
   }, [])
 
   const generate = useCallback(async (): Promise<GenerateResult | null> => {
+    // 表单必填校验：仅在用户实际填写了表单时强制（纯自然语言路径不设门槛，
+    // title/主送机关等交由 LLM 从描述推断，与 v1 行为一致）。
+    if (hasFormValues(formValues)) {
+      const missing = validateFormRequired(docType, formValues)
+      if (missing.length > 0) {
+        setStatus("error")
+        setErrorCode(`FORM_REQUIRED_${docType.toUpperCase()}`)
+        return null
+      }
+    }
     const abortController = new AbortController()
     abortRef.current = abortController
     setStatus("generating")
@@ -96,7 +115,14 @@ export function useGenerateDocument() {
     setResult(null)
     setIssues([])
     try {
-      const userPrompt = buildUserPrompt(`${docType}\n${prompt}`, { seal })
+      const formRequirement = buildFormRequirement(docType, formValues)
+      // 表单值（硬约束）拼在自然语言描述之后；formRequirement 为空时与纯自然语言路径行为一致。
+      const mergedPrompt = formRequirement
+        ? `${docType}\n${prompt}\n${formRequirement}`
+        : `${docType}\n${prompt}`
+      // 用户显式勾选盖章 → 覆盖文种默认；未触碰（undefined）→ 沿用 sealDefault。
+      const effectiveSeal = formValues.seal ?? DOC_TYPE_SPECS[docType].sealDefault
+      const userPrompt = buildUserPrompt(mergedPrompt, { seal: effectiveSeal })
       const raw = await generateDocument({
         prompt: userPrompt,
         // 集成点：endpoint/key/model 可经环境变量注入（dev 手测用）。
@@ -138,13 +164,13 @@ export function useGenerateDocument() {
     } finally {
       abortRef.current = null
     }
-  }, [docType, prompt, seal])
+  }, [docType, prompt, formValues])
 
   const reset = useCallback(() => {
     abortRef.current?.abort()
     setPrompt("")
     setDocType(DOC_TYPE_DEFAULT)
-    setSeal(false)
+    setFormValues({})
     setStatus("idle")
     setErrorCode(null)
     setResult(null)
@@ -156,8 +182,8 @@ export function useGenerateDocument() {
     setPrompt,
     docType,
     setDocType,
-    seal,
-    setSeal,
+    formValues,
+    setFormValues,
     status,
     errorCode,
     issues,
