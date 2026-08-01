@@ -76,4 +76,18 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
       expect(typeof DOC_TYPE_SPECS[docType].sealDefault).toBe("boolean")
     }
   })
+
+  it("attachments/cc 的控件类型与 IR 数组一致（单一 IR：表单值形状与 LegalDoc 对齐）", () => {
+    // LegalDocSchema 里 attachments/cc 是 string[]；若 formFields 声明为 text，
+    // 表单会把数组当字符串存，写回时破坏 IR（且 buildFormRequirement 的 join 会崩）。
+    for (const docType of DOC_TYPES) {
+      for (const key of ["attachments", "cc"] as const) {
+        const field = DOC_TYPE_SPECS[docType].formFields.find(
+          (f) => f.key === key,
+        )
+        if (!field) continue
+        expect(field.type, `${docType}.${key}`).toBe("array")
+      }
+    }
+  })
 })

@@ -15,6 +15,8 @@ import {
   buildFormRequirement,
   validateFormRequired,
   hasFormValues,
+  docToFormValues,
+  applyFormValuesToDoc,
   type FormValues,
 } from "@/lib/legal-doc/form-adaptor"
 import { DOC_TYPE_SPECS } from "@/lib/legal-doc/doc-type-spec"
@@ -147,6 +149,9 @@ export function useGenerateDocument() {
       useDocStore.getState().setTitle(doc.title)
       const nextIssues = [...repairsToIssues(repairs), ...reviewDocument(doc)]
       setResult(doc)
+      // 生成成功后把 LegalDoc 拍平回 formValues：对话框的要素区从"生成前约束表单"
+      // 切换为"生成后编辑面板"，初值即 AI 实际产出，用户可直接改。
+      setFormValues(docToFormValues(doc))
       setIssues(nextIssues)
       setStatus("done")
       return { markdown, title: doc.title }
@@ -177,6 +182,30 @@ export function useGenerateDocument() {
     setIssues([])
   }, [])
 
+  /**
+   * 要素编辑面板的回填入口（#29）：把面板的 FormValues 应用到最近一次生成的 LegalDoc，
+   * 重新跑 toMarkdown 实时回填编辑器。面板只编辑已生成文档的要素子集，不改正文，
+   * 因此无需再走 LLM；正文若被用户在编辑器里改过，这里只重建要素区，其余 markdown
+   * 由编辑器持有不受影响。返回 null 表示无可编辑结果（尚未生成成功过）。
+   * 不回写 formValues：面板的输入状态由 Input 自身维护，若这里按 result 拍平回写，
+   * 会在每次击键后把用户正在输入的值重排（trim/分隔符拆分），造成光标跳动。
+   */
+  const applyEdit = useCallback(
+    (values: FormValues): string | null => {
+      if (!result) return null
+      const next = applyFormValuesToDoc(result, values)
+      const markdown = toMarkdown(next)
+      useDocStore.getState().setContent(markdown)
+      useDocStore.getState().setTitle(next.title)
+      setResult(next)
+      // 要素改动可能消除/引入格式问题（如修正文号消除 DOC_NUMBER_YEAR_MISSING），
+      // 用编辑后的 doc 重跑一遍格式自检，让"格式自检"面板与所见一致。
+      setIssues(reviewDocument(next))
+      return markdown
+    },
+    [result],
+  )
+
   return {
     prompt,
     setPrompt,
@@ -189,6 +218,7 @@ export function useGenerateDocument() {
     issues,
     result,
     generate,
+    applyEdit,
     reset,
   }
 }

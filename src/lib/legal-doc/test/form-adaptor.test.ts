@@ -3,6 +3,8 @@ import {
   buildFormRequirement,
   validateFormRequired,
   hasFormValues,
+  docToFormValues,
+  applyFormValuesToDoc,
   type FormValues,
 } from "../form-adaptor"
 import { DOC_TYPE_SPECS } from "../doc-type-spec"
@@ -143,5 +145,173 @@ describe("formFields 与 sealDefault 覆盖全部文种", () => {
     expect(DOC_TYPE_SPECS.letter.sealDefault).toBe(true)
     expect(DOC_TYPE_SPECS.announcement.sealDefault).toBe(false)
     expect(DOC_TYPE_SPECS.minutes.sealDefault).toBe(false)
+  })
+})
+
+function buildDoc(overrides: Partial<import("../types").LegalDoc> = {}) {
+  return {
+    docType: "gongwen" as const,
+    title: "关于推进垃圾分类工作的通知",
+    body: [{ type: "p" as const, text: "正文" }],
+    ...overrides,
+  }
+}
+
+describe("docToFormValues · LegalDoc → 编辑面板 FormValues", () => {
+  it("按该文种 formFields 拍平为 FormValues（array 转数组、boolean 转开关）", () => {
+    const values = docToFormValues(
+      buildDoc({
+        docType: "gongwen",
+        title: "关于推进垃圾分类工作的通知",
+        docNumber: "国发〔2026〕12号",
+        recipient: "各区人民政府：",
+        issuer: "市人民政府",
+        date: "2026-07-31",
+        attachments: ["任务清单"],
+        cc: ["市委办"],
+        seal: true,
+      }),
+    )
+    expect(values.title).toBe("关于推进垃圾分类工作的通知")
+    expect(values.docNumber).toBe("国发〔2026〕12号")
+    expect(values.recipient).toBe("各区人民政府：")
+    expect(values.issuer).toBe("市人民政府")
+    expect(values.date).toBe("2026-07-31")
+    expect(values.attachments).toEqual(["任务清单"])
+    expect(values.cc).toEqual(["市委办"])
+    expect(values.seal).toBe(true)
+  })
+
+  it("缺失字段归一为 undefined/空占位（面板显示空，不残留脏值）", () => {
+    const values = docToFormValues(buildDoc())
+    expect(values.docNumber).toBe("")
+    expect(values.attachments).toEqual([])
+    expect(values.cc).toEqual([])
+  })
+
+  it("未盖章时 seal 归一为 false（开关双态可切换）", () => {
+    const values = docToFormValues(buildDoc({ docType: "gongwen", seal: false }))
+    expect(values.seal).toBe(false)
+  })
+
+  it("只拍平该文种 formFields 定义过的字段（纪要名单不混进普通通知）", () => {
+    const values = docToFormValues(
+      buildDoc({
+        docType: "gongwen",
+        attendees: ["张三（市委办）"],
+        absentees: ["李四（市政府办）"],
+      }),
+    )
+    // gongwen（default 分支）formFields 不含 attendees/absentees
+    expect(values.attendees).toBeUndefined()
+    expect(values.absentees).toBeUndefined()
+  })
+
+  it("minutes 文种拍平出席/请假/列席名单", () => {
+    const values = docToFormValues(
+      buildDoc({
+        docType: "minutes",
+        attendees: ["张三（市委办）"],
+        absentees: ["李四（市政府办）"],
+        observers: ["王五（列席）"],
+        title: "会议纪要",
+      }),
+    )
+    expect(values.attendees).toEqual(["张三（市委办）"])
+    expect(values.absentees).toEqual(["李四（市政府办）"])
+    expect(values.observers).toEqual(["王五（列席）"])
+  })
+})
+
+describe("applyFormValuesToDoc · 编辑面板 FormValues → LegalDoc", () => {
+  it("修改要素值后原样写回（浅拷贝，不改原 doc）", () => {
+    const doc = buildDoc({
+      docType: "gongwen",
+      title: "原标题",
+      docNumber: "国发〔2026〕12号",
+      issuer: "市人民政府",
+      date: "2026-07-31",
+      seal: false,
+    })
+    const next = applyFormValuesToDoc(doc, {
+      title: "新标题",
+      docNumber: "国发〔2026〕13号",
+      issuer: "市人民政府办公厅",
+      date: "2026-08-01",
+      seal: true,
+    })
+    expect(next).not.toBe(doc)
+    expect(next.title).toBe("新标题")
+    expect(next.docNumber).toBe("国发〔2026〕13号")
+    expect(next.issuer).toBe("市人民政府办公厅")
+    expect(next.date).toBe("2026-08-01")
+    expect(next.seal).toBe(true)
+    // 原对象不变
+    expect(doc.title).toBe("原标题")
+    expect(doc.seal).toBe(false)
+  })
+
+  it("只写该文种 formFields 定义过的字段，正文与版记保持原样", () => {
+    const doc = buildDoc({
+      docType: "gongwen",
+      body: [{ type: "p", text: "正文内容" }],
+      printingOffice: "国务院办公厅",
+      printingDate: "2026-08-01",
+    })
+    const next = applyFormValuesToDoc(doc, { title: "新标题" })
+    expect(next.title).toBe("新标题")
+    // 正文/版记不在 formFields 子集内，面板编辑不触碰
+    expect(next.body).toEqual([{ type: "p", text: "正文内容" }])
+    expect(next.printingOffice).toBe("国务院办公厅")
+    expect(next.printingDate).toBe("2026-08-01")
+  })
+
+  it("array 空数组 → undefined（IR 语义上无空壳字段）", () => {
+    const doc = buildDoc({
+      docType: "gongwen",
+      attachments: ["任务清单"],
+      cc: ["市委办"],
+    })
+    const next = applyFormValuesToDoc(doc, {
+      attachments: [],
+      cc: [],
+    })
+    expect(next.attachments).toBeUndefined()
+    expect(next.cc).toBeUndefined()
+  })
+
+  it("text 空白串 → undefined（避免塞入纯空白要素）", () => {
+    const doc = buildDoc({
+      docType: "gongwen",
+      docNumber: "国发〔2026〕12号",
+    })
+    const next = applyFormValuesToDoc(doc, { docNumber: "   " })
+    expect(next.docNumber).toBeUndefined()
+  })
+
+  it("未触碰的字段保持原值（面板只提交被编辑的字段）", () => {
+    const doc = buildDoc({
+      docType: "gongwen",
+      title: "原标题",
+      docNumber: "国发〔2026〕12号",
+    })
+    const next = applyFormValuesToDoc(doc, { title: "新标题" })
+    expect(next.docNumber).toBe("国发〔2026〕12号")
+  })
+
+  it("minutes 文种写回名单与盖章", () => {
+    const doc = buildDoc({ docType: "minutes", title: "会议纪要" })
+    const next = applyFormValuesToDoc(doc, {
+      title: "全市安全生产工作会议纪要",
+      attendees: ["张三（市委办）"],
+      absentees: [],
+      observers: ["王五（列席）"],
+      seal: true,
+    })
+    expect(next.title).toBe("全市安全生产工作会议纪要")
+    expect(next.attendees).toEqual(["张三（市委办）"])
+    expect(next.absentees).toBeUndefined()
+    expect(next.observers).toEqual(["王五（列席）"])
+    expect(next.seal).toBe(true)
   })
 })

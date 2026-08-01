@@ -86,6 +86,7 @@
 		"promptPlaceholder": "Describe your document, e.g. the municipal government's implementation plan for waste sorting…",
 		"promptHint": "Describe it in plain language, e.g. “Draft a notice on advancing the digital transformation of the city.”",
 		"formFieldsLabel": "Document elements (optional; used as generation constraints)",
+		"editFieldsLabel": "Document elements (generated; edits update the editor in real time)",
 		"sealLabel": "Require official seal",
 		"success": "Written to editor",
 		"issuesTitle": "Format Check",

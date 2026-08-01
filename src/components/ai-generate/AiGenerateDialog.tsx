@@ -96,6 +96,68 @@ function setFormValueString(
   return { ...values, [field.key]: next }
 }
 
+/**
+ * 单个要素控件（text/array 用 Input、boolean 用 Checkbox）。
+ * 生成前约束表单与生成后编辑面板共用同一渲染，唯一差异是 onChange：
+ * 生成前走 setFormValues（写 prompt 约束），生成后走 applyEdit（实时回填 markdown）。
+ * 这样保证两处对字段的展示语义一致，不产生第二份字段定义。
+ */
+function FieldControl({
+  field,
+  values,
+  disabled,
+  onChange,
+}: {
+  field: FormField
+  values: FormValues
+  disabled?: boolean
+  onChange: (next: FormValues) => void
+}) {
+  if (field.type === "boolean") {
+    const checked = values[field.key] === true
+    return (
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={`ai-generate-${field.key}`}
+          checked={checked}
+          onCheckedChange={(c) =>
+            onChange({ ...values, [field.key]: c === true })
+          }
+          disabled={disabled}
+        />
+        <Label
+          htmlFor={`ai-generate-${field.key}`}
+          className="text-sm leading-none"
+        >
+          {field.label}
+        </Label>
+      </div>
+    )
+  }
+  return (
+    <div className="grid gap-1.5">
+      <Label
+        htmlFor={`ai-generate-${field.key}`}
+        className="text-sm"
+      >
+        {field.label}
+        {field.required && (
+          <span className="ml-0.5 text-destructive">*</span>
+        )}
+      </Label>
+      <Input
+        id={`ai-generate-${field.key}`}
+        value={formValueString(values, field)}
+        onChange={(e) =>
+          onChange(setFormValueString(values, field, e.target.value))
+        }
+        placeholder={field.placeholder}
+        disabled={disabled}
+      />
+    </div>
+  )
+}
+
 function AiGeneratePanel({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const {
@@ -108,11 +170,19 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
     status,
     errorCode,
     issues,
+    result,
     generate,
+    applyEdit,
     reset,
   } = useGenerateDocument()
 
   const fields = DOC_TYPE_SPECS[docType].formFields
+  // 生成后的编辑面板按"实际生成的文种"取字段：用户此时若切换了文种下拉，
+  // 编辑对象仍是已生成的 LegalDoc（result.docType），字段集跟着 result 走，
+  // 避免按下拉文种渲染导致与编辑对象错位。
+  const editingFields = result
+    ? DOC_TYPE_SPECS[result.docType].formFields
+    : fields
 
   const handleGenerate = async () => {
     await generate()
@@ -136,6 +206,16 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
   // 表单已填写（任一要素非空）或自然语言描述非空时，生成按钮才可用；
   // 必填要素缺失时由 hook 校验拦截并给出错误提示。
   const hasContent = prompt.trim().length > 0 || hasFormValues(formValues)
+
+  // 要素编辑面板输入变化 → 实时回填编辑器（#29）。
+  // 1) setFormValues 先更新受控输入（否则每次击键后输入框回退到旧值）；
+  // 2) applyEdit 把新值应用到最近一次生成的 LegalDoc 并重渲 markdown。
+  // formValues 初值由 hook 在 generate 成功后拍平 result 提供。
+  const handleEditFieldChange = (next: FormValues) => {
+    setFormValues(next)
+    if (!result) return
+    applyEdit(next)
+  }
 
   return (
     <>
@@ -176,7 +256,7 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
           <Select
             value={docType}
             onValueChange={(v) => handleDocTypeChange(v as DocType)}
-            disabled={isGenerating}
+            disabled={isGenerating || isDone}
           >
             <SelectTrigger size="sm" className="w-full">
               <SelectValue placeholder={t("aiGenerate.docTypePlaceholder")} />
@@ -207,63 +287,19 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
           </p>
         </div>
 
+        {/* 生成前：表单辅助约束；生成后：要素编辑面板（同一组 FieldControl，仅 onChange 语义不同） */}
         <div className="grid gap-1.5">
-          <Label>{t("aiGenerate.formFieldsLabel")}</Label>
+          <Label>{t(isDone ? "aiGenerate.editFieldsLabel" : "aiGenerate.formFieldsLabel")}</Label>
           <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-3">
-            {fields.map((field) => {
-              if (field.type === "boolean") {
-                const checked =
-                  formValues[field.key] === true
-                return (
-                  <div
-                    key={field.key}
-                    className="flex items-center gap-2"
-                  >
-                    <Checkbox
-                      id={`ai-generate-${field.key}`}
-                      checked={checked}
-                      onCheckedChange={(c) =>
-                        setFormValues({
-                          ...formValues,
-                          [field.key]: c === true,
-                        })
-                      }
-                      disabled={isGenerating}
-                    />
-                    <Label
-                      htmlFor={`ai-generate-${field.key}`}
-                      className="text-sm leading-none"
-                    >
-                      {field.label}
-                    </Label>
-                  </div>
-                )
-              }
-              return (
-                <div key={field.key} className="grid gap-1.5">
-                  <Label
-                    htmlFor={`ai-generate-${field.key}`}
-                    className="text-sm"
-                  >
-                    {field.label}
-                    {field.required && (
-                      <span className="ml-0.5 text-destructive">*</span>
-                    )}
-                  </Label>
-                  <Input
-                    id={`ai-generate-${field.key}`}
-                    value={formValueString(formValues, field)}
-                    onChange={(e) =>
-                      setFormValues(
-                        setFormValueString(formValues, field, e.target.value)
-                      )
-                    }
-                    placeholder={field.placeholder}
-                    disabled={isGenerating}
-                  />
-                </div>
-              )
-            })}
+            {(isDone ? editingFields : fields).map((field) => (
+              <FieldControl
+                key={field.key}
+                field={field}
+                values={formValues}
+                disabled={isGenerating}
+                onChange={isDone ? handleEditFieldChange : setFormValues}
+              />
+            ))}
           </div>
         </div>
 

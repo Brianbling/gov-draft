@@ -389,3 +389,91 @@ describe("useGenerateDocument · 表单辅助路径", () => {
     expect(result.current.formValues).toEqual({})
   })
 })
+
+describe("useGenerateDocument · applyEdit 要素编辑回填（#29）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useDocStore.getState().reset()
+  })
+
+  async function generateOnce(): Promise<{
+    result: { current: ReturnType<typeof useGenerateDocument> }
+  }> {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const { result } = renderHook(() => useGenerateDocument())
+    act(() => result.current.setPrompt("帮我写一份关于垃圾分类的通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await act(async () => {
+      await promise
+    })
+    return { result }
+  }
+
+  it("生成成功后 formValues 拍平为 AI 实际产出（编辑面板初值）", async () => {
+    const { result } = await generateOnce()
+    expect(result.current.formValues.title).toBe("关于推进垃圾分类工作的通知")
+    expect(result.current.formValues.recipient).toBe("各区人民政府，市政府各委、办、局：")
+    expect(result.current.formValues.issuer).toBe("市人民政府")
+    expect(result.current.formValues.date).toBe("2026-07-31")
+  })
+
+  it("applyEdit 修改要素 → 实时回填编辑器 markdown 并返回新 markdown", async () => {
+    const { result } = await generateOnce()
+    let returned = ""
+    act(() => {
+      returned =
+        result.current.applyEdit({ title: "新标题", recipient: "各区人民政府" }) ??
+        ""
+    })
+    expect(returned).toContain("# 新标题")
+    expect(returned).toContain("各区人民政府")
+    const { content, title } = useDocStore.getState()
+    expect(content).toContain("# 新标题")
+    expect(title).toBe("新标题")
+    // result 同步为编辑后的 doc（applyEdit 触发的重渲染已更新 result.current）
+    expect(result.current.result?.title).toBe("新标题")
+  })
+
+  it("applyEdit 未生成过时返回 null（无可编辑对象）", () => {
+    const { result } = renderHook(() => useGenerateDocument())
+    let returned: string | null = "sentinel"
+    act(() => {
+      returned = result.current.applyEdit({ title: "新标题" })
+    })
+    expect(returned).toBeNull()
+    expect(useDocStore.getState().content).toBe("")
+  })
+
+  it("applyEdit 用编辑后的 doc 重跑格式自检（修正文号消除 DOC_NUMBER_YEAR_MISSING）", async () => {
+    mockGenerateDocument.mockResolvedValue(
+      JSON.stringify({
+        docType: "gongwen",
+        title: "关于推进垃圾分类工作的通知",
+        docNumber: "国发12号",
+        body: [{ type: "p", text: "正文" }],
+      }),
+    )
+    const { result } = renderHook(() => useGenerateDocument())
+    act(() => result.current.setPrompt("帮我写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = result.current.generate()
+    })
+    await act(async () => {
+      await promise
+    })
+    // 生成成功且含 DOC_NUMBER_YEAR_MISSING（文号缺〔年份〕）
+    expect(result.current.issues.map((i) => i.code)).toContain(
+      "DOC_NUMBER_YEAR_MISSING",
+    )
+    act(() => {
+      result.current.applyEdit({ title: "新标题", docNumber: "国发〔2026〕12号" })
+    })
+    expect(result.current.issues.map((i) => i.code)).not.toContain(
+      "DOC_NUMBER_YEAR_MISSING",
+    )
+  })
+})

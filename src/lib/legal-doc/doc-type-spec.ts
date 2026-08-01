@@ -346,7 +346,7 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("recipient", "主送机关", { required: true, placeholder: "省人民政府" }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        textField("attachments", "附件"),
+        arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
     case "reply":
@@ -356,7 +356,7 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("recipient", "主送机关", { required: true, placeholder: "市财政局" }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        textField("attachments", "附件"),
+        arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
     case "report":
@@ -366,7 +366,7 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("recipient", "主送机关", { placeholder: "市人民政府" }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        textField("attachments", "附件"),
+        arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
     case "minutes":
@@ -384,7 +384,7 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("docNumber", "发文字号", { placeholder: "×府发〔2026〕×号" }),
         textField("issuer", "发布机关署名"),
         textField("date", "发布日期", { placeholder: "2026-08-01" }),
-        textField("attachments", "附件"),
+        arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
     case "letter":
@@ -394,7 +394,7 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("recipient", "主送机关", { placeholder: "××大学" }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        textField("attachments", "附件"),
+        arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
     default:
@@ -404,8 +404,8 @@ function buildFormFields(docType: DocType): FormField[] {
         textField("recipient", "主送机关"),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
-        textField("attachments", "附件"),
-        textField("cc", "抄送机关"),
+        arrayField("attachments", "附件"),
+        arrayField("cc", "抄送机关"),
         booleanField("seal", "加盖公章"),
       ]
   }

@@ -86,6 +86,7 @@
 		"promptPlaceholder": "描述你的公文需求，如：市政府关于垃圾分类的实施方案…",
 		"promptHint": "用自然语言描述即可，如“帮我写一份推进城市数字化转型的通知”。",
 		"formFieldsLabel": "公文要素（选填，填写后作为生成约束）",
+		"editFieldsLabel": "公文要素（已生成，修改实时回填编辑器）",
 		"sealLabel": "需要盖章",
 		"success": "已写入编辑器",
 		"issuesTitle": "格式自检",

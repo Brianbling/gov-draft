@@ -1,5 +1,5 @@
 import { DOC_TYPE_SPECS, type FormFieldKey } from "./doc-type-spec"
-import type { DocType } from "./types"
+import type { DocType, LegalDoc } from "./types"
 
 /**
  * 表单辅助 → 统一 IR 的适配器（v2）。
@@ -146,4 +146,101 @@ export function hasFormValues(values: FormValues): boolean {
       },
     )
   )
+}
+
+const STRING_KEYS = [
+  "title",
+  "docNumber",
+  "recipient",
+  "issuer",
+  "date",
+  "securityLevel",
+  "urgency",
+] as const
+
+const ARRAY_KEYS = [
+  "attachments",
+  "cc",
+  "attendees",
+  "absentees",
+  "observers",
+] as const
+
+const BOOLEAN_KEY = "seal" as const
+
+/**
+ * 要素面板的字段"形状"以 LegalDoc schema 为准，而不是 formFields 的 type：
+ * 历史上 attachments/cc 在 formFields 里曾声明为 text 但 IR 里是数组（已对齐为
+ * arrayField），此处仍按 schema 的数组/文本/布尔集合取形状，双保险避免再次分叉
+ * 时把数组当字符串处理。编辑面板的对象始终是 FormValues，写回时还原为 LegalDoc。
+ */
+const EDIT_ARRAY_KEYS = new Set<FormFieldKey>(ARRAY_KEYS)
+const EDIT_TEXT_KEYS = new Set<FormFieldKey>([...STRING_KEYS])
+
+/**
+ * 把 AI 生成的 LegalDoc 拍平成要素编辑面板的 FormValues（#29）。
+ * 只取当前文种 formFields 里定义过的字段，防止把 schema 中与文种无关的字段
+ * （如纪要名单混进普通通知）塞进面板；缺失值归一为 undefined，面板显示空占位。
+ * 单一 IR：面板编辑对象仍是 FormValues，写回时经 applyFormValuesToDoc 还原为 LegalDoc，
+ * 不会出现第二份文档结构。
+ */
+export function docToFormValues(doc: LegalDoc): FormValues {
+  const values: FormValues = {}
+  // 同 applyFormValuesToDoc：FormFieldKey 联合键按 string 记录写入，避免严格模式
+  // 下联合键取值类型各异（string vs string[]）无法赋值。
+  const target = values as unknown as Record<string, unknown>
+  const fields = DOC_TYPE_SPECS[doc.docType].formFields
+  for (const field of fields) {
+    const key = field.key
+    if (key === BOOLEAN_KEY) {
+      target[key] = doc.seal === true
+      continue
+    }
+    if (EDIT_ARRAY_KEYS.has(key)) {
+      const arr = doc[key] as string[] | undefined
+      target[key] = arr && arr.length > 0 ? [...arr] : []
+      continue
+    }
+    if (EDIT_TEXT_KEYS.has(key)) {
+      const value = doc[key] as string | undefined
+      target[key] = value ? value.trim() : ""
+    }
+  }
+  return values
+}
+
+/**
+ * 把要素编辑面板的值应用回 LegalDoc（#29）。只写面板定义过的字段——
+ * formFields 是各文种"可编辑要素子集"，不在子集内的字段（正文段落、版记印发
+ * 机关/日期等）保持 AI 原样不动，避免面板误删生成内容。
+ * array 类型空数组 → undefined（渲染时空壳段落由 toMarkdown 已处理，但 IR 里
+ * 应保留 schema 语义）；text 空串 → undefined。返回浅拷贝，不改原 doc。
+ */
+export function applyFormValuesToDoc(doc: LegalDoc, values: FormValues): LegalDoc {
+  const next: LegalDoc = { ...doc }
+  // formFields 的 key 都是合法 LegalDoc 字段（doc-type-spec-form 测试兜底），
+  // 但 FormFieldKey 是字符串联合，直接 next[key]= 赋值在严格模式下无法通过
+  // （联合键的取值类型各异），经 Record<string, unknown> 中转是安全的窄化逃生口。
+  const target = next as unknown as Record<string, unknown>
+  const fields = DOC_TYPE_SPECS[doc.docType].formFields
+  for (const field of fields) {
+    const key = field.key
+    // 未出现在 values 里的键跳过：面板每次提交全量 formFields，但函数本身也应
+    // 支持部分更新（只改传入的字段），避免把没触碰的字段抹成 undefined。
+    if (values[key] === undefined) continue
+    if (key === BOOLEAN_KEY) {
+      next.seal = values.seal === true
+      continue
+    }
+    if (EDIT_ARRAY_KEYS.has(key)) {
+      const arr = values[key] as string[] | undefined
+      target[key] = arr && arr.length > 0 ? [...arr] : undefined
+      continue
+    }
+    if (EDIT_TEXT_KEYS.has(key)) {
+      const raw = values[key] as string | undefined
+      target[key] = raw && raw.trim().length > 0 ? raw.trim() : undefined
+    }
+  }
+  return next
 }
