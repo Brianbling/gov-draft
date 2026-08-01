@@ -91,6 +91,29 @@ describe("repairDoc · 保守修复带", () => {
     ])
   })
 
+  it("“附件1：”带序号的变体也能识别并剥掉序号", () => {
+    const { doc } = repairDoc(
+      buildDoc({
+        body: [{ type: "p", text: "附件1：年度重点任务清单" }],
+      })
+    )
+    expect(doc.attachments).toEqual(["年度重点任务清单"])
+    expect(doc.body).toHaveLength(0)
+  })
+
+  it("“附件2．”“附件3、”等半角点/顿号变体也能识别", () => {
+    const { doc } = repairDoc(
+      buildDoc({
+        body: [
+          { type: "p", text: "附件2．责任分工表" },
+          { type: "p", text: "附件3、时间安排表" },
+        ],
+      })
+    )
+    expect(doc.attachments).toEqual(["责任分工表", "时间安排表"])
+    expect(doc.body).toHaveLength(0)
+  })
+
   it("正文“附件：1.任务清单，2.责任分工表”用逗号/顿号分隔的编号项也能拆分", () => {
     const { doc } = repairDoc(
       buildDoc({

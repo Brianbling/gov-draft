@@ -48,7 +48,14 @@ function repairRecipientColon(
   return repaired
 }
 
-const ATTACHMENT_PARAGRAPH_PATTERN = /^附件[：:]\s*(.+)$/
+// 附件说明行：识别“附件：×××”以及“附件1：×××”“附件1. ×××”“附件1、×××”
+// （GB/T 9704 首行应写“附件：”，LLM 常误带序号，提取时归一为无序号条目）。
+const ATTACHMENT_PARAGRAPH_PATTERN = /^附件\s*\d*[：:．.\、]?\s*(.+)$/
+
+/** 从“附件N：”变体里剥掉附件序号前缀，只留名称。 */
+function stripAttachmentPrefix(name: string): string {
+  return name.replace(/^附件\s*\d+[：:．.\、]?\s*/, "").trim()
+}
 
 /**
  * 按编号结构拆分附件内容并去序号前缀。覆盖三种真实写法：
@@ -81,9 +88,10 @@ function extractAttachmentParagraphs(
     if (paragraph.type !== "p") return true
     const match = paragraph.text.trim().match(ATTACHMENT_PARAGRAPH_PATTERN)
     if (!match) return true
+    // “附件：×××”整段（含“附件1：”变体）都归入附件条目，从正文移除，避免版记与正文重复
     const name = match[1].trim()
     if (name.length === 0) return true
-    added.push(...splitAttachments(name))
+    added.push(...splitAttachments(stripAttachmentPrefix(name)))
     return false
   })
   if (added.length === 0) return doc

@@ -104,7 +104,7 @@ describe("toMarkdown", () => {
     )
     expect(markdown).toContain("附件：数字政府建设任务清单")
     expect(markdown).toContain(
-      "::: content.body.paragraph.align: right; content.body.paragraph.indent: 0em"
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em"
     )
     expect(markdown).toContain("国务院办公厅")
     expect(markdown).toContain("2026年7月31日")
@@ -112,35 +112,43 @@ describe("toMarkdown", () => {
     expect(markdown).toContain("国务院办公厅\n2026年8月1日")
   })
 
-  it("numbers multiple attachments", () => {
+  it("numbers multiple attachments with aligned continuation lines", () => {
     const markdown = toMarkdown(
       buildDoc({ attachments: ["任务清单", "工作台账"] })
     )
+    // 多附件：首行“附件：1．×”，续行序号与首行对齐（“附件：”3 字 → 3 全角空格占位）
     expect(markdown).toContain("附件：1．任务清单")
-    expect(markdown).toContain("附件：2．工作台账")
+    expect(markdown).toContain("　　　2．工作台账")
   })
 
-  it("adds a seal placeholder below the signature when seal is true", () => {
-    const markdown = toMarkdown(buildDoc({ seal: true }))
-    const sealIndex = markdown.indexOf("（此处加盖公章）")
-    expect(sealIndex).toBeGreaterThan(-1)
-    expect(markdown.indexOf("国务院办公厅")).toBeLessThan(sealIndex)
-  })
-
-  it("omits the seal placeholder when seal is false or unset", () => {
-    expect(toMarkdown(buildDoc())).not.toContain("（此处加盖公章）")
-    expect(toMarkdown(buildDoc({ seal: false }))).not.toContain(
-      "（此处加盖公章）"
-    )
-  })
-
-  it("does not duplicate a seal placeholder when the signature already marks 盖章", () => {
+  it("single attachment is not numbered", () => {
     const markdown = toMarkdown(
-      buildDoc({ seal: true, issuer: "国务院办公厅（盖章处）" })
+      buildDoc({ attachments: ["数字政府建设任务清单"] })
     )
-    const matches = markdown.match(/（此处加盖公章）/g)
-    expect(matches).toBeNull()
-    expect(markdown).toContain("国务院办公厅（盖章处）")
+    expect(markdown).toContain("附件：数字政府建设任务清单")
+    expect(markdown).not.toContain("1．")
+  })
+
+  it("seal=true：署名成文日期右对齐 + 落款前留足印章空间，绝不输出“此处盖章”", () => {
+    const markdown = toMarkdown(buildDoc({ seal: true }))
+    // 需盖章：署名成文日期右对齐，正文末到落款 spacing.before 留足印章空间（骑年盖月手工加盖）
+    expect(markdown).toContain(
+      "::: content.body.paragraph.align: right; content.body.paragraph.indent: 0em"
+    )
+    expect(markdown).toContain("content.body.paragraph.spacing.before: 15mm")
+    expect(markdown).not.toContain("（此处加盖公章）")
+    expect(markdown).not.toContain("盖章")
+  })
+
+  it("seal=false/未设：署名居中、成文日期右空四字，无盖章文字", () => {
+    const markdown = toMarkdown(buildDoc())
+    // 不加盖公章：署名以成文日期为准居中排布，成文日期右空四字（尾部 4 全角空格），紧凑排版
+    expect(markdown).toContain(
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em"
+    )
+    expect(markdown).toContain("2026年7月31日　　　　")
+    expect(markdown).not.toContain("（此处加盖公章）")
+    expect(markdown).not.toContain("盖章")
   })
 
   it("标题含 Markdown 特殊字符（#、*）时不破坏标题结构", () => {

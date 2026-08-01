@@ -29,8 +29,9 @@ function stripLeadingOrder(text: string): string {
   return text.replace(ORDER_PREFIX_PATTERN, "").trim()
 }
 
-/** 落款/日期文本里被 LLM 误写的盖章占位（应走 seal:true 由系统生成）。 */
-const SEAL_PLACEHOLDER_PATTERN = /[（(]此处加盖公章[）)]/g
+/** 落款/日期文本里被 LLM 误写的盖章占位（应走 seal 由系统排版，不打印任何盖章字样）。 */
+const SEAL_PLACEHOLDER_PATTERN =
+  /[（(]?(?:此处加盖公章|此处盖章|盖章处|加盖公章处|加盖公章)[）)]?/g
 
 function stripSealPlaceholder(text: string): string {
   return text.replace(SEAL_PLACEHOLDER_PATTERN, "").trim()
@@ -115,12 +116,16 @@ export function toMarkdown(doc: LegalDoc): string {
   blocks.push(...renderBody(doc))
 
   if (doc.attachments && doc.attachments.length > 0) {
+    // GB/T 9704-2012 §7.3.4：附件说明排在正文下空一行、左空二字。单个附件不编号
+    // （“附件：×××”），多个附件用阿拉伯数字标注顺序号，续行序号与首行序号对齐
+    // （“附件：”3 字，续行以 3 个全角空格占位，U+3000 非可折叠空白、浏览器保留）。
     const lines =
-      doc.attachments.length > 1
-        ? doc.attachments.map(
-            (attachment, index) => `附件：${index + 1}．${attachment}`
+      doc.attachments.length === 1
+        ? [`附件：${doc.attachments[0]}`]
+        : doc.attachments.map(
+            (attachment, index) =>
+              `${index === 0 ? "附件：" : "　　　"}${index + 1}．${attachment}`,
           )
-        : [`附件：${doc.attachments[0]}`]
     blocks.push(container(BODY_INDENT, lines))
   }
 
@@ -144,16 +149,36 @@ export function toMarkdown(doc: LegalDoc): string {
   if (doc.issuer) signatureLines.push(stripSealPlaceholder(doc.issuer))
   if (doc.date) signatureLines.push(stripSealPlaceholder(formatChineseDate(doc.date)))
   if (signatureLines.length > 0) {
-    blocks.push(container(RIGHT_ALIGNED, signatureLines))
+    if (doc.seal === true) {
+      // 需盖章：署名与成文日期分别右对齐，署名上方 spacing.before 在正文末与落款之间
+      // 留出印章空间（15mm）。印章由用户打印后手工加盖（骑年盖月），仅预留位置，
+      // 绝不打印“此处盖章”字样。spacing.before 只加在署名容器，避免撑开署名与日期间距。
+      if (doc.issuer) {
+        blocks.push(
+          container(
+            `${RIGHT_ALIGNED}; content.body.paragraph.spacing.before: 15mm`,
+            [signatureLines[0]],
+          ),
+        )
+      }
+      if (doc.date) {
+        blocks.push(container(RIGHT_ALIGNED, [signatureLines[signatureLines.length - 1]]))
+      }
+    } else {
+      // 不加盖公章：署名以成文日期为准居中排布，成文日期右空四字（尾部 4 个全角空格，
+      // U+3000 非可折叠空白、浏览器渲染保留），紧凑排版不加额外间距。
+      if (doc.issuer) {
+        blocks.push(container(CENTERED, [signatureLines[0]]))
+      }
+      if (doc.date) {
+        blocks.push(
+          container(RIGHT_ALIGNED, [`${signatureLines[signatureLines.length - 1]}　　　　`]),
+        )
+      }
+    }
   }
 
-  // seal=true 且落款处未带盖章标记时，在落款下方补一行盖章占位。
-  if (
-    doc.seal === true &&
-    !signatureLines.some((line) => line.includes("盖章"))
-  ) {
-    blocks.push(container(RIGHT_ALIGNED, ["（此处加盖公章）"]))
-  }
+  // 不再输出“（此处加盖公章）”占位文字——所有情况都禁止该字样出现。
 
   if (doc.cc && doc.cc.length > 0) {
     blocks.push(container(FLUSH_LEFT, [`抄送：${doc.cc.join("、")}`]))

@@ -83,7 +83,8 @@ describe("AI 生成公文 · 自然语言到渲染全链路集成", () => {
         "以推动高质量发展为主题，统筹发展和安全，坚持整体性转变、全方位赋能，打造具有国际影响力的数字之都。"
       )
       expect(markdown).toContain("附件：城市数字化转型重点任务清单")
-      expect(markdown).toContain("市人民政府\n2026年7月31日")
+      expect(markdown).toContain("市人民政府")
+      expect(markdown).toContain("2026年7月31日")
       expect(markdown).toContain("抄送：市委办公厅")
 
       const issues = checkFormat(parsed)
