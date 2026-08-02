@@ -45,9 +45,11 @@ const ERROR_CODE_TO_I18N: Record<string, string> = {
   LEGAL_DOC_EMPTY_BODY: "aiGenerate.errors.legalDocEmptyBody",
 }
 
-/** Map an LLM_ or LEGAL_DOC_ error code to an aiGenerate.errors i18n key. */
+/** Map an LLM_, LEGAL_DOC_ or FORM_REQUIRED_ error code to an aiGenerate.errors i18n key. */
 export function errorCodeToI18nKey(code: string): string {
   if (ERROR_CODE_TO_I18N[code]) return ERROR_CODE_TO_I18N[code]
+  if (code.startsWith("FORM_REQUIRED_"))
+    return "aiGenerate.errors.formRequired"
   if (code.startsWith("LLM_")) return "aiGenerate.errors.llmRequestFailed"
   if (code.startsWith("LEGAL_DOC_"))
     return "aiGenerate.errors.legalDocParseFailed"

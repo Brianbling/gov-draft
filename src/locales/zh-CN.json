@@ -267,6 +267,7 @@
 			"exportRule": "导出规则",
 			"importSuccess": "导入成功",
 			"importFailed": "导入失败，请检查文件格式",
+			"importInvalidYaml": "规则文件 YAML 语法错误: {message}",
 			"importInvalidRule": "导入的规则校验不通过: {details}",
 			"importNoRule": "文件中未找到有效的规则配置",
 			"pdfGroup": "PDF 导出",
@@ -280,7 +281,11 @@
 			"llmEndpoint": "服务地址（Endpoint）",
 			"llmEndpointPlaceholder": "https://api.deepseek.com/chat/completions",
 			"llmModel": "模型（Model）",
-			"llmModelPlaceholder": "deepseek-v4-flash"
+			"llmModelPlaceholder": "deepseek-v4-flash",
+			"confirmDiscardTitle": "放弃未保存的更改？",
+			"confirmDiscardMessage": "你还有未保存的更改，关闭后将丢失。请保存并应用，或放弃更改后关闭。",
+			"keepEditing": "继续编辑",
+			"discardChanges": "放弃更改"
 	},
 	"codemirror": {
 		"editorAria": "公文 Markdown 编辑器",

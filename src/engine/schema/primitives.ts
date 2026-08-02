@@ -13,10 +13,28 @@ import {
 
 // ─── CSS length ─────────────────────────────────────────────────────────────
 
-/** number 0 | '0' | '-?N.N(unit)' */
+/**
+ * YAML turns an unquoted `size: 16` into the number 16 but leaves `size: 16pt`
+ * as a string, so a plain string-only schema would reject the numeric spelling
+ * while silently accepting the quoted one — an import/save/export round-trip
+ * then drifts between number and string. Normalize numeric scalars to their
+ * string form so both spellings converge on the same persisted type. The regex
+ * branches still reject genuinely invalid CSS (a number is not a CSS length;
+ * `16pt` as a number is impossible in YAML).
+ */
+const UnitlessNumericToCssScalar = z
+  .union([
+    z.number(),
+    z.string().regex(/^-?\d+(\.\d+)?$/, 'Must be a unitless number or valid CSS length'),
+  ])
+  .transform((v) => String(v))
+
+/** number 0 | '0' | '-?N.N(unit)' (numeric scalars normalized to strings) */
 export const CssLengthSchema = z.union([
   z.literal(0),
+  z.literal(0).transform(() => '0'),
   z.string().regex(CSS_LENGTH_PATTERN, 'Must be a valid CSS length (e.g. 16pt, 2em, 0)'),
+  UnitlessNumericToCssScalar,
 ])
 export type CssLength = z.infer<typeof CssLengthSchema>
 
@@ -24,18 +42,21 @@ export type CssLength = z.infer<typeof CssLengthSchema>
 export const CssLineHeightSchema = z
   .string()
   .regex(CSS_LINE_HEIGHT_PATTERN, 'Must be a unitless number or valid CSS length')
+  .or(UnitlessNumericToCssScalar)
 export type CssLineHeight = z.infer<typeof CssLineHeightSchema>
 
 /** '' | 0 | CSS length | '${N}lines' */
 export const CssParagraphSpacingSchema = z.union([
   z.literal(''),
   z.literal(0),
+  z.literal(0).transform(() => '0'),
   z
     .string()
     .regex(
       CSS_PARAGRAPH_SPACING_PATTERN,
       'Must be empty, 0, a CSS length, or a line-count value (e.g. 2lines)',
     ),
+  UnitlessNumericToCssScalar,
 ])
 export type CssParagraphSpacing = z.infer<typeof CssParagraphSpacingSchema>
 

@@ -267,6 +267,7 @@
 			"exportRule": "Export Rule",
 			"importSuccess": "Import successful",
 			"importFailed": "Import failed, check file format",
+			"importInvalidYaml": "Rule file YAML syntax error: {message}",
 			"importInvalidRule": "Imported rule validation failed: {details}",
 			"importNoRule": "No valid rule configuration found in file",
 			"pdfGroup": "PDF Export",
@@ -280,7 +281,11 @@
 			"llmEndpoint": "Endpoint",
 			"llmEndpointPlaceholder": "https://api.deepseek.com/chat/completions",
 			"llmModel": "Model",
-			"llmModelPlaceholder": "deepseek-v4-flash"
+			"llmModelPlaceholder": "deepseek-v4-flash",
+			"confirmDiscardTitle": "Discard unsaved changes?",
+			"confirmDiscardMessage": "You have unsaved changes that will be lost. Save and apply them, or discard them and close.",
+			"keepEditing": "Keep editing",
+			"discardChanges": "Discard changes"
 	},
 	"codemirror": {
 		"editorAria": "Official document Markdown editor",

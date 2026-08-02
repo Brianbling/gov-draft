@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select"
 import {
   useGenerateDocument,
+  errorCodeToI18nKey,
 } from "@/hooks/use-generate-document"
 import {
   DOC_TYPES,
@@ -42,9 +43,6 @@ import {
 } from "@/lib/legal-doc/form-adaptor"
 
 const DOC_TYPE_ITEMS: DocType[] = [...DOC_TYPES]
-
-/** 必填要素缺失时的表单校验错误（非 LLM 调用错误）。 */
-const FORM_REQUIRED_I18N = "aiGenerate.errors.formRequired"
 
 interface AiGenerateDialogProps {
   open: boolean
@@ -67,11 +65,6 @@ const ISSUE_VISUAL: Record<
     icon: InformationCircleIcon,
     className: "text-muted-foreground",
   },
-}
-
-/** 表单错误码 → i18n key（复用错误文案区）。 */
-function formErrorKey(code: string): string {
-  return code.startsWith("FORM_REQUIRED_") ? FORM_REQUIRED_I18N : code
 }
 
 /** 文种 → 描述区引导文案 key。placeholder 提示"写什么"，hint 提示"怎么组织"。 */
@@ -334,7 +327,7 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
                 icon={AlertCircleIcon}
                 className="mt-0.5 size-3.5 shrink-0"
               />
-              <span>{t(formErrorKey(errorCode ?? "UNKNOWN"))}</span>
+              <span>{t(errorCodeToI18nKey(errorCode ?? "UNKNOWN"))}</span>
             </p>
             <div className="flex items-center gap-2">
               <Button

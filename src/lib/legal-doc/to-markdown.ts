@@ -1,4 +1,5 @@
 import type { LegalDoc } from "./types"
+import { isValidIsoDate } from "./format-check"
 
 const SEPARATOR = "\n"
 
@@ -40,24 +41,14 @@ function stripSealPlaceholder(text: string): string {
 /**
  * 成文日期/印发日期在落款版记中按 GB/T 9704-2012 §6.5 编排：
  * “用阿拉伯数字将年、月、日标全，月、日不编虚位”，即 2026-08-01 → 2026年8月1日。
- * 输入非 ISO 日期（YYYY-MM-DD）时原样返回，避免把 LLM 已写好的中文日期改坏。
+ * 判定逻辑与 checkFormat 共用（真实存在的 ISO 日期）；非 ISO 或月/日越界
+ * （含超出当月实有天数）的输入原样返回，避免把 LLM 已写好的中文日期改坏、
+ * 也不产生“2026年4月31日”这类错误日期。
  */
 export function formatChineseDate(iso: string): string {
-  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return iso
-  const [, year, month, day] = match
-  const monthNum = Number(month)
-  const dayNum = Number(day)
-  // 月/日越界或超出当月实有天数属无效日期，原样返回，不产生“2026年4月31日”这类错误日期。
-  const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-  if (
-    monthNum < 1 ||
-    monthNum > 12 ||
-    dayNum < 1 ||
-    dayNum > daysInMonth[monthNum - 1]
-  )
-    return iso
-  return `${year}年${monthNum}月${dayNum}日`
+  if (!isValidIsoDate(iso)) return iso
+  const [, year, month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)!
+  return `${year}年${Number(month)}月${Number(day)}日`
 }
 
 function renderBody(doc: LegalDoc): string[][] {
@@ -103,7 +94,14 @@ export function toMarkdown(doc: LegalDoc): string {
     blocks.push(container(LETTERHEAD, letterheadLines))
   }
 
-  blocks.push([`# ${doc.title}`])
+  // 标题空缺（LLM 未给出、且用户关闭表单必填门槛时）不输出幽灵红头 `# `，
+  // 而是输出一个可见占位标题，让生成的文档始终有可辨识的标题行；空缺本身
+  // 由 checkFormat 的 TITLE_EMPTY（error 级）在结果面板显著提示。
+  if (doc.title.trim().length > 0) {
+    blocks.push([`# ${doc.title}`])
+  } else {
+    blocks.push([`# 未命名公文`])
+  }
 
   if (doc.docNumber) {
     blocks.push(container(CENTERED, [doc.docNumber]))

@@ -4,7 +4,28 @@ const MAX_TITLE_LENGTH = 30
 const DOC_NUMBER_YEAR_PATTERN = /〔\d{4}〕/
 const SECURITY_LEVELS = ["秘密", "机密", "绝密"] as const
 const URGENCIES = ["特急", "加急"] as const
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+export const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
+
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+/**
+ * ISO 日期是否真实存在（月 1-12、日在当月实有天数内）。审查与渲染共用同一判定，
+ * 保证 checkFormat 与 formatChineseDate 对同一输入给出一致结论（如 2026-13-40、
+ * 2026-04-31 均判为无效）。
+ */
+export function isValidIsoDate(iso: string): boolean {
+  const match = iso.match(ISO_DATE_PATTERN)
+  if (!match) return false
+  const month = Number(match[2])
+  const day = Number(match[3])
+  return (
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= DAYS_IN_MONTH[month - 1]
+  )
+}
 
 export interface FormatIssue {
   field: string
@@ -73,11 +94,11 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
     })
   }
 
-  if (doc.date && !ISO_DATE_PATTERN.test(doc.date)) {
+  if (doc.date && !isValidIsoDate(doc.date)) {
     issues.push({
       field: "date",
       code: "DATE_FORMAT_INVALID",
-      message: `成文日期应为 ISO 格式（如 2026-07-31），当前为“${doc.date}”。`,
+      message: `成文日期应为真实存在的 ISO 日期（如 2026-07-31），当前为“${doc.date}”。`,
     })
   }
 

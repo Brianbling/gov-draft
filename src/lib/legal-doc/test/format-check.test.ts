@@ -98,6 +98,29 @@ describe("checkFormat", () => {
     expect(checkFormat(buildDoc({ date: "2026-07-31" }))).toEqual([])
   })
 
+  it("flags an ISO-shaped but non-existent date (2026-13-40)", () => {
+    const issues = checkFormat(buildDoc({ date: "2026-13-40" }))
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      field: "date",
+      code: "DATE_FORMAT_INVALID",
+    })
+  })
+
+  it("flags ISO-shaped dates that exceed the month's real day count (2026-04-31)", () => {
+    const issues = checkFormat(buildDoc({ date: "2026-04-31" }))
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      field: "date",
+      code: "DATE_FORMAT_INVALID",
+    })
+  })
+
+  it("accepts real edge dates: 1月1日 / 12月31日", () => {
+    expect(checkFormat(buildDoc({ date: "2026-01-01" }))).toEqual([])
+    expect(checkFormat(buildDoc({ date: "2026-12-31" }))).toEqual([])
+  })
+
   it("flags an empty body paragraph", () => {
     const issues = checkFormat(buildDoc({ body: [{ type: "p", text: "   " }] }))
     expect(issues).toHaveLength(1)

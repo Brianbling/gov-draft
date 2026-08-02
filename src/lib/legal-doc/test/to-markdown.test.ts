@@ -170,6 +170,20 @@ describe("toMarkdown", () => {
     expect(markdown).toContain("国发〔2026〕12号")
   })
 
+  it("标题为空时不输出幽灵空红头，改用可见占位标题", () => {
+    // 空标题（LLM 未给出、且用户关闭表单必填门槛时）不应产出 `# ` 空红头行，
+    // 而应输出可见占位标题；空缺由 checkFormat 的 TITLE_EMPTY（error）显著提示。
+    const markdown = toMarkdown(buildDoc({ title: "" }))
+    expect(markdown).not.toContain("# \n")
+    expect(markdown).toContain("# 未命名公文")
+  })
+
+  it("纯空格标题同样不输出幽灵空红头", () => {
+    const markdown = toMarkdown(buildDoc({ title: "   " }))
+    expect(markdown).not.toContain("# \n")
+    expect(markdown).toContain("# 未命名公文")
+  })
+
   it("attachments/cc 为空数组时不输出空壳段落", () => {
     const markdown = toMarkdown(
       buildDoc({ attachments: [], cc: [], printingOffice: undefined, printingDate: undefined })

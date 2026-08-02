@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Dialog } from "radix-ui"
+import { AlertDialog, Dialog } from "radix-ui"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Upload01Icon, Download01Icon } from "@hugeicons/core-free-icons"
 import { stringify as yamlStringify } from "yaml"
@@ -26,11 +26,24 @@ import {
   type SettingsNavEntry,
   type SettingsSection,
 } from "./nav-sections"
-import { parseRuleYaml } from "@/engine/schema/yaml-mapper"
+import { parseRuleYaml, RuleParseError } from "@/engine/schema/yaml-mapper"
 import { buildLevelTemplate } from "./level-template"
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
+}
+
+function jsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function settingsDirty(
+  draft: SettingsDraft,
+  snapshot: SettingsDraft
+): boolean {
+  if (!jsonEqual(draft.rule, snapshot.rule)) return true
+  if (!jsonEqual(draft.editor, snapshot.editor)) return true
+  return false
 }
 
 interface SettingsDraft {
@@ -123,8 +136,23 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("")
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const [pendingClose, setPendingClose] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  /**
+   * Guarded close: when the draft drifted from the persisted stores (rule or
+   * editor/AI fields), ask for confirmation before discarding; otherwise close.
+   * Import replaces the draft wholesale, so importing always ends in a clean
+   * (implicitly accepted) state.
+   */
+  const closeIfClean = () => {
+    if (settingsDirty(draft, bootstrapDraft())) {
+      setPendingClose(true)
+      return
+    }
+    onClose()
+  }
 
   const descriptors = useMemo(() => traverseSchema(RuleConfigSchema), [])
 
@@ -241,7 +269,27 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
 
     try {
       const text = await file.text()
-      const parsed = parseRuleYaml(text)
+      let parsed: RuleConfig
+      try {
+        parsed = parseRuleYaml(text)
+      } catch (e) {
+        // Distinguish "malformed YAML" from "valid YAML that fails the rule
+        // schema" so a missing quote around a numeric scalar is not reported
+        // as a corrupt file.
+        if (e instanceof RuleParseError) {
+          if (e.parseError !== undefined) {
+            setError(t("settings.importInvalidYaml", { message: String(e.parseError) }))
+            return
+          }
+          const details =
+            e.zodError?.issues
+              .map((i) => `${i.path.join(".")}: ${i.message}`)
+              .join("; ") ?? e.message
+          setError(t("settings.importInvalidRule", { details }))
+          return
+        }
+        throw e
+      }
       const rule = parsed as Record<string, unknown>
 
       // Extract editor / preview / autosave from the imported rule.
@@ -387,7 +435,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
             variant="secondary"
             size="sm"
             disabled={saving}
-            onClick={onClose}
+            onClick={closeIfClean}
           >
             {t("settings.cancel")}
           </Button>
@@ -401,6 +449,43 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           </Button>
         </div>
       </header>
+
+      <AlertDialog.Root open={pendingClose} onOpenChange={setPendingClose}>
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-[60] bg-overlay/80 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
+          <AlertDialog.Content
+            className="fixed top-1/2 left-1/2 z-[60] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-border bg-background p-5 text-foreground shadow-2xl duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
+          >
+            <AlertDialog.Title className="text-sm font-semibold">
+              {t("settings.confirmDiscardTitle")}
+            </AlertDialog.Title>
+            <AlertDialog.Description className="mt-1.5 text-xs text-muted-foreground">
+              {t("settings.confirmDiscardMessage")}
+            </AlertDialog.Description>
+            <div className="mt-4 flex justify-end gap-2">
+              <AlertDialog.Cancel
+                asChild
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button type="button" variant="secondary" size="sm">
+                  {t("settings.keepEditing")}
+                </Button>
+              </AlertDialog.Cancel>
+              <AlertDialog.Action
+                asChild
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onClose()
+                }}
+              >
+                <Button type="button" variant="destructive" size="sm">
+                  {t("settings.discardChanges")}
+                </Button>
+              </AlertDialog.Action>
+            </div>
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
 
       {draft.rule ? (
         <div className="flex min-h-0 flex-1">
