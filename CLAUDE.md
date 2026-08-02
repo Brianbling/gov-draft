@@ -60,7 +60,7 @@ Rust entry `src-tauri/src/lib.rs`. Custom `external-navigation` plugin: external
 
 ## Project context
 
-Migration in progress from `gov-draft` (Vue 3 + Express) to ezdoc (Tauri + React 19 + shadcn). Engine is ported. App layer substantially built: Zustand stores (`doc-store`, `rule-store`, `settings-store`), hooks (`use-markdown`, `use-paginator`, `use-style-injector`, `use-split-pane`, `use-rule-engine`, `use-file-system`), split-pane editor/preview UI wired in `App.tsx`. Settings panels still pending.
+Migration in progress from `gov-draft` (Vue 3 + Express) to ezdoc (Tauri + React 19 + shadcn). Engine is ported. App layer substantially built: Zustand stores (`doc-store`, `rule-store`, `settings-store`), hooks (`use-markdown`, `use-paginator`, `use-style-injector`, `use-split-pane`, `use-rule-engine`, `use-file-system`), split-pane editor/preview UI wired in `App.tsx`, settings overlay built (schema-driven nav + Editor + AI service sections).
 
 Authoritative design: **`docs/2026-06-02-govdraft-to-ezdoc-migration-design.md`**; phased plans in **`docs/superpowers/plans/`**. Read the design doc before structural changes. Decisions made there: no `types/` dir (types come from `engine/index.ts`), no `RuleEngine` class (pure functions), no adapter layer (React hooks), PDF export deferred, `HostSelectors` required with no engine default.
 
@@ -71,3 +71,4 @@ Authoritative design: **`docs/2026-06-02-govdraft-to-ezdoc-migration-design.md`*
 - TS strict with `noUnusedLocals`/`noUnusedParameters` + `erasableSyntaxOnly` — type-only imports must use `import type`.
 - Release is tag-driven: pushing a `v*` tag triggers `.github/workflows/release.yml` (cross-platform Tauri build). No separate CI lint/test workflow.
 - `bun run release`: step 1 bumps versions + scaffolds CHANGELOG from Conventional Commits; step 2 commits and tags. **After step 1, review and simplify CHANGELOG.md** — consolidate redundant entries, drop trivial chores, rewrite bullets into user-facing prose. The raw `### Commits` list per version is the source of truth.
+- **Settings architecture (anti-regression)**: the settings overlay is schema-driven nav — sections are derived from the RuleConfig descriptor tree, plus one standalone Editor section. **"AI 服务" is the only hardcoded section**: `nav-sections.ts` pushes a zero-field entry rendered by `AiSettingsForm`, whose values ride on `SettingsDraft.editor`. Do **not** add more hardcoded sections; if AI config grows, give `SettingsDraft` a dedicated `ai` field instead of expanding the `editor` carrier. See CHANGELOG [Unreleased] Notes.

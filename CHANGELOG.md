@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - **落款排版（不盖章）**：发文机关署名不再居中，改为与成文日期一致右对齐、右空四字（GB/T 9704 §7.3.5.2）。
 
+### Notes
+
+- **设置页架构约束（防退化）**：设置页保持 schema-driven 导航模型（section 由 RuleConfig descriptor 树派生）＋ 独立的 Editor section。**"AI 服务"是唯一硬编码特例**：`nav-sections.ts` 直接 push 一个 fields 为空的 section，由 `AiSettingsForm` 渲染，其配置值（`llmApiKey/llmEndpoint/llmModel`）搭 `SettingsDraft.editor` 载体传输。约束：**不再新增硬编码 section**；AI 配置若继续增长，给 `SettingsDraft` 拆独立 `ai` 字段，而非继续膨胀 `editor` 载体。避免特例蔓延成垃圾代码。
+
 ## [0.1.7] - 2026-08-01
 
 ### Fixed
