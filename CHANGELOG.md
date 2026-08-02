@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **落款排版（不盖章）**：发文机关署名不再居中，改为与成文日期一致右对齐、右空四字（GB/T 9704 §7.3.5.2）。
+
 ## [0.1.7] - 2026-08-01
 
 ### Fixed

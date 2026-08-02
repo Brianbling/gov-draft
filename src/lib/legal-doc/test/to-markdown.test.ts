@@ -140,13 +140,16 @@ describe("toMarkdown", () => {
     expect(markdown).not.toContain("盖章")
   })
 
-  it("seal=false/未设：署名居中、成文日期右空四字，无盖章文字", () => {
+  it("seal=false/未设：署名与成文日期右对齐、右空四字，不居中，无盖章文字", () => {
     const markdown = toMarkdown(buildDoc())
-    // 不加盖公章：署名以成文日期为准居中排布，成文日期右空四字（尾部 4 全角空格），紧凑排版
-    expect(markdown).toContain(
-      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em"
-    )
+    // 不加盖公章：署名与成文日期按 GB/T 9704 §7.3.5.2 靠右编排，均右空四字（尾部 4 全角空格）
+    const rightAligned =
+      "::: content.body.paragraph.align: right; content.body.paragraph.indent: 0em\n国务院办公厅　　　　\n:::"
+    expect(markdown).toContain(rightAligned)
     expect(markdown).toContain("2026年7月31日　　　　")
+    expect(markdown).not.toContain(
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em\n国务院办公厅\n:::"
+    )
     expect(markdown).not.toContain("（此处加盖公章）")
     expect(markdown).not.toContain("盖章")
   })

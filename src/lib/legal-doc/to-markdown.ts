@@ -165,10 +165,12 @@ export function toMarkdown(doc: LegalDoc): string {
         blocks.push(container(RIGHT_ALIGNED, [signatureLines[signatureLines.length - 1]]))
       }
     } else {
-      // 不加盖公章：署名以成文日期为准居中排布，成文日期右空四字（尾部 4 个全角空格，
-      // U+3000 非可折叠空白、浏览器渲染保留），紧凑排版不加额外间距。
+      // 不加盖公章：署名与成文日期按 GB/T 9704-2012 §7.3.5.2 靠右编排——两者右对齐、
+      // 右空四字（尾部 4 个全角空格，U+3000 非可折叠空白、浏览器渲染保留），不居中。
       if (doc.issuer) {
-        blocks.push(container(CENTERED, [signatureLines[0]]))
+        blocks.push(
+          container(RIGHT_ALIGNED, [`${signatureLines[0]}　　　　`]),
+        )
       }
       if (doc.date) {
         blocks.push(
