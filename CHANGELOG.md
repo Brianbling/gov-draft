@@ -7,10 +7,17 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - **落款排版（不盖章）**：发文机关署名不再居中，改为与成文日期一致右对齐、右空四字（GB/T 9704 §7.3.5.2）。
+- **AI 生成错误码渲染为裸 key**：LLM_TIMEOUT / LLM_NETWORK_ERROR / LEGAL_DOC_* 等错误码不再原样显示英文代码，统一经 errorCodeToI18nKey 映射为中文提示（死代码恢复调用）。
+- **成文日期真实性校验**：L1 审查与落款渲染共用 isValidIsoDate（月 1-12、日按当月实有天数），拦截 2026-13-40 类越界日期。
+- **空标题幽灵红头**：标题为空时输出可见占位"# 未命名公文"，不再产生空红头行。
+- **导入 YAML 无引号数值类型漂移**：CSS 长度/行高/段距的数值标量（16 / 1.5）归一化为字符串，消除导入-保存-导出 round-trip 类型分叉。
+- **设置页导入报错误导**：区分 YAML 语法错误与 schema 校验错误，分别显示明确文案，不再笼统"导入失败，请检查文件格式"。
+- **设置页未保存直接关闭静默丢弃**：取消前比较 draft 与 stores 快照，存在差异弹确认框（放弃/继续编辑）。
 
 ### Notes
 
 - **设置页架构约束（防退化）**：设置页保持 schema-driven 导航模型（section 由 RuleConfig descriptor 树派生）＋ 独立的 Editor section。**"AI 服务"是唯一硬编码特例**：`nav-sections.ts` 直接 push 一个 fields 为空的 section，由 `AiSettingsForm` 渲染，其配置值（`llmApiKey/llmEndpoint/llmModel`）搭 `SettingsDraft.editor` 载体传输。约束：**不再新增硬编码 section**；AI 配置若继续增长，给 `SettingsDraft` 拆独立 `ai` 字段，而非继续膨胀 `editor` 载体。避免特例蔓延成垃圾代码。
+- **bug 审查 workflow 结果**（22 agent 全模块通读 + 对抗验证，2026-08-02）：6 条确认缺陷全部修复（见上 Fixed）；46 条初筛发现中 6 条为误报（对抗验证排除），其余为 low/建议。遗留 v2 再说项：rule schema 与 validateRule 校验器统一、设置页 AI section 可搜索化、Pagination CSS variables 定义权归属。
 
 ## [0.1.7] - 2026-08-01
 
