@@ -54,9 +54,7 @@ describe("checkDocFormat · request 请示", () => {
       buildDoc({
         docType: "request",
         recipient: "省人民政府：",
-        body: [
-          { type: "p", text: "我厅拟购置一批办公设备，妥否，请批示。" },
-        ],
+        body: [{ type: "p", text: "我厅拟购置一批办公设备，妥否，请批示。" }],
       })
     )
     expect(issues).toEqual([])
@@ -88,7 +86,10 @@ describe("checkDocFormat · reply 批复", () => {
         docType: "reply",
         recipient: "市财政局：",
         body: [
-          { type: "p", text: "你局《关于申请追加预算的请示》收悉。现批复如下。" },
+          {
+            type: "p",
+            text: "你局《关于申请追加预算的请示》收悉。现批复如下。",
+          },
         ],
       })
     )
@@ -194,7 +195,9 @@ describe("checkDocFormat · gongwen 通知", () => {
       buildDoc({
         docType: "gongwen",
         title: "关于印发《××工作办法》的通知",
-        body: [{ type: "p", text: "现将《××工作办法》印发给你们，请认真贯彻执行。" }],
+        body: [
+          { type: "p", text: "现将《××工作办法》印发给你们，请认真贯彻执行。" },
+        ],
       })
     )
     expect(issues).toEqual([])
@@ -293,9 +296,7 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
   })
 
   it("docNumber 序号带前导 0（〔2026〕05号）时给出 DOC_NUMBER_LEADING_ZERO", () => {
-    const issues = checkDocFormat(
-      buildDoc({ docNumber: "国发〔2026〕05号" })
-    )
+    const issues = checkDocFormat(buildDoc({ docNumber: "国发〔2026〕05号" }))
     expect(codes(issues)).toContain("DOC_NUMBER_LEADING_ZERO")
   })
 
@@ -316,9 +317,7 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
   it("“抓紧制定”“抓紧抓实”是标准公文用语，不报 COLLOQUIAL_WORD", () => {
     const issues = checkDocFormat(
       buildDoc({
-        body: [
-          { type: "p", text: "要抓紧制定实施方案，抓紧抓实各项任务。" },
-        ],
+        body: [{ type: "p", text: "要抓紧制定实施方案，抓紧抓实各项任务。" }],
       })
     )
     expect(codes(issues)).not.toContain("COLLOQUIAL_WORD")
@@ -361,7 +360,9 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
     const issues = checkDocFormat(
       buildDoc({
         attachments: ["年度工作要点"],
-        body: [{ type: "p", text: "现将《绩效考核方案》一并印发，请遵照执行。" }],
+        body: [
+          { type: "p", text: "现将《绩效考核方案》一并印发，请遵照执行。" },
+        ],
       })
     )
     expect(codes(issues)).toContain("ATTACHMENT_MISMATCH")
@@ -373,7 +374,12 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
         docType: "reply",
         recipient: "市财政局：",
         attachments: ["批复意见"],
-        body: [{ type: "p", text: "你局《关于申请追加预算的请示》收悉。现批复如下。" }],
+        body: [
+          {
+            type: "p",
+            text: "你局《关于申请追加预算的请示》收悉。现批复如下。",
+          },
+        ],
       })
     )
     expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
@@ -475,6 +481,36 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
     expect(codes(issues)).not.toContain("P_LEADING_ORDER_SUGGESTION")
   })
 
+  it("正文计量单位用普通数字 m2/m3 时给出 UNIT_SUPERSCRIPT_SUGGESTION（warning）", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [{ type: "p", text: "本项目占地约 1200m2，建筑面积 800m3。" }],
+      })
+    )
+    expect(codes(issues)).toContain("UNIT_SUPERSCRIPT_SUGGESTION")
+    expect(
+      issues.find((i) => i.code === "UNIT_SUPERSCRIPT_SUGGESTION")?.severity
+    ).toBe("warning")
+  })
+
+  it("已用上标 m²/m³ 或规范全称时（平方米/立方米）不报 UNIT_SUPERSCRIPT_SUGGESTION", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [{ type: "p", text: "占地约 1200m²，建筑面积 800 立方米。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("UNIT_SUPERSCRIPT_SUGGESTION")
+  })
+
+  it("m2/m3 出现在字母编号或缩写语境（如 m2 模块）时不误报", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        body: [{ type: "p", text: "请参照 m2 模块与 m3 接口实现。" }],
+      })
+    )
+    expect(codes(issues)).not.toContain("UNIT_SUPERSCRIPT_SUGGESTION")
+  })
+
   it("h1/h2 标题段首序号不报 P_LEADING_ORDER_SUGGESTION（只查 p）", () => {
     const issues = checkDocFormat(
       buildDoc({
@@ -488,7 +524,9 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
     const issues = checkDocFormat(
       buildDoc({
         attachments: ["绩效考核方案"],
-        body: [{ type: "p", text: "现将《绩效考核方案》一并印发，请遵照执行。" }],
+        body: [
+          { type: "p", text: "现将《绩效考核方案》一并印发，请遵照执行。" },
+        ],
       })
     )
     expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
@@ -499,7 +537,12 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
       buildDoc({
         docType: "reply",
         recipient: "市财政局：",
-        body: [{ type: "p", text: "你局《关于申请追加预算的请示》收悉。现批复如下。" }],
+        body: [
+          {
+            type: "p",
+            text: "你局《关于申请追加预算的请示》收悉。现批复如下。",
+          },
+        ],
       })
     )
     expect(codes(issues)).not.toContain("ATTACHMENT_MISMATCH")
@@ -518,9 +561,7 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
 
 describe("单一事实源 · DOC_TYPE_SPECS 覆盖全部文种且与 prompt/规则一致", () => {
   it("DOC_TYPE_SPECS 的 key 覆盖全部 9 个 DOC_TYPES", () => {
-    expect(Object.keys(DOC_TYPE_SPECS).sort()).toEqual(
-      [...DOC_TYPES].sort()
-    )
+    expect(Object.keys(DOC_TYPE_SPECS).sort()).toEqual([...DOC_TYPES].sort())
   })
 
   it("prompt 要求的格式字符串直接取自 DOC_TYPE_SPECS（不再双写）", () => {

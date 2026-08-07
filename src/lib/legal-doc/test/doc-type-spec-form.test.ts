@@ -19,6 +19,9 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
       "date",
       "securityLevel",
       "urgency",
+      "copyNumber",
+      "issuingOrg",
+      "annotation",
       "attachments",
       "cc",
       "attendees",
@@ -37,12 +40,12 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
 
   it("title 不设表单必填（标题可由 LLM 从描述推断）；attendees / 请示批复主送机关为必填", () => {
     const minutes = DOC_TYPE_SPECS.minutes.formFields.find(
-      (f) => f.key === "attendees",
+      (f) => f.key === "attendees"
     )
     expect(minutes?.required).toBe(true)
     for (const docType of DOC_TYPES) {
       const title = DOC_TYPE_SPECS[docType].formFields.find(
-        (f) => f.key === "title",
+        (f) => f.key === "title"
       )
       // 生成前不硬拦标题：LLM 能从自然语言描述推断，缺失由 L1 审查 TITLE_EMPTY 兜底
       expect(title?.required, `${docType}.title`).not.toBe(true)
@@ -83,7 +86,7 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
     for (const docType of DOC_TYPES) {
       for (const key of ["attachments", "cc"] as const) {
         const field = DOC_TYPE_SPECS[docType].formFields.find(
-          (f) => f.key === key,
+          (f) => f.key === key
         )
         if (!field) continue
         expect(field.type, `${docType}.${key}`).toBe("array")
@@ -97,19 +100,22 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
     const signatures = DOC_TYPES.map((docType) =>
       DOC_TYPE_SPECS[docType].formFields
         .map((f) => `${f.key}:${f.required ? "req" : "opt"}`)
-        .join(","),
+        .join(",")
     )
     expect(new Set(signatures).size).toBe(DOC_TYPES.length)
   })
 
-  it("gongwen 要素全（含附件/抄送/盖章）", () => {
+  it("gongwen 要素全（含份号/红头/附注/附件/抄送/盖章）", () => {
     const keys = DOC_TYPE_SPECS.gongwen.formFields.map((f) => f.key)
     expect(keys).toEqual([
       "title",
       "docNumber",
+      "copyNumber",
+      "issuingOrg",
       "recipient",
       "issuer",
       "date",
+      "annotation",
       "attachments",
       "cc",
       "seal",
@@ -141,15 +147,15 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
 
   it("request/reply 主送机关必填（单一主送），reply 不设附件", () => {
     const requestRecipient = DOC_TYPE_SPECS.request.formFields.find(
-      (f) => f.key === "recipient",
+      (f) => f.key === "recipient"
     )
     const replyRecipient = DOC_TYPE_SPECS.reply.formFields.find(
-      (f) => f.key === "recipient",
+      (f) => f.key === "recipient"
     )
     expect(requestRecipient?.required).toBe(true)
     expect(replyRecipient?.required).toBe(true)
-    expect(
-      DOC_TYPE_SPECS.reply.formFields.map((f) => f.key),
-    ).not.toContain("attachments")
+    expect(DOC_TYPE_SPECS.reply.formFields.map((f) => f.key)).not.toContain(
+      "attachments"
+    )
   })
 })

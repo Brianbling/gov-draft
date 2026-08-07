@@ -42,6 +42,9 @@ export type FormFieldKey =
   | "date"
   | "securityLevel"
   | "urgency"
+  | "copyNumber"
+  | "issuingOrg"
+  | "annotation"
   | "attachments"
   | "cc"
   | "attendees"
@@ -65,17 +68,14 @@ function issue(
   code: string,
   field: string,
   message: string,
-  severity?: "info" | "warning" | "error",
+  severity?: "info" | "warning" | "error"
 ): FormatIssue {
   return { field, code, message, ...(severity ? { severity } : {}) }
 }
 
 /** 全文（标题 + 正文）是否出现任一关键词。 */
 function docContainsAny(doc: LegalDoc, keywords: string[]): boolean {
-  const texts = [
-    doc.title,
-    ...doc.body.map((paragraph) => paragraph.text),
-  ]
+  const texts = [doc.title, ...doc.body.map((paragraph) => paragraph.text)]
   return texts.some((text) =>
     keywords.some((keyword) => text.includes(keyword))
   )
@@ -101,7 +101,7 @@ function coreAttachmentName(name: string): string {
     .replace(/[《》]/g, "")
     .replace(
       /(?:方案|办法|细则|规定|意见|通知|条例|规则|标准|规定(?:试行)?|(?:草案))$/g,
-      "",
+      ""
     )
     .replace(/\s+/g, "")
   return stripped.length > 0 ? stripped : name
@@ -138,7 +138,10 @@ function isCitationTitle(paragraph: string, title: string): boolean {
   if (/附件[：:]?$|另附$|附$/.test(before6)) return false
   const before = paragraph.slice(Math.max(0, idx - 12), idx)
   if (CITATION_BEFORE_PATTERN.test(before)) return true
-  const after = paragraph.slice(idx + title.length + 2, idx + title.length + 2 + 12)
+  const after = paragraph.slice(
+    idx + title.length + 2,
+    idx + title.length + 2 + 12
+  )
   return CITATION_AFTER_PATTERN.test(after)
 }
 
@@ -170,7 +173,7 @@ function buildAttachmentMismatchRule(): DocFormatRequirement {
     return issue(
       code,
       field,
-      `正文提到《${[...mentioned].join("》《")}》，但未列入 attachments。请核对是否遗漏附件，或将附件名称补充到 attachments 数组。`,
+      `正文提到《${[...mentioned].join("》《")}》，但未列入 attachments。请核对是否遗漏附件，或将附件名称补充到 attachments 数组。`
     )
   }
   return { code, field, check }
@@ -218,7 +221,7 @@ function buildDocNumberLeadingZeroRule(): DocFormatRequirement {
         return issue(
           "DOC_NUMBER_LEADING_ZERO",
           "docNumber",
-          "发文字号序号不应有前导 0（如“〔2026〕05号”应为“〔2026〕5号”）。",
+          "发文字号序号不应有前导 0（如“〔2026〕05号”应为“〔2026〕5号”）。"
         )
       }
       return null
@@ -244,7 +247,7 @@ function buildColloquialRule(): DocFormatRequirement {
         return issue(
           "COLLOQUIAL_WORD",
           "body",
-          `正文含口语化表达“${word}”，请替换为规范书面语。`,
+          `正文含口语化表达“${word}”，请替换为规范书面语。`
         )
       }
       return null
@@ -261,7 +264,7 @@ function buildMinutesDecisionRule(): DocFormatRequirement {
         return issue(
           "MINUTES_USES_DECISION",
           "body",
-          "会议纪要是对会议的记载而非决定文书，正文不宜用“会议决定”，应改用“会议确定”“会议议定”。",
+          "会议纪要是对会议的记载而非决定文书，正文不宜用“会议决定”，应改用“会议确定”“会议议定”。"
         )
       }
       return null
@@ -280,14 +283,45 @@ function buildParagraphLeadingOrderRule(): DocFormatRequirement {
       const hit = doc.body.find(
         (paragraph) =>
           paragraph.type === "p" &&
-          PARAGRAPH_LEADING_ORDER_PATTERN.test(paragraph.text),
+          PARAGRAPH_LEADING_ORDER_PATTERN.test(paragraph.text)
       )
       if (hit) {
         return issue(
           "P_LEADING_ORDER_SUGGESTION",
           "body",
           "正文段首的“一、”序号建议改用 h1/h2 标题层级，避免渲染时序号与段落混排。",
-          "warning",
+          "warning"
+        )
+      }
+      return null
+    },
+  }
+}
+
+/**
+ * 计量单位上标书写（GB/T 15835《出版物上数字用法》§4）：平方/立方米在正式公文中
+ * 应用上标形式 m²/m³（或“平方米/立方米”），而非普通数字 m2/m3。只告警不自动改写：
+ * 上下文可能是字母编号或缩写（如“m2 模块”），自动替换有误伤风险。
+ */
+const SUPERSCRIPT_UNIT_PATTERN = /\b(\d+\.?\d*)\s*m([23])(?![0-9a-zA-Z])/
+
+function buildUnitSuperscriptRule(): DocFormatRequirement {
+  return {
+    code: "UNIT_SUPERSCRIPT_SUGGESTION",
+    field: "body",
+    check: (doc) => {
+      const hit = doc.body.find(
+        (paragraph) =>
+          paragraph.type === "p" &&
+          SUPERSCRIPT_UNIT_PATTERN.test(paragraph.text)
+      )
+      if (hit) {
+        const [, value, power] = hit.text.match(SUPERSCRIPT_UNIT_PATTERN)!
+        return issue(
+          "UNIT_SUPERSCRIPT_SUGGESTION",
+          "body",
+          `正文中计量单位“${value}m${power}”建议改用上标形式“${value}m${power === "2" ? "²" : "³"}”（GB/T 15835），或写全称“平方米/立方米”。`,
+          "warning"
         )
       }
       return null
@@ -302,6 +336,7 @@ function buildUniversalRules(docType: DocType): DocFormatRequirement[] {
     buildColloquialRule(),
     buildAttachmentMismatchRule(),
     buildParagraphLeadingOrderRule(),
+    buildUnitSuperscriptRule(),
   ]
   if (docType === "minutes") {
     rules.push(buildMinutesDecisionRule())
@@ -313,7 +348,7 @@ function buildUniversalRules(docType: DocType): DocFormatRequirement[] {
 function textField(
   key: FormFieldKey,
   label: string,
-  opts?: { required?: boolean; placeholder?: string },
+  opts?: { required?: boolean; placeholder?: string }
 ): FormField {
   return { key, label, type: "text", ...opts }
 }
@@ -322,7 +357,7 @@ function textField(
 function arrayField(
   key: FormFieldKey,
   label: string,
-  opts?: { required?: boolean; placeholder?: string },
+  opts?: { required?: boolean; placeholder?: string }
 ): FormField {
   return { key, label, type: "array", ...opts }
 }
@@ -331,7 +366,7 @@ function arrayField(
 function booleanField(
   key: FormFieldKey,
   label: string,
-  opts?: { required?: boolean },
+  opts?: { required?: boolean }
 ): FormField {
   return { key, label, type: "boolean", ...opts }
 }
@@ -348,9 +383,20 @@ function buildFormFields(docType: DocType): FormField[] {
       return [
         textField("title", "标题", { placeholder: "关于…的通知" }),
         textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
-        textField("recipient", "主送机关", { placeholder: "各区人民政府，市政府各委、办、局" }),
+        textField("copyNumber", "份号", {
+          placeholder: "涉密公文才填，如 0001",
+        }),
+        textField("issuingOrg", "发文机关标志", {
+          placeholder: "如：××市人民政府文件",
+        }),
+        textField("recipient", "主送机关", {
+          placeholder: "各区人民政府，市政府各委、办、局",
+        }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        textField("annotation", "附注", {
+          placeholder: "如：（此件公开发布）",
+        }),
         arrayField("attachments", "附件"),
         arrayField("cc", "抄送机关"),
         booleanField("seal", "加盖公章"),
@@ -375,7 +421,10 @@ function buildFormFields(docType: DocType): FormField[] {
       return [
         textField("title", "标题", { placeholder: "关于…的请示" }),
         textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
-        textField("recipient", "主送机关", { required: true, placeholder: "省人民政府" }),
+        textField("recipient", "主送机关", {
+          required: true,
+          placeholder: "省人民政府",
+        }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
         arrayField("attachments", "附件"),
@@ -394,7 +443,10 @@ function buildFormFields(docType: DocType): FormField[] {
       return [
         textField("title", "标题", { placeholder: "关于同意…的批复" }),
         textField("docNumber", "发文字号", { placeholder: "×政函〔2026〕×号" }),
-        textField("recipient", "主送机关", { required: true, placeholder: "市财政局" }),
+        textField("recipient", "主送机关", {
+          required: true,
+          placeholder: "市财政局",
+        }),
         textField("issuer", "发文机关署名"),
         textField("date", "成文日期", { placeholder: "2026-08-01" }),
         booleanField("seal", "加盖公章"),
@@ -412,8 +464,13 @@ function buildFormFields(docType: DocType): FormField[] {
     case "minutes":
       return [
         textField("title", "标题", { placeholder: "××会议纪要" }),
-        arrayField("attendees", "出席人员", { required: true, placeholder: "张三（市委办）" }),
-        arrayField("absentees", "请假人员", { placeholder: "李四（市政府办）" }),
+        arrayField("attendees", "出席人员", {
+          required: true,
+          placeholder: "张三（市委办）",
+        }),
+        arrayField("absentees", "请假人员", {
+          placeholder: "李四（市政府办）",
+        }),
         arrayField("observers", "列席人员", { placeholder: "王五（列席）" }),
         textField("date", "会议日期", { placeholder: "2026-08-01" }),
         booleanField("seal", "加盖公章"),
@@ -459,7 +516,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
             return issue(
               "GONGWEN_TRANSFER_REFERENCE_MISSING",
               "body",
-              "批转/转发型通知正文应引述被批转（转发）文件的标题，如“现将《××办法》转发给你们”。",
+              "批转/转发型通知正文应引述被批转（转发）文件的标题，如“现将《××办法》转发给你们”。"
             )
           }
           return null
@@ -476,7 +533,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
             return issue(
               "DECISION_NO_H1_HEADING",
               "body",
-              "决定正文应分条列项（至少一个一级标题 h1），不宜通篇为无层级段落。",
+              "决定正文应分条列项（至少一个一级标题 h1），不宜通篇为无层级段落。"
             )
           }
           return null
@@ -493,15 +550,14 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
           const hasMeasures = texts.some(
             (text) =>
               /(要|应当|必须|建立健全|完善|加强|推进|抓好|严格落实)/.test(
-                text,
-              ) &&
-              !/^(关于|根据|为(了)?|依据)/.test(text),
+                text
+              ) && !/^(关于|根据|为(了)?|依据)/.test(text)
           )
           if (!hasMeasures) {
             return issue(
               "OPINION_NO_MEASURES",
               "body",
-              "意见正文应提出具体处理办法或要求，如“要建立健全…”“应当加强…”。",
+              "意见正文应提出具体处理办法或要求，如“要建立健全…”“应当加强…”。"
             )
           }
           return null
@@ -519,7 +575,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
               return issue(
                 "REQUEST_RECIPIENT_MISSING",
                 "recipient",
-                "请示必须写明单一主送机关（上级机关），主送机关不能为空。",
+                "请示必须写明单一主送机关（上级机关），主送机关不能为空。"
               )
             }
             return null
@@ -533,7 +589,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
               return issue(
                 "REQUEST_CLOSING_MISSING",
                 "body",
-                "请示结尾应使用“妥否，请批示”等请求批示用语。",
+                "请示结尾应使用“妥否，请批示”等请求批示用语。"
               )
             }
             return null
@@ -547,12 +603,12 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
               return issue(
                 "MULTI_RECIPIENT",
                 "recipient",
-                "请示应单一主送机关（一个上级机关），用顿号列出多个主送机关不符合行文规则。",
+                "请示应单一主送机关（一个上级机关），用顿号列出多个主送机关不符合行文规则。"
               )
             }
             return null
           },
-        },
+        }
       )
       break
     }
@@ -565,7 +621,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
             return issue(
               "REPORT_REQUEST_CLOSING_MISUSED",
               "body",
-              "报告属于汇报性公文，不应以请示用语“妥否，请批示”结尾。",
+              "报告属于汇报性公文，不应以请示用语“妥否，请批示”结尾。"
             )
           }
           return null
@@ -583,7 +639,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
               return issue(
                 "REPLY_RECIPIENT_MISSING",
                 "recipient",
-                "批复必须写明单一主送机关（请示机关），主送机关不能为空。",
+                "批复必须写明单一主送机关（请示机关），主送机关不能为空。"
               )
             }
             return null
@@ -597,7 +653,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
               return issue(
                 "REPLY_OPENING_MISSING",
                 "body",
-                "批复正文开头应引述来文并注明“收悉”，如“你局《××请示》收悉。现批复如下”。",
+                "批复正文开头应引述来文并注明“收悉”，如“你局《××请示》收悉。现批复如下”。"
               )
             }
             return null
@@ -611,12 +667,12 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
               return issue(
                 "MULTI_RECIPIENT",
                 "recipient",
-                "批复应单一主送机关（一个下级机关），用顿号列出多个主送机关不符合行文规则。",
+                "批复应单一主送机关（一个下级机关），用顿号列出多个主送机关不符合行文规则。"
               )
             }
             return null
           },
-        },
+        }
       )
       break
     }
@@ -626,17 +682,12 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
         field: "body",
         check: (doc) => {
           if (
-            docContainsAny(doc, [
-              "必须执行",
-              "应立即执行",
-              "责令",
-              "务必照办",
-            ])
+            docContainsAny(doc, ["必须执行", "应立即执行", "责令", "务必照办"])
           ) {
             return issue(
               "LETTER_IMPERATIVE_TONE",
               "body",
-              "函属于平行文（不相隶属机关之间），不应使用“必须执行”“责令”等命令式用语，应语气协商、平和。",
+              "函属于平行文（不相隶属机关之间），不应使用“必须执行”“责令”等命令式用语，应语气协商、平和。"
             )
           }
           return null
@@ -653,7 +704,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
             return issue(
               "MINUTES_ATTENDEES_MISSING",
               "attendees",
-              "会议纪要应注明出席人员名单（attendees），格式为“出席：单位、姓名”。",
+              "会议纪要应注明出席人员名单（attendees），格式为“出席：单位、姓名”。"
             )
           }
           return null
@@ -670,7 +721,7 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
             return issue(
               "ANNOUNCEMENT_RECIPIENT_SHOULD_BE_EMPTY",
               "recipient",
-              "通告/公告面向社会公开发布，不应填写主送机关（recipient 应为空）。",
+              "通告/公告面向社会公开发布，不应填写主送机关（recipient 应为空）。"
             )
           }
           return null
@@ -689,10 +740,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     name: "通知",
     promptRequirement:
       "文种为通知，采用标准正文式结构，正文开头写明目的依据，结尾可使用“特此通知”。",
-    rules: [
-      ...buildDocTypeRules("gongwen"),
-      ...buildUniversalRules("gongwen"),
-    ],
+    rules: [...buildDocTypeRules("gongwen"), ...buildUniversalRules("gongwen")],
     formFields: buildFormFields("gongwen"),
     sealDefault: buildSealDefault("gongwen"),
   },
@@ -700,7 +748,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     docType: "decision",
     name: "决定",
     promptRequirement:
-      "文种为决定，正文须分条列项写明决定事项：每条用一个 type:\"h1\" 标题（一级标题，text 不带序号，引擎自动编号），标题下用 p 段落写明政策依据与执行要求，语气庄重、明确。",
+      '文种为决定，正文须分条列项写明决定事项：每条用一个 type:"h1" 标题（一级标题，text 不带序号，引擎自动编号），标题下用 p 段落写明政策依据与执行要求，语气庄重、明确。',
     rules: [
       ...buildDocTypeRules("decision"),
       ...buildUniversalRules("decision"),
@@ -713,10 +761,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     name: "意见",
     promptRequirement:
       "文种为意见，正文应分条提出原则性要求或工作建议，语气平实、可操作。",
-    rules: [
-      ...buildDocTypeRules("opinion"),
-      ...buildUniversalRules("opinion"),
-    ],
+    rules: [...buildDocTypeRules("opinion"), ...buildUniversalRules("opinion")],
     formFields: buildFormFields("opinion"),
     sealDefault: buildSealDefault("opinion"),
   },
@@ -725,10 +770,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     name: "请示",
     promptRequirement:
       "文种为请示，主送机关（recipient）必填且只写一个上级机关；正文写明请示事项、理由与建议，结尾使用“妥否，请批示”。",
-    rules: [
-      ...buildDocTypeRules("request"),
-      ...buildUniversalRules("request"),
-    ],
+    rules: [...buildDocTypeRules("request"), ...buildUniversalRules("request")],
     formFields: buildFormFields("request"),
     sealDefault: buildSealDefault("request"),
   },
@@ -737,10 +779,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     name: "报告",
     promptRequirement:
       "文种为报告，主送机关填写上级机关；正文汇报工作情况、存在问题及下一步打算，结尾不使用请示用语。",
-    rules: [
-      ...buildDocTypeRules("report"),
-      ...buildUniversalRules("report"),
-    ],
+    rules: [...buildDocTypeRules("report"), ...buildUniversalRules("report")],
     formFields: buildFormFields("report"),
     sealDefault: buildSealDefault("report"),
   },
@@ -749,10 +788,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     name: "批复",
     promptRequirement:
       "文种为批复，主送机关（recipient）必填且为单一下级机关；正文开头采用“你（单位）《××请示》收悉。现批复如下”，随后给出明确的批复意见。",
-    rules: [
-      ...buildDocTypeRules("reply"),
-      ...buildUniversalRules("reply"),
-    ],
+    rules: [...buildDocTypeRules("reply"), ...buildUniversalRules("reply")],
     formFields: buildFormFields("reply"),
     sealDefault: buildSealDefault("reply"),
   },
@@ -761,10 +797,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     name: "函",
     promptRequirement:
       "文种为函，用于平行或不相隶属机关之间商洽工作、询问答复，语气协商、平和，不使用命令式表述。",
-    rules: [
-      ...buildDocTypeRules("letter"),
-      ...buildUniversalRules("letter"),
-    ],
+    rules: [...buildDocTypeRules("letter"), ...buildUniversalRules("letter")],
     formFields: buildFormFields("letter"),
     sealDefault: buildSealDefault("letter"),
   },
@@ -773,10 +806,7 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     name: "会议纪要",
     promptRequirement:
       "文种为会议纪要，正文开头须写明会议名称、时间、地点、参加人员（或主持人），随后按议题分条记录议定事项；必须在 attendees、absentees、observers 三个字段中分别给出出席、请假、列席人员名单（格式为“单位、姓名”，多人用“、”连接），正文末尾的版记按“出席：…\n请假：…\n列席：…”顺序编排。",
-    rules: [
-      ...buildDocTypeRules("minutes"),
-      ...buildUniversalRules("minutes"),
-    ],
+    rules: [...buildDocTypeRules("minutes"), ...buildUniversalRules("minutes")],
     formFields: buildFormFields("minutes"),
     sealDefault: buildSealDefault("minutes"),
   },

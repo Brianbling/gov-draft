@@ -86,8 +86,7 @@ describe("normalizeText · 重复标点压缩", () => {
 
 describe("normalizeText · 混合场景", () => {
   it("标题/正文常见半角污染一次归一", () => {
-    const input =
-      '关于"数字政府"建设的通知:第一,加强领导.第二,落实责任.'
+    const input = '关于"数字政府"建设的通知:第一,加强领导.第二,落实责任.'
     expect(normalizeText(input)).toBe(
       "关于“数字政府”建设的通知：第一，加强领导。第二，落实责任。"
     )
@@ -102,6 +101,27 @@ describe("normalizeText · 混合场景", () => {
     expect(normalizeText("Hello, world. https://a.com")).toBe(
       "Hello, world. https://a.com"
     )
+  })
+})
+
+describe("normalizeText · 计量单位规范化（GB/T 3100）", () => {
+  it("口语化单位“平米/公分”转换为正式名称“平方米/厘米”", () => {
+    expect(normalizeText("项目占地 120 平米。")).toBe("项目占地 120 平方米。")
+    expect(normalizeText("路基宽度 8 公分。")).toBe("路基宽度 8 厘米。")
+    expect(normalizeText("建筑面积约 1500 平米，管道直径 3 公分。")).toBe(
+      "建筑面积约 1500 平方米，管道直径 3 厘米。"
+    )
+  })
+
+  it("规范单位（公里/公斤/厘米）不受影响", () => {
+    expect(normalizeText("全长 15 公里")).toBe("全长 15 公里")
+    expect(normalizeText("载重 2 公斤")).toBe("载重 2 公斤")
+    expect(normalizeText("长 5 厘米")).toBe("长 5 厘米")
+  })
+
+  it("平方米/米等标准写法原样保留", () => {
+    expect(normalizeText("占地 100 平方米")).toBe("占地 100 平方米")
+    expect(normalizeText("距离 10 米")).toBe("距离 10 米")
   })
 })
 

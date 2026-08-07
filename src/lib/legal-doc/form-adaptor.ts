@@ -17,6 +17,9 @@ export interface FormValues {
   date?: string
   securityLevel?: string
   urgency?: string
+  copyNumber?: string
+  issuingOrg?: string
+  annotation?: string
   attachments?: string[]
   cc?: string[]
   attendees?: string[]
@@ -33,6 +36,9 @@ const FORM_FIELD_LABELS: Record<FormFieldKey, string> = {
   date: "成文日期",
   securityLevel: "密级",
   urgency: "紧急程度",
+  copyNumber: "份号",
+  issuingOrg: "发文机关标志",
+  annotation: "附注",
   attachments: "附件",
   cc: "抄送机关",
   attendees: "出席人员",
@@ -49,12 +55,15 @@ const NONEMPTY_KEYS = [
   "date",
   "securityLevel",
   "urgency",
+  "copyNumber",
+  "issuingOrg",
+  "annotation",
 ] as const
 
 /** 只取该文种 formFields 里定义过、且用户填了值的字段，避免把无关字段塞进 prompt。 */
 function serializeValues(
   docType: DocType,
-  values: FormValues,
+  values: FormValues
 ): Array<[FormFieldKey, string]> {
   const fields = DOC_TYPE_SPECS[docType].formFields
   const allowed = new Set<FormFieldKey>(fields.map((f) => f.key))
@@ -74,13 +83,19 @@ function serializeValues(
  */
 export function buildFormRequirement(
   docType: DocType,
-  values: FormValues,
+  values: FormValues
 ): string {
   const filled = serializeValues(docType, values)
   const arrayEntries: Array<[string, string]> = []
   const fields = DOC_TYPE_SPECS[docType].formFields
   const allowed = new Set<FormFieldKey>(fields.map((f) => f.key))
-  for (const key of ["attachments", "cc", "attendees", "absentees", "observers"] as const) {
+  for (const key of [
+    "attachments",
+    "cc",
+    "attendees",
+    "absentees",
+    "observers",
+  ] as const) {
     if (!allowed.has(key)) continue
     const arr = values[key]
     if (arr && arr.length > 0) {
@@ -95,7 +110,11 @@ export function buildFormRequirement(
     sealLines.push(`seal=${values.seal === true}`)
   }
 
-  if (filled.length === 0 && arrayEntries.length === 0 && sealLines.length === 0) {
+  if (
+    filled.length === 0 &&
+    arrayEntries.length === 0 &&
+    sealLines.length === 0
+  ) {
     return ""
   }
 
@@ -117,7 +136,7 @@ export function buildFormRequirement(
  */
 export function validateFormRequired(
   docType: DocType,
-  values: FormValues,
+  values: FormValues
 ): string[] {
   const missing: string[] = []
   for (const field of DOC_TYPE_SPECS[docType].formFields) {
@@ -137,14 +156,14 @@ export function validateFormRequired(
 export function hasFormValues(values: FormValues): boolean {
   return (
     NONEMPTY_KEYS.some(
-      (key) => typeof values[key] === "string" && values[key].trim().length > 0,
+      (key) => typeof values[key] === "string" && values[key].trim().length > 0
     ) ||
-    (["attachments", "cc", "attendees", "absentees", "observers"] as const).some(
-      (key) => {
-        const arr = values[key] as string[] | undefined
-        return arr !== undefined && arr.length > 0
-      },
-    )
+    (
+      ["attachments", "cc", "attendees", "absentees", "observers"] as const
+    ).some((key) => {
+      const arr = values[key] as string[] | undefined
+      return arr !== undefined && arr.length > 0
+    })
   )
 }
 
@@ -156,6 +175,9 @@ const STRING_KEYS = [
   "date",
   "securityLevel",
   "urgency",
+  "copyNumber",
+  "issuingOrg",
+  "annotation",
 ] as const
 
 const ARRAY_KEYS = [
@@ -216,7 +238,10 @@ export function docToFormValues(doc: LegalDoc): FormValues {
  * array 类型空数组 → undefined（渲染时空壳段落由 toMarkdown 已处理，但 IR 里
  * 应保留 schema 语义）；text 空串 → undefined。返回浅拷贝，不改原 doc。
  */
-export function applyFormValuesToDoc(doc: LegalDoc, values: FormValues): LegalDoc {
+export function applyFormValuesToDoc(
+  doc: LegalDoc,
+  values: FormValues
+): LegalDoc {
   const next: LegalDoc = { ...doc }
   // formFields 的 key 都是合法 LegalDoc 字段（doc-type-spec-form 测试兜底），
   // 但 FormFieldKey 是字符串联合，直接 next[key]= 赋值在严格模式下无法通过

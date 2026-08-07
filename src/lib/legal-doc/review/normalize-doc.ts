@@ -20,6 +20,9 @@ export function normalizeDoc(doc: LegalDoc): LegalDoc {
     printingDate: doc.printingDate
       ? normalizeText(doc.printingDate)
       : undefined,
+    copyNumber: doc.copyNumber ? normalizeText(doc.copyNumber) : undefined,
+    issuingOrg: doc.issuingOrg ? normalizeText(doc.issuingOrg) : undefined,
+    annotation: doc.annotation ? normalizeText(doc.annotation) : undefined,
     body: doc.body.map((paragraph) => ({
       ...paragraph,
       text: normalizeText(paragraph.text),

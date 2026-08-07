@@ -42,6 +42,10 @@ export const LegalDocSchema = z.object({
   docNumber: z.string().optional(),
   securityLevel: z.string().optional(),
   urgency: z.string().optional(),
+  /** 份号（GB/T 9704 §7.2.1）：涉密公文编号，顶格编排在版心左上角第一行。 */
+  copyNumber: z.string().optional(),
+  /** 发文机关标志（GB/T 9704 §7.2.4 红头）：红色居中，小标宋。 */
+  issuingOrg: z.string().optional(),
   recipient: z.string().optional(),
   body: z
     .array(LegalParagraphSchema)
@@ -49,6 +53,8 @@ export const LegalDocSchema = z.object({
   attachments: z.array(z.string().min(1)).optional(),
   issuer: z.string().optional(),
   date: z.string().optional(),
+  /** 附注（GB/T 9704 §7.3.6）：居左空二字加圆括号，编排在成文日期下一行。 */
+  annotation: z.string().optional(),
   cc: z.array(z.string().min(1)).optional(),
   printingOffice: z.string().optional(),
   printingDate: z.string().optional(),
@@ -117,7 +123,7 @@ export function parseLegalDoc(raw: string): LegalDoc {
       throw new LegalDocParseError(
         LEGAL_DOC_PARSE_FAILED,
         "Response must be a JSON object matching the LegalDoc schema",
-        issues,
+        issues
       )
     }
 
@@ -132,21 +138,21 @@ export function parseLegalDoc(raw: string): LegalDoc {
       throw new LegalDocParseError(
         LEGAL_DOC_UNSUPPORTED_TYPE,
         `Unsupported or missing docType`,
-        issues,
+        issues
       )
     }
     if (hasIssue("title") && !hasIssue("body")) {
       throw new LegalDocParseError(
         LEGAL_DOC_MISSING_TITLE,
         `Missing or invalid field(s): title`,
-        issues,
+        issues
       )
     }
     if (hasIssue("body")) {
       throw new LegalDocParseError(
         LEGAL_DOC_EMPTY_BODY,
         `Missing or invalid field(s): body`,
-        issues,
+        issues
       )
     }
 

@@ -12,9 +12,7 @@ import { DOC_TYPE_SPECS } from "../doc-type-spec"
 describe("buildFormRequirement", () => {
   it("无表单值时不追加任何约束（保持纯自然语言路径行为）", () => {
     expect(buildFormRequirement("gongwen", {})).toBe("")
-    expect(
-      buildFormRequirement("gongwen", { date: "  " })
-    ).toBe("")
+    expect(buildFormRequirement("gongwen", { date: "  " })).toBe("")
   })
 
   it("填入单值要素时按‘要素=值’拼接进一句话约束", () => {
@@ -172,7 +170,7 @@ describe("docToFormValues · LegalDoc → 编辑面板 FormValues", () => {
         attachments: ["任务清单"],
         cc: ["市委办"],
         seal: true,
-      }),
+      })
     )
     expect(values.title).toBe("关于推进垃圾分类工作的通知")
     expect(values.docNumber).toBe("国发〔2026〕12号")
@@ -191,8 +189,34 @@ describe("docToFormValues · LegalDoc → 编辑面板 FormValues", () => {
     expect(values.cc).toEqual([])
   })
 
+  it("份号/发文机关标志/附注被拍平进 FormValues 并可写回", () => {
+    const values = docToFormValues(
+      buildDoc({
+        docType: "gongwen",
+        copyNumber: "0001",
+        issuingOrg: "××市人民政府文件",
+        annotation: "（此件公开发布）",
+        title: "关于推进垃圾分类工作的通知",
+      })
+    )
+    expect(values.copyNumber).toBe("0001")
+    expect(values.issuingOrg).toBe("××市人民政府文件")
+    expect(values.annotation).toBe("（此件公开发布）")
+
+    const next = applyFormValuesToDoc(
+      buildDoc({ docType: "gongwen", title: "原标题" }),
+      { copyNumber: "0002", annotation: "（此件不予公开）" }
+    )
+    expect(next.copyNumber).toBe("0002")
+    expect(next.annotation).toBe("（此件不予公开）")
+    // 未触碰的 issuingOrg 不写入
+    expect(next.issuingOrg).toBeUndefined()
+  })
+
   it("未盖章时 seal 归一为 false（开关双态可切换）", () => {
-    const values = docToFormValues(buildDoc({ docType: "gongwen", seal: false }))
+    const values = docToFormValues(
+      buildDoc({ docType: "gongwen", seal: false })
+    )
     expect(values.seal).toBe(false)
   })
 
@@ -202,7 +226,7 @@ describe("docToFormValues · LegalDoc → 编辑面板 FormValues", () => {
         docType: "gongwen",
         attendees: ["张三（市委办）"],
         absentees: ["李四（市政府办）"],
-      }),
+      })
     )
     // gongwen（default 分支）formFields 不含 attendees/absentees
     expect(values.attendees).toBeUndefined()
@@ -217,7 +241,7 @@ describe("docToFormValues · LegalDoc → 编辑面板 FormValues", () => {
         absentees: ["李四（市政府办）"],
         observers: ["王五（列席）"],
         title: "会议纪要",
-      }),
+      })
     )
     expect(values.attendees).toEqual(["张三（市委办）"])
     expect(values.absentees).toEqual(["李四（市政府办）"])

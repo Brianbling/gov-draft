@@ -6,7 +6,9 @@ import {
 import type { PageRenderMeta } from "../use-paginator"
 import type { PaginationConfig } from "@/engine/schema"
 
-function makePagination(overrides: Partial<PaginationConfig> = {}): PaginationConfig {
+function makePagination(
+  overrides: Partial<PaginationConfig> = {}
+): PaginationConfig {
   return {
     enabled: true,
     format: "{currentPage} / {totalPage}",
@@ -27,7 +29,7 @@ function makePagination(overrides: Partial<PaginationConfig> = {}): PaginationCo
 function makeMeta(
   pagination: PaginationConfig,
   globalPage = 1,
-  globalTotal = 1,
+  globalTotal = 1
 ): PageRenderMeta {
   return { globalPage, globalTotal, pagination }
 }
@@ -35,18 +37,14 @@ function makeMeta(
 describe("getPaginationText", () => {
   it("substitutes variables into format template", () => {
     const text = getPaginationText(
-      makeMeta(makePagination({ format: "{currentPage} / {totalPage}" }), 3, 10),
+      makeMeta(makePagination({ format: "{currentPage} / {totalPage}" }), 3, 10)
     )
     expect(text).toBe("3 / 10")
   })
 
   it("evaluates arithmetic expressions in placeholders", () => {
     const text = getPaginationText(
-      makeMeta(
-        makePagination({ format: "第{currentPage+1}页" }),
-        3,
-        10,
-      ),
+      makeMeta(makePagination({ format: "第{currentPage+1}页" }), 3, 10)
     )
     expect(text).toBe("第4页")
   })
@@ -59,13 +57,65 @@ describe("getPaginationText", () => {
     }
     expect(getPaginationText(meta)).toBe("")
   })
+
+  it("hideFirstPage=true 时首页（pageIndex 0）不输出页码文本", () => {
+    const text = getPaginationText(
+      makeMeta(
+        makePagination({ hideFirstPage: true, format: "{currentPage}" }),
+        1,
+        3
+      ),
+      0
+    )
+    expect(text).toBe("")
+  })
+
+  it("hideFirstPage=true 时第 2 页起正常输出页码", () => {
+    const text = getPaginationText(
+      makeMeta(
+        makePagination({ hideFirstPage: true, format: "{currentPage}" }),
+        2,
+        3
+      ),
+      1
+    )
+    expect(text).toBe("2")
+  })
+
+  it("hideFirstPage 缺省/false 时首页照常输出页码（默认行为不变）", () => {
+    expect(getPaginationText(makeMeta(makePagination(), 1, 3), 0)).toBe("1 / 3")
+    expect(
+      getPaginationText(
+        makeMeta(makePagination({ hideFirstPage: false }), 1, 3),
+        0
+      )
+    ).toBe("1 / 3")
+  })
+
+  it("hideFirstPage=true 但不传 pageIndex 时保守输出（无首页判定则照常渲染）", () => {
+    const text = getPaginationText(
+      makeMeta(
+        makePagination({ hideFirstPage: true, format: "{currentPage}" }),
+        1,
+        3
+      )
+    )
+    expect(text).toBe("1")
+  })
 })
 
 describe("getPaginationInlineStyle", () => {
   it("bottom anchor positions upward from the content bottom edge", () => {
     const style = getPaginationInlineStyle(
-      makeMeta(makePagination({ position: { vertical: { anchor: "bottom", offset: "7mm" }, horizontal: { anchor: "center", offset: "0mm" } } })),
-      0,
+      makeMeta(
+        makePagination({
+          position: {
+            vertical: { anchor: "bottom", offset: "7mm" },
+            horizontal: { anchor: "center", offset: "0mm" },
+          },
+        })
+      ),
+      0
     )
     expect(style.top).toBeUndefined()
     expect(style.bottom).toBeDefined()
@@ -77,8 +127,15 @@ describe("getPaginationInlineStyle", () => {
 
   it("top anchor positions downward from the content top edge", () => {
     const style = getPaginationInlineStyle(
-      makeMeta(makePagination({ position: { vertical: { anchor: "top", offset: "7mm" }, horizontal: { anchor: "center", offset: "0mm" } } })),
-      0,
+      makeMeta(
+        makePagination({
+          position: {
+            vertical: { anchor: "top", offset: "7mm" },
+            horizontal: { anchor: "center", offset: "0mm" },
+          },
+        })
+      ),
+      0
     )
     expect(style.bottom).toBeUndefined()
     expect(style.top).toBeDefined()
@@ -89,8 +146,15 @@ describe("getPaginationInlineStyle", () => {
 
   it("left anchor offsets from the content left edge (版心左缘 + 空一字)", () => {
     const style = getPaginationInlineStyle(
-      makeMeta(makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "left", offset: "10mm" } } })),
-      0,
+      makeMeta(
+        makePagination({
+          position: {
+            vertical: { anchor: "bottom", offset: "0mm" },
+            horizontal: { anchor: "left", offset: "10mm" },
+          },
+        })
+      ),
+      0
     )
     expect(style.right).toBeUndefined()
     expect(style.left).toBeDefined()
@@ -102,8 +166,15 @@ describe("getPaginationInlineStyle", () => {
 
   it("right anchor offsets from the content right edge (版心右缘 + 空一字)", () => {
     const style = getPaginationInlineStyle(
-      makeMeta(makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "right", offset: "10mm" } } })),
-      0,
+      makeMeta(
+        makePagination({
+          position: {
+            vertical: { anchor: "bottom", offset: "0mm" },
+            horizontal: { anchor: "right", offset: "10mm" },
+          },
+        })
+      ),
+      0
     )
     expect(style.left).toBeUndefined()
     expect(style.right).toBeDefined()
@@ -113,7 +184,12 @@ describe("getPaginationInlineStyle", () => {
   })
 
   it("outside anchor: right side on odd pages, left side on even pages", () => {
-    const pagination = makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "outside", offset: "10mm" } } })
+    const pagination = makePagination({
+      position: {
+        vertical: { anchor: "bottom", offset: "0mm" },
+        horizontal: { anchor: "outside", offset: "10mm" },
+      },
+    })
 
     const oddStyle = getPaginationInlineStyle(makeMeta(pagination, 1, 10), 0)
     expect(oddStyle.right).toBe("calc(var(--page-margins-right) + 10mm)")
@@ -125,7 +201,12 @@ describe("getPaginationInlineStyle", () => {
   })
 
   it("inside anchor: left side on odd pages, right side on even pages", () => {
-    const pagination = makePagination({ position: { vertical: { anchor: "bottom", offset: "0mm" }, horizontal: { anchor: "inside", offset: "10mm" } } })
+    const pagination = makePagination({
+      position: {
+        vertical: { anchor: "bottom", offset: "0mm" },
+        horizontal: { anchor: "inside", offset: "10mm" },
+      },
+    })
 
     const oddStyle = getPaginationInlineStyle(makeMeta(pagination, 1, 10), 0)
     expect(oddStyle.left).toBe("calc(var(--page-margins-left) + 10mm)")
@@ -137,10 +218,7 @@ describe("getPaginationInlineStyle", () => {
   })
 
   it("always resets line-height to 1 and forbids wrapping", () => {
-    const style = getPaginationInlineStyle(
-      makeMeta(makePagination()),
-      0,
-    )
+    const style = getPaginationInlineStyle(makeMeta(makePagination()), 0)
     expect(style.lineHeight).toBe("1")
     expect(style.whiteSpace).toBe("nowrap")
   })

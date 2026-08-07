@@ -18,7 +18,7 @@ const containsCjk = (s: string): boolean => CJK_CHAR_PATTERN.test(s)
 function nearestChar(
   chars: string[],
   start: number,
-  step: -1 | 1,
+  step: -1 | 1
 ): string | undefined {
   let i = start + step
   while (i >= 0 && i < chars.length) {
@@ -42,7 +42,7 @@ function convertQuotes(
   text: string,
   half: string,
   fullOpen: string,
-  fullClose: string,
+  fullClose: string
 ): string {
   const chars = Array.from(text)
   const result = [...chars]
@@ -185,18 +185,34 @@ function collapseRepeatedMarks(text: string): string {
 }
 
 /**
+ * 口语化计量单位 → 正式公文规范名称（GB/T 3100/15835）。
+ * 仅转换无歧义、在正式公文中一定属非规范写法的词：`平米`→`平方米`、`公分`→`厘米`
+ * （两者都是口语简称，正式公文标准写法为"平方米/厘米"）。不碰"公里/公斤"等本身
+ * 就是规范称法的单位，也不自动改上标（如 m2→m² 有上下文误伤风险，交给 L2 告警）。
+ */
+function normalizeUnits(text: string): string {
+  return text.replaceAll("平米", "平方米").replaceAll("公分", "厘米")
+}
+
+/**
  * 规范化一段中文公文文本：
  * 1. 半角引号成对转中文引号（英文语境保留）；
  * 2. 半角圆括号对转全角（内含中文才转）；
  * 3. 半角逗号/冒号在中文语境转全角；
  * 4. 中文语境的半角句号转全角（数字/版本/URL 不误伤）；
- * 5. 压缩连续重复标点。
+ * 5. 压缩连续重复标点；
+ * 6. 口语化计量单位转正式名称（平米→平方米、公分→厘米）。
  */
 export function normalizeText(text: string): string {
-  const singles = convertQuotes(convertQuotes(text, "'", "‘", "’"), '"', "“", "”")
+  const singles = convertQuotes(
+    convertQuotes(text, "'", "‘", "’"),
+    '"',
+    "“",
+    "”"
+  )
   const parens = convertCjkParens(singles)
   const commas = convertCjkPunct(parens, ",", "，")
   const colons = convertCjkPunct(commas, ":", "：")
   const periods = convertCjkPeriod(colons)
-  return collapseRepeatedMarks(periods)
+  return normalizeUnits(collapseRepeatedMarks(periods))
 }

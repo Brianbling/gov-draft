@@ -10,6 +10,8 @@ const SYSTEM_PROMPT = `你是一名资深的党政机关公文写作助手。请
   "docType": "gongwen" | "decision" | "opinion" | "request" | "report" | "reply" | "letter" | "minutes" | "announcement",
   "title": "公文标题（必填，作为文件标题/红头）",
   "docNumber": "发文字号，如：国发〔2026〕12号（可选）",
+  "copyNumber": "份号（涉密公文才填，如：0001，可选）",
+  "issuingOrg": "发文机关标志（红头，如：××市人民政府文件，可选）",
   "securityLevel": "密级，仅限：秘密 / 机密 / 绝密（可选）",
   "urgency": "紧急程度，仅限：特急 / 加急（可选）",
   "recipient": "主送机关（可选）",
@@ -22,6 +24,7 @@ const SYSTEM_PROMPT = `你是一名资深的党政机关公文写作助手。请
   "attachments": ["附件名称列表（可选）"],
   "issuer": "发文机关署名（可选）",
   "date": "成文日期，ISO 格式如 2026-07-31（可选）",
+  "annotation": "附注（如：（此件公开发布）），可选",
   "cc": ["抄送机关列表（可选）"],
   "printingOffice": "印发机关（可选）",
   "printingDate": "印发日期（可选）",
@@ -33,6 +36,8 @@ const SYSTEM_PROMPT = `你是一名资深的党政机关公文写作助手。请
 
 字段说明：
 - docType 取值与中文文种对应：gongwen=通知，decision=决定，opinion=意见，request=请示，report=报告，reply=批复，letter=函，minutes=会议纪要，announcement=通告/公告。
+- copyNumber（份号）仅涉密公文填写（如"0001"），普通公文省略；issuingOrg（发文机关标志）仅在用户明确要求时填写（如"××市人民政府文件"），一般不填以免与标题红头重复。
+- annotation（附注）如"（此件公开发布）"在成文日期下一行编排，仅在确有附注时填写。
 - body 至少 1 段。type 只能取 p（正文段落）、h1（一级标题，如“一、总体要求”层级的标题）、h2（二级标题，如“（一）加强统筹”层级的标题）。
 - **序号由排版引擎自动生成，标题 text 严禁自带序号**：h1 的 text 只能写“总体要求”，绝不能写成“一、总体要求”；h2 只能写“统筹推进”，绝不能写“（一）统筹推进”。否则会渲染成“一、一、总体要求”。
 - 正文段落（type 为 p）不要写“一、二、三、”这类序号开头，需要分条列项时改用 h1/h2 标题层级。
@@ -305,17 +310,21 @@ export function buildUserPrompt(
       : ""
   const instructions = [formatRequirement, sealRequirement].filter(Boolean)
 
-  const userContent = instructions.length > 0
-    ? `${userDescription.trim()}\n\n附加格式要求：\n${instructions.join("\n")}`
-    : userDescription.trim()
+  const userContent =
+    instructions.length > 0
+      ? `${userDescription.trim()}\n\n附加格式要求：\n${instructions.join("\n")}`
+      : userDescription.trim()
 
   const docType = extractDocType(userDescription)
   const spec = docType ? DOC_TYPE_SPECS[docType] : null
-  const exampleDoc = docType ? EXAMPLE_OUTPUTS[docType] : EXAMPLE_OUTPUTS.gongwen
+  const exampleDoc = docType
+    ? EXAMPLE_OUTPUTS[docType]
+    : EXAMPLE_OUTPUTS.gongwen
   const example = JSON.stringify(exampleDoc, null, 2)
   const selectedExample = `${exampleDoc.title}（${spec?.name ?? "通知"}）\n${example}`
   // 用 split/join 而非 replace：replace 会把用户描述里的 $& / $1 等当替换模式吞掉
-  const prompt = USER_PROMPT_TEMPLATE.split("{userDescription}").join(userContent)
+  const prompt =
+    USER_PROMPT_TEMPLATE.split("{userDescription}").join(userContent)
   return `${prompt}
 
 示例输出（仅作格式参考，内容需按本次要求重写）：
