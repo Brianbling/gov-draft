@@ -526,6 +526,20 @@ describe("patchMarkdownElements · 要素编辑面板回填（H1 数据丢失修
     expect(patched).toContain("2．工作台账")
   })
 
+  it("含红头（issuingOrg）时正文手动修改仍保留（M-6 回归）", () => {
+    // RED_HEAD descriptor 含 spacing.before: 35mm，曾触发 isElementAnchorBlock 的
+    // spacing.before 误判，导致红头之后正文全部回退 IR 重建稿、覆盖手动修改。
+    const withOrg = buildDoc({
+      issuingOrg: "××市人民政府",
+      body: [{ type: "p", text: "红头后的正文。" }],
+    })
+    const base = toMarkdown(withOrg)
+    const edited = base.replace("红头后的正文。", "红头后的正文【用户改】。")
+    const patched = patchMarkdownElements(edited, { ...withOrg, title: "新标题" })
+    expect(patched).toContain("红头后的正文【用户改】。")
+    expect(patched).toContain("# 新标题")
+  })
+
   it("会议纪要名单更新生效", () => {
     const minutes = buildDoc({
       docType: "minutes",

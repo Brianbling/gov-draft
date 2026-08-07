@@ -8,9 +8,17 @@ const CONTAINER_MARKER = ':::'
 // 该块被缓存命中跳过 parse 时，env 里就缺定义，引用块会渲染成字面
 // `[文本][gb]`。这类块必须每次重 parse，确保 env 的引用定义始终最新。
 const REFERENCE_DEFINITION_RE = /^\[[^\]]+\]:\s+\S+/m
+// 引用使用块（`[文本][id]` / `[id][]`）渲染时从 env 查定义；若被缓存命中
+// 跳过 parse，其 href 固化为旧值。改定义 URL 后引用仍指向旧链接。
+// 使用块同样必须每次重 parse，与定义块一起保持 env 的引用一致。
+const REFERENCE_USE_RE = /\[[^\]\[]+\]\[[^\]]+\]|\[[^\]\[]+\]\[\]/m
 
 function isReferenceDefinitionBlock(blockText: string): boolean {
   return REFERENCE_DEFINITION_RE.test(blockText)
+}
+
+function isReferenceUsingBlock(blockText: string): boolean {
+  return REFERENCE_USE_RE.test(blockText)
 }
 
 function cloneToken(t: Token): Token {
@@ -85,7 +93,8 @@ export class BlockCache {
 
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i]!
-      const cacheable = !isReferenceDefinitionBlock(block)
+      const cacheable =
+        !isReferenceDefinitionBlock(block) && !isReferenceUsingBlock(block)
       const cached = cacheable ? this.store.get(block) : undefined
       if (cached !== undefined) {
         // Clone on read so token processors can mutate freely without
@@ -124,6 +133,7 @@ export class BlockCache {
       const block = blocks[i]!
       if (block.includes(CONTAINER_MARKER)) continue
       if (isReferenceDefinitionBlock(block)) continue
+      if (isReferenceUsingBlock(block)) continue
       if (!this.store.has(block)) {
         this.store.set(block, cloneTokens(parseBlock(block, env)))
       }

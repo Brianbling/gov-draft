@@ -46,7 +46,8 @@ export function Toolbar({ editorRef }: ToolbarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [aiGenerateOpen, setAiGenerateOpen] = useState(false)
 
-  const openAiGenerate = () => setAiGenerateOpen(true)
+  const openAiGenerate = () =>
+    window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
   const openSettings = () => setSettingsOpen(true)
 
   // 首启引导层 / 覆盖确认弹窗通过全局事件触发 AI 生成对话框与导入。

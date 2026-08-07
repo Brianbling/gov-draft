@@ -195,6 +195,26 @@ describe('BlockCache integration (via MarkdownParser)', () => {
     expect(warm.html).toBe(cold.html)
     expect(warm.html).toContain('<a href="https://example.com"')
   })
+
+  it('re-editing a definition URL updates cached reference uses (M-4 regression)', () => {
+    // 无容器纯手写大文档（缓存唯一生效域）改定义 URL 后，引用使用块必须重 parse，
+    // 不能再命中缓存返回旧 href。
+    const makeDoc = (url: string) =>
+      Array.from({ length: 30 }, (_, i) => {
+        if (i === 3) return `[gb]: ${url}`
+        if (i === 20) return '参见[国家标准][gb]相关要求。'
+        return `段落${i + 1}：各部门要充分认识本次工作的重要意义。`
+      }).join('\n\n')
+
+    const parser = new MarkdownParser(undefined, parserConfig)
+
+    parser.parse(makeDoc('https://www.gov.cn/guobiao')) // warm, v1
+    const edited = parser.parse(makeDoc('https://www.gov.cn/guobiao-v2'))
+
+    // 引用使用块重 parse 后必须读到新定义（v2），不能是缓存里的旧 href（v1）。
+    expect(edited.html).toContain('https://www.gov.cn/guobiao-v2')
+    expect(edited.html).not.toContain('<a href="https://www.gov.cn/guobiao"')
+  })
 })
 
 // ---------------------------------------------------------------------------

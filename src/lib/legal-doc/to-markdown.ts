@@ -342,7 +342,7 @@ function isBodyTypedBlock(block: string): boolean {
 function isElementAnchorBlock(block: string): boolean {
   if (block.includes("content.body.paragraph.align: right")) return true // 落款署名/成文日期
   if (block.includes("content.body.style.size: 14pt")) return true // 版记（抄送/印发）
-  if (block.includes("spacing.before")) return true // 附件说明
+  if (block.includes("spacing.before: 28.95pt")) return true // 附件说明（下空一行）
   const contentLines = block
     .split("\n")
     .filter((l) => l.length > 0 && l !== ":::" && !l.startsWith("::: "))

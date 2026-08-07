@@ -106,18 +106,24 @@ export function App() {
     }
   }, [createNewDocument])
 
-  // P0-5 二次生成覆盖确认：编辑器有内容（非空白）时再生成先弹确认，
-  // 避免误点即静默覆盖手动微调成果。逻辑放 ref，供 Ctrl+J / Toolbar 按钮 /
-  // 欢迎层 / 确认弹窗的"继续生成"四入口复用，避免事件再分发死循环。
-  const openAiGenerateRef = useRef<() => void>(() => {})
+  // P0-5 二次生成覆盖确认：任何 AI 生成入口（Toolbar 按钮 / Ctrl+J /
+  // 欢迎层 / 确认弹窗"继续生成"）都 dispatch OPEN_AI_EVENT，此处在 capture
+  // 阶段拦截：有内容（非空白）时 preventDefault 并弹确认，空白放行。
+  // 确认弹窗的"覆盖"用 detail.force 显式放行（用户已确认覆盖，不再二次弹窗）。
+  // Toolbar 自己的 OPEN_AI_EVENT 监听（handleOpenAi → 打开对话框）在冒泡阶段，
+  // 已被 capture 拦截时收不到事件，故不会出现"已确认又二次弹窗"。
   useEffect(() => {
-    openAiGenerateRef.current = () => {
+    const guard = (e: Event) => {
+      const custom = e as CustomEvent
+      if (custom.detail?.force) return
       if (!useDocStore.getState().isBlankDocument()) {
+        e.preventDefault()
         setConfirmGenerate(true)
-        return
       }
-      window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
     }
+    window.addEventListener(OPEN_AI_EVENT, guard, { capture: true })
+    return () =>
+      window.removeEventListener(OPEN_AI_EVENT, guard, { capture: true })
   }, [])
 
   // P0-1 工具栏"新建文档"按钮 → 空白则直接新建，有内容先弹确认。
@@ -152,7 +158,7 @@ export function App() {
       const key = e.key.toLowerCase()
       if (key === "j") {
         e.preventDefault()
-        openAiGenerateRef.current()
+        window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
       } else if (key === "n") {
         e.preventDefault()
         handleNewRequestRef.current()
@@ -167,7 +173,7 @@ export function App() {
   }, [])
 
   const openAiGenerate = useCallback(() => {
-    openAiGenerateRef.current()
+    window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
   }, [])
 
   return (
@@ -220,7 +226,9 @@ export function App() {
           onOpenChange={setConfirmGenerate}
           onConfirm={() => {
             setConfirmGenerate(false)
-            window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
+            window.dispatchEvent(
+              new CustomEvent(OPEN_AI_EVENT, { detail: { force: true } })
+            )
           }}
           onNewDocument={() => {
             setConfirmGenerate(false)
