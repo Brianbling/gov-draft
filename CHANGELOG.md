@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 - **设置页架构约束（防退化）**：设置页保持 schema-driven 导航模型（section 由 RuleConfig descriptor 树派生）＋ 独立的 Editor section。**"AI 服务"是唯一硬编码特例**：`nav-sections.ts` 直接 push 一个 fields 为空的 section，由 `AiSettingsForm` 渲染，其配置值（`llmApiKey/llmEndpoint/llmModel`）搭 `SettingsDraft.editor` 载体传输。约束：**不再新增硬编码 section**；AI 配置若继续增长，给 `SettingsDraft` 拆独立 `ai` 字段，而非继续膨胀 `editor` 载体。避免特例蔓延成垃圾代码。
 - **bug 审查 workflow 结果**（22 agent 全模块通读 + 对抗验证，2026-08-02）：6 条确认缺陷全部修复（见上 Fixed）；46 条初筛发现中 6 条为误报（对抗验证排除），其余为 low/建议。遗留 v2 再说项：rule schema 与 validateRule 校验器统一、设置页 AI section 可搜索化、Pagination CSS variables 定义权归属。
+- **回捞存档丢失的调研成果**（2026-08-08）：产品审查（31 反馈→25 主题，P0/P1/P2）与 GB/T 9704 审计 + UI/逻辑/Rust 三路审查曾只存在于会话上下文，压缩后丢失；已从会话 transcript 逐字回捞，落盘为 `docs/产品审查报告.md` 与 `docs/审计与三路审查报告.md`。其中审计 26 条提案的 implementable-now 项已在 054724e 落地（见系统实现说明），needs-engine 项（分隔线/附件另面/签发人/信函命令/横排表格页码/纪要混合字体）留作引擎能力扩展排期参考。教训：多 agent 大报告产出后必须立即落盘，不能只留在会话里。
 
 ## [0.1.7] - 2026-08-01
 
