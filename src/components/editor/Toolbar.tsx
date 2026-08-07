@@ -30,6 +30,7 @@ import {
 import type { CodeMirrorHandle } from "./CodeMirrorReact"
 import { FormatButtons } from "./toolbar/FormatButtons"
 import { LineWrapToggle } from "./toolbar/LineWrapToggle"
+import { LayoutCodeToggle } from "./toolbar/LayoutCodeToggle"
 
 const OPEN_AI_EVENT = "ezdoc:open-ai-generate"
 const OPEN_IMPORT_EVENT = "ezdoc:open-import"
@@ -64,7 +65,7 @@ export function Toolbar({ editorRef }: ToolbarProps) {
   const handleImport = async () => {
     const input = document.createElement("input")
     input.type = "file"
-    input.accept = ".md,.markdown"
+    input.accept = ".md,.markdown,.docx"
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
@@ -146,6 +147,7 @@ export function Toolbar({ editorRef }: ToolbarProps) {
 
       {/* Format buttons */}
       <FormatButtons editorRef={editorRef} />
+      <LayoutCodeToggle />
 
       <span className="mx-1 h-4 w-px bg-border" />
 

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useDocStore } from "@/stores/doc-store"
 import { useRuleStore } from "@/stores/rule-store"
 import { toast } from "@/components/ui/toast"
+import { isDocxFile, parseDocxToMarkdown } from "@/lib/importers/docx"
 
 export function useFileSystem() {
   const { t } = useTranslation()
@@ -14,22 +15,28 @@ export function useFileSystem() {
 
   const importFile = useCallback(
     async (file: File): Promise<string> => {
-      if (!file.name.endsWith(".md") && !file.type.includes("markdown")) {
-        toast.error(t("toolbar.importFailed"))
-        throw new Error(`Unsupported format: ${file.name}`)
-      }
       let content: string
       try {
-        content = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            const text = e.target?.result
-            if (typeof text === "string") resolve(text)
-            else reject(new Error("Failed to read file as text"))
-          }
-          reader.onerror = () => reject(new Error("File read error"))
-          reader.readAsText(file, "UTF-8")
-        })
+        if (isDocxFile(file)) {
+          content = await parseDocxToMarkdown(await file.arrayBuffer())
+        } else if (
+          !file.name.endsWith(".md") &&
+          !file.type.includes("markdown")
+        ) {
+          toast.error(t("toolbar.importFailed"))
+          throw new Error(`Unsupported format: ${file.name}`)
+        } else {
+          content = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = (e) => {
+              const text = e.target?.result
+              if (typeof text === "string") resolve(text)
+              else reject(new Error("Failed to read file as text"))
+            }
+            reader.onerror = () => reject(new Error("File read error"))
+            reader.readAsText(file, "UTF-8")
+          })
+        }
       } catch (err) {
         toast.error(t("toolbar.importFailed"))
         throw err

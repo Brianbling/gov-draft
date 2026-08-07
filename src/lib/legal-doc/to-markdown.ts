@@ -154,6 +154,12 @@ export function toMarkdown(doc: LegalDoc): string {
     blocks.push(container(RED_HEAD, [doc.issuingOrg.trim()]))
   }
 
+  // 发文字号（GB/T 9704 §7.2.5）：编排在发文机关标志（红头）下空二行处，
+  // 居中排布（机关代字〔年份〕顺序号）。紧跟红头、在标题之前。
+  if (doc.docNumber) {
+    blocks.push(container(CENTERED, [doc.docNumber]))
+  }
+
   // 标题空缺（LLM 未给出、且用户关闭表单必填门槛时）不输出幽灵红头 `# `，
   // 而是输出一个可见占位标题，让生成的文档始终有可辨识的标题行；空缺本身
   // 由 checkFormat 的 TITLE_EMPTY（error 级）在结果面板显著提示。
@@ -161,10 +167,6 @@ export function toMarkdown(doc: LegalDoc): string {
     blocks.push([`# ${escapeMarkdownInline(doc.title)}`])
   } else {
     blocks.push([`# 未命名公文`])
-  }
-
-  if (doc.docNumber) {
-    blocks.push(container(CENTERED, [doc.docNumber]))
   }
 
   if (doc.recipient) {

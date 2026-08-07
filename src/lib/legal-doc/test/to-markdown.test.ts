@@ -47,14 +47,14 @@ describe("toMarkdown", () => {
     expect(markdown).toContain("# 关于加强数字政府建设的通知")
   })
 
-  it("renders docNumber in a centered container below the title", () => {
+  it("renders docNumber in a centered container above the title, after the red-head", () => {
     const markdown = toMarkdown(buildDoc())
     const docNumberLine =
       "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em"
     const blockIndex = markdown.indexOf(docNumberLine)
     const titleIndex = markdown.indexOf("# 关于加强数字政府建设的通知")
     expect(blockIndex).toBeGreaterThan(-1)
-    expect(blockIndex).toBeGreaterThan(titleIndex)
+    expect(blockIndex).toBeLessThan(titleIndex)
     expect(markdown).toContain("国发〔2026〕12号")
   })
 

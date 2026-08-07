@@ -105,6 +105,20 @@ export function App() {
     }
   }, [createNewDocument])
 
+  // P0-5 二次生成覆盖确认：编辑器有内容（非空白）时再生成先弹确认，
+  // 避免误点即静默覆盖手动微调成果。逻辑放 ref，供 Ctrl+J / Toolbar 按钮 /
+  // 欢迎层 / 确认弹窗的"继续生成"四入口复用，避免事件再分发死循环。
+  const openAiGenerateRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    openAiGenerateRef.current = () => {
+      if (!useDocStore.getState().isBlankDocument()) {
+        setConfirmGenerate(true)
+        return
+      }
+      window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
+    }
+  }, [])
+
   // P0-1 工具栏"新建文档"按钮 → 空白则直接新建，有内容先弹确认。
   // 用稳定闭包读 ref，避免监听器永远指向初始空函数。
   useEffect(() => {
@@ -122,7 +136,7 @@ export function App() {
       const key = e.key.toLowerCase()
       if (key === "j") {
         e.preventDefault()
-        window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
+        openAiGenerateRef.current()
       } else if (key === "n") {
         e.preventDefault()
         handleNewRequestRef.current()
@@ -137,7 +151,7 @@ export function App() {
   }, [])
 
   const openAiGenerate = useCallback(() => {
-    window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
+    openAiGenerateRef.current()
   }, [])
 
   return (
@@ -190,7 +204,7 @@ export function App() {
           onOpenChange={setConfirmGenerate}
           onConfirm={() => {
             setConfirmGenerate(false)
-            openAiGenerate()
+            window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
           }}
           onNewDocument={() => {
             setConfirmGenerate(false)
