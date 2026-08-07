@@ -150,7 +150,14 @@ export const useRuleStore = create<RuleState>()(
         set({ availableRules: builtin })
 
         const saved = get().currentRule
-        if (saved) {
+        if (!saved) {
+          if (builtin.length > 0) {
+            get().loadRule(builtin[0]!)
+          }
+          return
+        }
+
+        try {
           // Zustand persist rehydrates from localStorage with no schema
           // validation, so re-validate before use and fall back to a builtin
           // rule if the persisted value is corrupted or stale.
@@ -177,11 +184,17 @@ export const useRuleStore = create<RuleState>()(
           } else {
             get().loadRule(saved)
           }
-          return
-        }
-
-        if (builtin.length > 0) {
-          get().loadRule(builtin[0]!)
+        } catch (error) {
+          // A persisted value that survives zod (e.g. a unitless number in a
+          // CSS-length field) can still be rejected by validateRule — never let
+          // that throw out of initialization and white-screen the app. Clear
+          // the poisoned value so the next launch does not read it again, and
+          // fall back to a builtin rule.
+          console.error("[rule-store] Invalid persisted rule, resetting:", error)
+          set({ currentRule: null, ruleOrigin: null, customStyles: {} })
+          if (builtin.length > 0) {
+            get().loadRule(builtin[0]!)
+          }
         }
       },
 

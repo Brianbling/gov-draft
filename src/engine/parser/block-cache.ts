@@ -4,6 +4,15 @@ const BLOCK_SPLIT_RE = /\n\n+/
 const MIN_BLOCK_COUNT = 20
 const CONTAINER_MARKER = ':::'
 
+// 引用定义块（reference link definition，如 `[gb]: url`）是跨块状态：
+// 该块被缓存命中跳过 parse 时，env 里就缺定义，引用块会渲染成字面
+// `[文本][gb]`。这类块必须每次重 parse，确保 env 的引用定义始终最新。
+const REFERENCE_DEFINITION_RE = /^\[[^\]]+\]:\s+\S+/m
+
+function isReferenceDefinitionBlock(blockText: string): boolean {
+  return REFERENCE_DEFINITION_RE.test(blockText)
+}
+
 function cloneToken(t: Token): Token {
   const c = new Token(t.type, t.tag, t.nesting)
   c.content = t.content
@@ -61,16 +70,12 @@ export class BlockCache {
       return null
     }
 
-    // If any block has an odd count of ::: the container fence crosses a
-    // blank-line boundary — fall back to full-doc parse.
-    // Fast-path: skip the per-block scan when no ::: exists anywhere.
+    // ezdoc 主流程（gongwen/paragraph）的 toMarkdown 输出大量 `:::` 容器，
+    // 经 lineBreakNormalizer 后常被拆成奇数 `:::` 块 → 下面立即回退全量解析。
+    // 缓存只对"无容器、纯手写 markdown"的大文档有意义；含容器时直接禁缓存，
+    // 避免引入"缓存命中跳过跨块状态"的错误面，也省掉逐块扫描。
     if (preprocessed.includes(CONTAINER_MARKER)) {
-      for (let i = 0; i < blocks.length; i++) {
-        const count = blocks[i]!.split(CONTAINER_MARKER).length - 1
-        if (count % 2 !== 0) {
-          return null
-        }
-      }
+      return null
     }
 
     // Shared env so cross-block state (reference definitions, etc.)
@@ -80,22 +85,19 @@ export class BlockCache {
 
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i]!
-      const volatile = block.includes(CONTAINER_MARKER)
-
-      if (!volatile) {
-        const cached = this.store.get(block)
-        if (cached !== undefined) {
-          // Clone on read so token processors can mutate freely without
-          // corrupting the cache.
-          result.push(...cloneTokens(cached))
-          continue
-        }
+      const cacheable = !isReferenceDefinitionBlock(block)
+      const cached = cacheable ? this.store.get(block) : undefined
+      if (cached !== undefined) {
+        // Clone on read so token processors can mutate freely without
+        // corrupting the cache.
+        result.push(...cloneTokens(cached))
+        continue
       }
 
       const tokens = parseBlock(block, env)
       result.push(...tokens)
 
-      if (!volatile) {
+      if (cacheable) {
         // Clone on store — the same Token objects live in `result` and
         // will be mutated in-place by token processors (e.g. heading
         // numbering).  The cache must hold an independent copy.
@@ -121,6 +123,7 @@ export class BlockCache {
     for (let i = 0; i < blocks.length; i++) {
       const block = blocks[i]!
       if (block.includes(CONTAINER_MARKER)) continue
+      if (isReferenceDefinitionBlock(block)) continue
       if (!this.store.has(block)) {
         this.store.set(block, cloneTokens(parseBlock(block, env)))
       }

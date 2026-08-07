@@ -53,9 +53,14 @@ export function App() {
   // 用 ref 记录"上次回灌进编辑器的 store 值"：只有当 store 的值与编辑器
   // 当前所见不同时回灌，避免启动时（store 空、编辑器有默认文档）的
   // content→store 与 store→content 两个 effect 互相触发形成无限循环。
+  // setContent 只在值真正变化时 set store，故回灌前后 ref 不必提前更新，
+  // 下一轮 effect 自会因 content 变化而重新求值。
   const lastSyncedStoreRef = useRef(storeContent)
   useEffect(() => {
     if (storeContent === lastSyncedStoreRef.current) return
+    // 启动时 store 已水合旧文档、而 ref 从 useRef(storeContent) 初始化，
+    // 二者相等 → 直接跳过。这里显式改写 content 才会触发回灌。
+    if (storeContent === content) return
     lastSyncedStoreRef.current = storeContent
     setContent(storeContent)
   }, [storeContent])

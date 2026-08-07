@@ -279,3 +279,101 @@ export function toMarkdown(doc: LegalDoc): string {
 
   return blocks.map((block) => block.join(SEPARATOR)).join(SEPARATOR)
 }
+
+// toMarkdown 用单个 `\n`（SEPARATOR）连接逻辑块（容器内部行也是 `\n`），
+// 所以不能用 `\n\n` 切块——那会把整篇并成一个块。切块的依据是块首行：
+// 标题行（`#`/`##`/`###`）或容器描述行（`::: `）。容器内部行、正文行都归入当前块。
+function splitDocBlocks(markdown: string): string[] {
+  const lines = markdown.split("\n")
+  const blocks: string[] = []
+  let current: string[] = []
+  const flush = (): void => {
+    if (current.length > 0) {
+      blocks.push(current.join("\n"))
+      current = []
+    }
+  }
+  for (const line of lines) {
+    if (/^#{1,3} /.test(line) || line.startsWith("::: ")) flush()
+    current.push(line)
+  }
+  flush()
+  return blocks
+}
+
+/**
+ * 是否"正文块"（用户可能在编辑器里手动修改、applyEdit 必须保留的块）：
+ * - 正文缩进容器：descriptor 恰为 `content.body.paragraph.indent: 2em`（renderBody 的 p 段容器）。
+ *   附件容器 descriptor 是 `2em; ...spacing.before:`，不匹配；文号/主送/落款容器带
+ *   `align:`/更长 descriptor，不匹配——这些是要素区，走 IR 重建。
+ * - 正文一级/二级标题（`##` / `###`）。红头 `#` 是要素区标题，不在其列。
+ */
+function isBodyTypedBlock(block: string): boolean {
+  if (block.startsWith("::: ")) {
+    return (
+      block.startsWith("::: content.body.paragraph.indent: 2em\n") ||
+      block === "::: content.body.paragraph.indent: 2em"
+    )
+  }
+  return block.startsWith("## ") || block.startsWith("### ")
+}
+
+/**
+ * 是否"要素锚块"：正文区在文档里的终点。toMarkdown 的正文区（body）一定排在
+ * 附件/纪要名单/落款/附注/版记之前，所以遇到这些锚块后 inBody 即止，其后即使是
+ * 2em 容器（纪要名单/附注）也不再当正文保留，而是从 IR 重建。
+ * 锚判定分两类：descriptor 关键字（落款 align:right、版记 14pt、附件 spacing.before），
+ * 以及纪要名单的内容行（`出席：`/`请假：`/`列席：`，容器首行被 `::: ` 占住，须看内容行）。
+ */
+function isElementAnchorBlock(block: string): boolean {
+  if (block.includes("content.body.paragraph.align: right")) return true // 落款署名/成文日期
+  if (block.includes("content.body.style.size: 14pt")) return true // 版记（抄送/印发）
+  if (block.includes("spacing.before")) return true // 附件说明
+  const contentLines = block
+    .split("\n")
+    .filter((l) => l.length > 0 && l !== ":::" && !l.startsWith("::: "))
+  return contentLines.some((l) => /^(出席|请假|列席)：/.test(l)) // 会议纪要名单
+}
+
+/**
+ * 要素编辑面板回填（#29 修复）：以 nextDoc 重建整篇 markdown，但把重建稿正文区里的
+ * 正文块（BODY_INDENT 容器 + `##`/`###` 标题）逐个替换为编辑器当前 content 里对应的
+ * 正文块原文。要素区（版头/红头/标题/文号/主送/附件/纪要名单/落款/附注/抄送/印发）
+ * 始终来自 nextDoc，确保面板改的要素生效；正文块保留用户在编辑器里的手动修改。
+ *
+ * 正文区以第一个要素锚块（附件/纪要名单/落款/版记）为终点——applyFormValuesToDoc 不碰
+ * body，重建稿正文块数量与上次生成的正文块数量一致。用户若在编辑器里增删过正文段落，
+ * 槽位对不上时缺失的槽位回退到重建稿默认值（内容来自 IR 快照，非丢失）；多余的
+ * currentBodyBlocks 不会被消费。
+ */
+export function patchMarkdownElements(
+  currentMarkdown: string,
+  nextDoc: LegalDoc,
+): string {
+  const rebuilt = toMarkdown(nextDoc)
+  const rebuiltBlocks = splitDocBlocks(rebuilt)
+  const currentBodyBlocks = splitDocBlocks(currentMarkdown).filter(
+    isBodyTypedBlock,
+  )
+
+  let inBody = false
+  let ended = false
+  let bodyIdx = 0
+  const out = rebuiltBlocks.map((block) => {
+    const isBody = isBodyTypedBlock(block)
+    const isAnchor = isElementAnchorBlock(block)
+    if (isAnchor) {
+      ended = true
+      inBody = false
+    } else if (isBody && !ended) {
+      inBody = true
+    }
+    if (inBody && isBody) {
+      const replacement = currentBodyBlocks[bodyIdx]
+      bodyIdx += 1
+      return replacement ?? block
+    }
+    return block
+  })
+  return out.join("\n")
+}

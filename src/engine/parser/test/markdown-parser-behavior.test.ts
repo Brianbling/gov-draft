@@ -203,8 +203,27 @@ describe('MarkdownParser behavior', () => {
     expect(html).toContain('<span class="latin-text">ABC</span>')
     expect(html).toContain('<span class="cn-quote">“</span>')
     expect(html).toContain('<span class="cn-quote">”</span>')
+    expect(html).toContain('<span class="cn-book-title">《公文》</span>')
+    expect(html).not.toContain('<span class="cn-book-title">《</span>')
+    expect(html).not.toContain('<span class="cn-book-title">》</span>')
+  })
+  it('wraps paired book-title brackets with their inner text as one cn-book-title span', () => {
+    const parser = new MarkdownParser(undefined, { headingNumbering: false, disabledSyntax: [] })
+
+    const html = parser.parse('依据《中华人民共和国公司法》及〈实施办法〉执行').html
+
+    expect(html).toContain('<span class="cn-book-title">《中华人民共和国公司法》</span>')
+    expect(html).toContain('<span class="cn-book-title">〈实施办法〉</span>')
+    expect(html).not.toContain('<span class="cn-book-title">《</span>')
+    expect(html).not.toContain('<span class="cn-book-title">》</span>')
+  })
+  it('falls back to a single symbol span for unclosed book-title brackets', () => {
+    const parser = new MarkdownParser(undefined, { headingNumbering: false, disabledSyntax: [] })
+
+    const html = parser.parse('《未闭合标题').html
+
     expect(html).toContain('<span class="cn-book-title">《</span>')
-    expect(html).toContain('<span class="cn-book-title">》</span>')
+    expect(html).toContain('未闭合标题')
   })
   it('supports nested local style containers with proximity priority', () => {
     const parser = new MarkdownParser(undefined, { headingNumbering: false, disabledSyntax: [] })

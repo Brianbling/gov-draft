@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { isTauri } from "@/lib/tauri"
 
 const DEBUG_EVENT_NAME = "ctui:debug"
 const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"])
@@ -41,8 +42,16 @@ function shouldOpenExternally(anchor: HTMLAnchorElement) {
 }
 
 async function openExternalLink(href: string) {
-  const { openUrl } = await import("@tauri-apps/plugin-opener")
-  await openUrl(href)
+  if (isTauri()) {
+    try {
+      const { openUrl } = await import("@tauri-apps/plugin-opener")
+      await openUrl(href)
+      return
+    } catch {
+      // fall through to browser fallback
+    }
+  }
+  window.open(href, "_blank", "noopener,noreferrer")
 }
 
 function emitExternalLinkDebugEvent(href: string) {

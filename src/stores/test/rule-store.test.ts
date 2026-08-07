@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest"
-import { getBuiltinRules } from "@/engine"
+import { getBuiltinRules, validateRule } from "@/engine"
+import { RuleConfigSchema } from "@/engine/schema"
+import type { RuleConfig } from "@/engine/schema"
 
 // The jsdom environment here exposes no localStorage, and zustand-persist reads
 // it while the store module is evaluated. Install a minimal in-memory shim
@@ -77,6 +79,60 @@ describe("rule-store initializeRule", () => {
     const shipped = getBuiltinRules()[0]!
     expect(useRuleStore.getState().currentRule?.content.body.style.size).toBe(
       shipped.content.body.style.size
+    )
+  })
+
+  it("falls back to a builtin and clears the poisoned value when a zod-valid persisted rule fails validateRule", () => {
+    // A persisted config can pass RuleConfigSchema (zod silently normalizes a
+    // unitless number in a CSS-length field to its string form) yet still be
+    // rejected by the compiler's validateRule — which used to throw straight out
+    // of initializeRule and white-screen the app. Assert it no longer throws,
+    // falls back to a builtin, and drops the bad value so the next launch does
+    // not read it again.
+    const poisoned = JSON.parse(
+      JSON.stringify(getBuiltinRules()[0]!),
+    ) as RuleConfig
+    // JSON 往返剥掉类型层，把非法值塞进运行时数据（TS 静态类型不允许，但
+    // 这正是要测的"持久化坏配置"场景——zustand persist 反序列化不校验类型）。
+    ;(poisoned.content.body.style as { size: unknown }).size = 16
+
+    // Sanity: this is precisely the zod-passes/validateRule-fails divergence.
+    expect(RuleConfigSchema.safeParse(poisoned).success).toBe(true)
+    expect(validateRule(poisoned).valid).toBe(false)
+
+    useRuleStore.setState({ currentRule: poisoned, ruleOrigin: "custom" })
+
+    expect(() => useRuleStore.getState().initializeRule()).not.toThrow()
+
+    const builtin = getBuiltinRules()[0]!
+    expect(useRuleStore.getState().currentRule?.name).toBe(builtin.name)
+    expect(useRuleStore.getState().ruleOrigin).toBe("builtin")
+    expect(useRuleStore.getState().currentRule?.content.body.style.size).toBe(
+      builtin.content.body.style.size
+    )
+    // The poisoned value is cleared, not re-persisted.
+    expect(useRuleStore.getState().currentRule?.content.body.style.size).not.toBe(
+      16
+    )
+  })
+
+  it("does not throw and falls back when the persisted value is zod-invalid (e.g. weight: '')", () => {
+    // The localStorage-corruption case from the bug report: a config that even
+    // RuleConfigSchema rejects. initializeRule must not throw (it used to be
+    // possible for loadRule to escape), and must drop the bad value for a builtin.
+    const poisoned = JSON.parse(
+      JSON.stringify(getBuiltinRules()[0]!),
+    ) as RuleConfig
+    ;(poisoned.content.body.style as { weight: unknown }).weight = ""
+    useRuleStore.setState({ currentRule: poisoned, ruleOrigin: "custom" })
+
+    expect(() => useRuleStore.getState().initializeRule()).not.toThrow()
+
+    const builtin = getBuiltinRules()[0]!
+    expect(useRuleStore.getState().currentRule?.name).toBe(builtin.name)
+    expect(useRuleStore.getState().ruleOrigin).toBe("builtin")
+    expect(useRuleStore.getState().currentRule?.content.body.style.weight).toBe(
+      400
     )
   })
 })

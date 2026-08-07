@@ -12,7 +12,7 @@ export {
 } from "./types"
 export type { DocType, LegalParagraph, LegalDoc } from "./types"
 export { buildSystemPrompt, buildUserPrompt } from "./prompt"
-export { toMarkdown } from "./to-markdown"
+export { toMarkdown, patchMarkdownElements } from "./to-markdown"
 export { checkFormat } from "./format-check"
 export type { FormatIssue } from "./format-check"
 export {

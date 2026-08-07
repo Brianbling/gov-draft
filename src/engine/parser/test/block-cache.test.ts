@@ -224,17 +224,18 @@ describe('BlockCache unit', () => {
     expect(result).toBeNull()
   })
 
-  it('diffAndMerge succeeds when all ::: blocks are balanced', () => {
+  it('diffAndMerge returns null when the doc contains any ::: container (cache disabled)', () => {
     const cache = new BlockCache()
+    // 含 ::: 的文档整体禁缓存（M1/H2：容器与跨块状态冲突），一律回退全量解析。
+    // 即使容器成对闭合也如此——主流程（gongwen/paragraph）toMarkdown 输出大量 :::，
+    // 缓存只对"无容器、纯手写 markdown"的大文档有意义。
     const blocks = Array.from({ length: 25 }, (_, i) => {
-      if (i === 10)
-        return '::: body.paragraph.indent:0em\n内容\n:::'
+      if (i === 10) return '::: body.paragraph.indent:0em\n内容\n:::'
       return `段落${i + 1}`
     })
     const doc = blocks.join('\n\n')
     const result = cache.diffAndMerge(doc, parseBlock)
-    expect(result).not.toBeNull()
-    expect(result!.length).toBeGreaterThan(0)
+    expect(result).toBeNull()
   })
 
   it('invalidate clears the store so subsequent calls miss cache', () => {
@@ -270,21 +271,21 @@ describe('BlockCache unit', () => {
     expect(result!.length).toBeGreaterThan(0)
   })
 
-  it('volatile blocks (:::) are never stored in cache', () => {
+  it('含引用定义的文档 diffAndMerge 不因缓存命中丢 env', () => {
+    // 无 ::: 的纯文本大文档走缓存；引用定义块永不缓存（每次重 parse），
+    // 确保跨块引用在缓存命中路径下仍能看到最新定义（H2 修复）。
     const cache = new BlockCache()
-    // Create a doc where we can verify volatile blocks are re-parsed
     const blocks = Array.from({ length: 25 }, (_, i) => {
-      if (i === 12)
-        return '::: body.paragraph.indent:0em\n各部门要充分认识本次工作的重要意义。\n:::'
+      if (i === 3) return '[gb]: https://www.gov.cn/guobiao'
+      if (i === 12) return '参见[国家标准][gb]相关要求。'
       return `段落${i + 1}`
     })
     const doc = blocks.join('\n\n')
 
-    // Parse once
+    // 第一次全 miss → 定义块被 parse 进 env
     const first = cache.diffAndMerge(doc, parseBlock)
     expect(first).not.toBeNull()
-
-    // Parse again — the ::: block is volatile, but result should still be correct
+    // 第二次定义块重 parse（不缓存）→ 引用块仍能看到定义
     const second = cache.diffAndMerge(doc, parseBlock)
     expect(second).not.toBeNull()
     expect(second!.length).toBe(first!.length)

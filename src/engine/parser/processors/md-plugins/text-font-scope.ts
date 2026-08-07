@@ -1,7 +1,7 @@
 import type { ParserConfig } from '../../../schema'
 import type { MdPluginWithOptions } from '../../types'
 
-const TEXT_TOKEN_PATTERN = /[A-Za-z0-9]+|[“”‘’]|[《》〈〉]/g
+const TEXT_TOKEN_PATTERN = /《[^》]+》|〈[^〉]+〉|[A-Za-z0-9]+|[“”‘’]|[《》〈〉]/g
 
 function wrapTextScopes(content: string, escapeHtml: (source: string) => string): string {
   let cursor = 0

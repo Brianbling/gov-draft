@@ -80,6 +80,9 @@ export function SchemaFormField({ descriptor }: SchemaFormFieldProps) {
   }
 
   // ═══ Leaf: Font Weight ═══
+  // Clearing the box resets to the default weight 400 rather than writing an
+  // invalid value: the schema is a 100-900 literal union with no nullable, so a
+  // persisted "" would fail RuleConfigSchema.safeParse and block saving.
   if (descriptor.fieldType === "fontWeight") {
     return (
       <FieldShell path={descriptor.path} label={label}>
@@ -88,11 +91,11 @@ export function SchemaFormField({ descriptor }: SchemaFormFieldProps) {
           min={100}
           max={900}
           step={100}
-          value={raw != null ? Number(raw) : ""}
+          value={raw != null ? Number(raw) : 400}
           onChange={(e) =>
             setValue(
               descriptor.path,
-              e.target.value === "" ? "" : Number(e.target.value)
+              e.target.value === "" ? 400 : Number(e.target.value)
             )
           }
         />

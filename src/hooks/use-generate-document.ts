@@ -6,6 +6,7 @@ import {
   buildUserPrompt,
   parseLegalDoc,
   toMarkdown,
+  patchMarkdownElements,
   reviewDocument,
   normalizeDoc,
   repairDoc,
@@ -196,9 +197,9 @@ export function useGenerateDocument() {
 
   /**
    * 要素编辑面板的回填入口（#29）：把面板的 FormValues 应用到最近一次生成的 LegalDoc，
-   * 重新跑 toMarkdown 实时回填编辑器。面板只编辑已生成文档的要素子集，不改正文，
-   * 因此无需再走 LLM；正文若被用户在编辑器里改过，这里只重建要素区，其余 markdown
-   * 由编辑器持有不受影响。返回 null 表示无可编辑结果（尚未生成成功过）。
+   * 重新跑 toMarkdown 实时回填编辑器。面板只编辑已生成文档的要素子集，不改正文；
+   * 正文若被用户在编辑器里改过，这里只重建要素区，其余 markdown 由编辑器持有不受影响。
+   * 返回 null 表示无可编辑结果（尚未生成成功过）。
    * 不回写 formValues：面板的输入状态由 Input 自身维护，若这里按 result 拍平回写，
    * 会在每次击键后把用户正在输入的值重排（trim/分隔符拆分），造成光标跳动。
    */
@@ -206,7 +207,12 @@ export function useGenerateDocument() {
     (values: FormValues): string | null => {
       if (!result) return null
       const next = applyFormValuesToDoc(result, values)
-      const markdown = toMarkdown(next)
+      // #29 修复：不能 `toMarkdown(next)` 全量覆盖——那会基于 result 快照重建整篇，
+      // 静默抹掉用户在编辑器里对正文的手动修改。改用 patchMarkdownElements：
+      // 要素区（版头/红头/标题/文号/主送/落款/版记）重建自 next，正文块逐个替换为
+      // 编辑器当前 content 里的原文，保留用户修改。
+      const current = useDocStore.getState().content
+      const markdown = patchMarkdownElements(current, next)
       useDocStore.getState().setContent(markdown)
       useDocStore.getState().setTitle(next.title)
       setResult(next)

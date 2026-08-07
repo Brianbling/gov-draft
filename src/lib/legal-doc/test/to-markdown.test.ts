@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { toMarkdown, formatChineseDate } from "../to-markdown"
+import {
+  toMarkdown,
+  formatChineseDate,
+  patchMarkdownElements,
+} from "../to-markdown"
 import type { LegalDoc } from "../types"
 
 function buildDoc(overrides: Partial<LegalDoc> = {}): LegalDoc {
@@ -422,5 +426,77 @@ describe("formatChineseDate · GB/T 9704 §6.5 中文日期", () => {
     )
     expect(markdown).toContain("国务院办公厅\n2026年8月1日")
     expect(markdown).not.toContain("2026-08-01")
+  })
+})
+
+describe("patchMarkdownElements · 要素编辑面板回填（H1 数据丢失修复）", () => {
+  const doc = buildDoc({
+    body: [
+      { type: "p", text: "第一段正文内容。" },
+      { type: "h1", text: "总体要求" },
+      { type: "p", text: "第二段正文。" },
+    ],
+  })
+  const md = toMarkdown(doc)
+
+  it("要素改动生效（文号更新），用户手动改过的正文保留", () => {
+    // 用户在编辑器里把第一段正文改掉了
+    const edited = md.replace("第一段正文内容。", "第一段正文内容【用户修改】。")
+    const next = { ...doc, docNumber: "国发〔2026〕99号" }
+    const patched = patchMarkdownElements(edited, next)
+
+    expect(patched).toContain("国发〔2026〕99号") // 要素区更新
+    expect(patched).not.toContain("国发〔2026〕12号")
+    expect(patched).toContain("第一段正文内容【用户修改】。") // 正文保留
+    expect(patched).toContain("第二段正文。") // 未改正文原样
+    expect(patched).toContain("## 总体要求") // 标题保留
+  })
+
+  it("标题改动生效，正文不受影响", () => {
+    const edited = md.replace("第一段正文内容。", "第一段正文内容【用户修改】。")
+    const next = { ...doc, title: "关于更新标题的通知" }
+    const patched = patchMarkdownElements(edited, next)
+    expect(patched).toContain("# 关于更新标题的通知")
+    expect(patched).toContain("第一段正文内容【用户修改】。")
+  })
+
+  it("编辑器里改过正文标题，要素面板保存后标题修改保留", () => {
+    const edited = md.replace("## 总体要求", "## 总体要求（用户改）")
+    const patched = patchMarkdownElements(edited, { ...doc, title: "新标题" })
+    expect(patched).toContain("## 总体要求（用户改）")
+    expect(patched).toContain("# 新标题")
+  })
+
+  it("编辑器无改动时，patch 结果与全量重建一致", () => {
+    const next = { ...doc, docNumber: "国发〔2026〕99号" }
+    expect(patchMarkdownElements(md, next)).toBe(toMarkdown(next))
+  })
+
+  it("附件要素更新生效（锚块后的正文不再被当正文保留）", () => {
+    const withAttachment = buildDoc({
+      body: [{ type: "p", text: "正文第一段。" }],
+      attachments: ["任务清单"],
+    })
+    const base = toMarkdown(withAttachment)
+    const edited = base.replace("正文第一段。", "正文第一段【用户改】。")
+    const next = { ...withAttachment, attachments: ["任务清单", "工作台账"] }
+    const patched = patchMarkdownElements(edited, next)
+    expect(patched).toContain("正文第一段【用户改】。")
+    expect(patched).toContain("附件：1．任务清单")
+    expect(patched).toContain("2．工作台账")
+  })
+
+  it("会议纪要名单更新生效", () => {
+    const minutes = buildDoc({
+      docType: "minutes",
+      body: [{ type: "p", text: "会议第一段。" }],
+      attendees: ["张三"],
+    })
+    const base = toMarkdown(minutes)
+    const edited = base.replace("会议第一段。", "会议第一段【用户改】。")
+    const next = { ...minutes, attendees: ["张三", "李四"] }
+    const patched = patchMarkdownElements(edited, next)
+    expect(patched).toContain("会议第一段【用户改】。")
+    expect(patched).toContain("出席：张三、李四")
   })
 })
