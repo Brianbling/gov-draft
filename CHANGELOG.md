@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-08-07
+
+### Added
+
+- 生成结果覆盖确认：已生成过文档时再次生成，先弹确认框，避免误覆盖手写内容。
+- 关闭前未保存提醒：自动保存关闭且有未保存改动时，退出/切换前弹确认。
+- docx 文件导入、布局代码显隐开关（LayoutCodeToggle）等桌面端体验补齐。
+
+### Fixed
+
+- **逻辑审查第 2 轮**：修复引用缓存陈旧（跨块引用定义不同步）、红头锚误判、生成覆盖无确认。
+- **折叠回归**：语法糖折叠启用不再连带折叠 markdown 标题（此前长文档整篇被折没）。
+- **数值长度字段**：无单位数字（`size: 16`）不再因校验与 schema 不一致而保存失败、重启丢规则。
+- **Windows 发布脚本**：Cargo.lock CRLF 行尾导致发布版本号刷新半程失败。
+- **发布安全**：发布门禁构建改用空 LLM 环境变量，避免 dev `.env` 里的真实 API key 被 Vite 打进 release 产物。
+
+### Commits
+
+- 504090b fix(release): bumpCargoLock 匹配 CRLF 的 Cargo.lock，避免 Windows 发布脚本半程失败
+- 4e16c7d fix: M-7 折叠启用时整篇文本消失（foldAll 连带折叠 markdown 标题）
+- bf6e8ae fix: M-2 无单位数字长度字段过 zod 却挂 validateRule，重启静默丢用户规则
+- 292105c fix: 第2轮对抗审查 P0 三项（覆盖确认守卫 / 红头锚误判 / 引用缓存陈旧）
+- f129a08 feat: 关闭前确认（autoSave 关闭且有未保存改动时提醒）
+- dde42d7 fix: 文秘验收必修项（覆盖确认接线 + 发文字号位置 + docx/LayoutCodeToggle 接线）
+- 826414c feat: 大发布 Wave 1 并行修复（产品 P0 / UI / 逻辑遗留 / 折叠 / 分页 / docx / 撤销）
+
 ### Fixed
 
 - **落款排版（不盖章）**：发文机关署名不再居中，改为与成文日期一致右对齐、右空四字（GB/T 9704 §7.3.5.2）。
@@ -212,7 +238,8 @@ First release of ezdoc — a Tauri + React Markdown-to-styled-document editor.
 - 0da19ff feat(engine): migrate engine layer from gov-draft with green test baseline
 - 6a6449c feat: initial commit
 
-[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/Brianbling/gov-draft/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/Brianbling/gov-draft/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/Brianbling/gov-draft/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/Brianbling/gov-draft/compare/v0.1.4...v0.1.5

@@ -1,7 +1,7 @@
 # gov-draft 公文排版系统
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/Brianbling/gov-draft/releases)
-[![Version](https://img.shields.io/badge/version-v0.1.7-blue)](https://github.com/Brianbling/gov-draft/releases)
+[![Version](https://img.shields.io/badge/version-v0.1.8-blue)](https://github.com/Brianbling/gov-draft/releases)
 [![Bun](https://img.shields.io/badge/built%20with-Bun-fbf0df?logo=bun)](https://bun.sh)
 [![Tauri](https://img.shields.io/badge/built%20with-Tauri%202-ffc131?logo=tauri)](https://v2.tauri.app/)
 [![shadcn/ui](https://img.shields.io/badge/built%20with-shadcn%2Fui-000000?logo=shadcnui)](https://ui.shadcn.com/)

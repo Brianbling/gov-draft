@@ -63,9 +63,9 @@ function git(command: string): string {
 }
 
 // Run a command, streaming its output; abort the release if it exits non-zero.
-function run(command: string, label: string): void {
+function run(command: string, label: string, env?: NodeJS.ProcessEnv): void {
   try {
-    execSync(command, { cwd: root, stdio: "inherit" })
+    execSync(command, { cwd: root, stdio: "inherit", env })
   } catch {
     fail(`${label} failed (\`${command}\`) — aborting before tag`)
   }
@@ -76,7 +76,16 @@ function run(command: string, label: string): void {
 // `tsc -b` build-mode errors).
 function runReleaseGate(): void {
   console.log("release commit: running quality gate (build + tests)...")
-  run("bun run build", "build")
+  // Build with empty LLM env: Vite inlines import.meta.env.VITE_LLM_* into the
+  // bundle at build time, so a dev `.env` would otherwise bake real API keys
+  // into the release artifacts (2026-08-08 leak during v0.1.8 gate).
+  const env = {
+    ...process.env,
+    VITE_LLM_API_KEY: "",
+    VITE_LLM_ENDPOINT: "",
+    VITE_LLM_MODEL: "",
+  }
+  run("bun run build", "build", env)
   run("bunx vitest run", "tests")
   console.log("  gate passed\n")
 }
