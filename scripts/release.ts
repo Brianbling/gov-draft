@@ -133,7 +133,7 @@ function bumpCargoLock(next: string): void {
   const path = join(root, "src-tauri/Cargo.lock")
   const text = readFileSync(path, "utf8")
   const replaced = text.replace(
-    new RegExp(`(name = "${CARGO_PKG_NAME}"\\nversion = ")\\d+\\.\\d+\\.\\d+(")`),
+    new RegExp(`(name = "${CARGO_PKG_NAME}"\\r?\\nversion = ")\\d+\\.\\d+\\.\\d+(")`),
     `$1${next}$2`,
   )
   if (replaced === text) fail(`could not find ${CARGO_PKG_NAME} entry in Cargo.lock`)
