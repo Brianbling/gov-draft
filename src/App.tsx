@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRuleStore } from "@/stores/rule-store"
 import { useDocStore, BLANK_DOCUMENT } from "@/stores/doc-store"
+import { useSettingsStore } from "@/stores/settings-store"
 import { useStyleInjector } from "@/hooks/use-style-injector"
 import { useMarkdown } from "@/hooks/use-markdown"
 import { useSplitPane } from "@/hooks/use-split-pane"
@@ -125,6 +126,21 @@ export function App() {
     const stableHandler = () => handleNewRequestRef.current()
     window.addEventListener(NEW_DOCUMENT_EVENT, stableHandler)
     return () => window.removeEventListener(NEW_DOCUMENT_EVENT, stableHandler)
+  }, [])
+
+  // 关闭前确认：自动保存关闭且存在未保存改动时，关闭/刷新前提醒，
+  // 避免用户退出即丢手动修改。自动保存开启时 persist 已实时落盘，不拦截。
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const doc = useDocStore.getState()
+      if (doc.isDirty && !useSettingsStore.getState().autoSave) {
+        e.preventDefault()
+        // 现代浏览器要求 returnValue 或 preventDefault 才显示确认框。
+        e.returnValue = ""
+      }
+    }
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => window.removeEventListener("beforeunload", onBeforeUnload)
   }, [])
 
   // P0-2/P0-4 全局快捷键：Ctrl+J 打开 AI 生成、Ctrl+N 新建、Ctrl+S 保存。
