@@ -81,6 +81,40 @@ describe("validateRule", () => {
     expect(result.errors).toHaveLength(0)
   })
 
+  it("M-2: 无单位数字长度字段通过校验（与 schema 对齐，不静默丢规则）", () => {
+    // schema 的 UnitlessNumericToCssScalar 接受 YAML 数字 `size: 16` 并归一成
+    // 字符串 `"16"`；validator 之前只认带单位字符串 → loadRule throw →
+    // 重启静默丢弃用户规则。修复后内容级长度字段的无单位数字与带单位一致通过。
+    const validRule = createValidRule()
+    validRule.content.body.style.size = "16" as "16pt"
+    validRule.content.body.paragraph.indent = "2" as "2em"
+    validRule.content.body.paragraph.spacing.before = "28.95" as "0"
+    validRule.content.body.paragraph.spacing.after = "0" as "0"
+
+    const result = validateRule(validRule)
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it("M-2: 带单位的长度字段仍按原规则校验（无单位数字不放松单位校验）", () => {
+    const invalidRule = createValidRule() as unknown as Record<string, unknown>
+    invalidRule.content = {
+      ...createValidRule().content,
+      body: {
+        ...createValidRule().content.body,
+        style: {
+          size: "16x", // 非法单位，仍应拒绝
+          weight: 400,
+          colors: { text: "#000000", background: "#ffffff" },
+        },
+      },
+    }
+
+    const result = validateRule(invalidRule)
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain("content.body.style.size: CSS_LENGTH")
+  })
+
   it("returns valid when pagination is omitted", () => {
     const validRule = createValidRule()
     delete (validRule as Record<string, unknown>).pagination

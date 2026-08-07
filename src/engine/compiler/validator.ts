@@ -12,6 +12,7 @@ import {
   CSS_LINE_HEIGHT_PATTERN,
   CSS_PARAGRAPH_SPACING_PATTERN,
   CSS_COLOR_PATTERN,
+  CSS_UNITLESS_NUMBER_PATTERN,
   PAGINATION_EXPRESSION_ALLOWED_PATTERN,
 } from "../patterns/css-patterns"
 
@@ -145,6 +146,16 @@ function validateCssLength(
     return
   }
 
+  // 无单位数字标量（`16`/`28.95`）与 schema 的 UnitlessNumericToCssScalar 对齐：
+  // YAML 数字经 transform 归一成字符串，validator 必须接受同一集合，否则过 zod
+  // 却挂 validateRule（M-2：loadRule throw → 重启静默丢用户规则）。
+  if (
+    typeof value === "string" &&
+    CSS_UNITLESS_NUMBER_PATTERN.test(value.trim())
+  ) {
+    return
+  }
+
   if (typeof value !== "string" || !CSS_LENGTH_PATTERN.test(value.trim())) {
     pushError(issues, path, ValidationErrorCode.CSS_LENGTH)
   }
@@ -178,13 +189,21 @@ const validateEnterStyle = setValidator(
 )
 
 // Kept custom: '' and numeric-0 are accepted as valid spacing values, which a
-// plain patternValidator would reject.
+// plain patternValidator would reject. Unitless number scalars are also
+// accepted — YAML `before: 28` is a number, schema normalizes it to a string.
 const validateCssParagraphSpacing: Validator = (value, path, issues) => {
   if (value === "") {
     return
   }
 
   if (typeof value === "number" && value === 0) {
+    return
+  }
+
+  if (
+    typeof value === "string" &&
+    CSS_UNITLESS_NUMBER_PATTERN.test(value.trim())
+  ) {
     return
   }
 
