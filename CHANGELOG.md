@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-08-08
+
+### Added
+
+- **移动版 Tier A**：<768px 视口自动切换编辑/预览 tab（替代桌面分栏），编辑与预览互斥全屏展示。
+- **移动端纸面自适应**：210mm 纸张在窄屏等比缩小适配视口宽度，预览不再横向溢出。
+- **移动端导出**：支持 Web Share API（navigator.share 分享导出 HTML），分享面板可直接转存/打印；不支持的浏览器回退打印新窗口。
+- **移动端触控体验**：工具栏按钮加高（≥40px 触控目标）、去掉分栏拖拽留白。
+
+### Notes
+
+- **Android 原生包（APK）暂不可构建**：`tauri android init` 需要 JDK/Android SDK，本机无 Java（已检查 Android Studio jbr、Program Files/Java、Eclipse Adoptium 均无 JDK）。移动版先以**响应式 Web** 形态交付（`bun run dev --host` + HTTPS 即可在手机浏览器使用）；APK 需在有 JDK/SDK 的机器上执行 `tauri android build`。
+
+### Commits
+
+- c6455b2 feat(mobile): 移动版 Tier A —— <768px 编辑/预览 tab 切换 + navigator.share 分享导出
+
 ## [0.1.8] - 2026-08-07
 
 ### Added
@@ -238,7 +255,8 @@ First release of ezdoc — a Tauri + React Markdown-to-styled-document editor.
 - 0da19ff feat(engine): migrate engine layer from gov-draft with green test baseline
 - 6a6449c feat: initial commit
 
-[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/Brianbling/gov-draft/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/Brianbling/gov-draft/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/Brianbling/gov-draft/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/Brianbling/gov-draft/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/Brianbling/gov-draft/compare/v0.1.5...v0.1.6
