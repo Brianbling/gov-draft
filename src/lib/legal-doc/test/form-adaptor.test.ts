@@ -213,6 +213,30 @@ describe("docToFormValues · LegalDoc → 编辑面板 FormValues", () => {
     expect(next.issuingOrg).toBeUndefined()
   })
 
+  it("版记（印发机关/印发日期）被拍平进 FormValues 并可写回（M6 闭环打通）", () => {
+    const values = docToFormValues(
+      buildDoc({
+        docType: "gongwen",
+        printingOffice: "国务院办公厅",
+        printingDate: "2026-08-01",
+        title: "关于推进垃圾分类工作的通知",
+      })
+    )
+    expect(values.printingOffice).toBe("国务院办公厅")
+    expect(values.printingDate).toBe("2026-08-01")
+
+    const next = applyFormValuesToDoc(
+      buildDoc({ docType: "gongwen", title: "原标题" }),
+      { printingOffice: "国务院办公厅秘书局", printingDate: "2026-08-02" }
+    )
+    expect(next.printingOffice).toBe("国务院办公厅秘书局")
+    expect(next.printingDate).toBe("2026-08-02")
+    // 空串 → undefined（清空版记字段后不残留空壳）
+    const cleared = applyFormValuesToDoc(next, { printingOffice: "" })
+    expect(cleared.printingOffice).toBeUndefined()
+    expect(cleared.printingDate).toBe("2026-08-02")
+  })
+
   it("未盖章时 seal 归一为 false（开关双态可切换）", () => {
     const values = docToFormValues(
       buildDoc({ docType: "gongwen", seal: false })

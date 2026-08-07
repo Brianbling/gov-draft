@@ -20,6 +20,8 @@ export interface FormValues {
   copyNumber?: string
   issuingOrg?: string
   annotation?: string
+  printingOffice?: string
+  printingDate?: string
   attachments?: string[]
   cc?: string[]
   attendees?: string[]
@@ -39,6 +41,8 @@ const FORM_FIELD_LABELS: Record<FormFieldKey, string> = {
   copyNumber: "份号",
   issuingOrg: "发文机关标志",
   annotation: "附注",
+  printingOffice: "印发机关",
+  printingDate: "印发日期",
   attachments: "附件",
   cc: "抄送机关",
   attendees: "出席人员",
@@ -58,6 +62,8 @@ const NONEMPTY_KEYS = [
   "copyNumber",
   "issuingOrg",
   "annotation",
+  "printingOffice",
+  "printingDate",
 ] as const
 
 /** 只取该文种 formFields 里定义过、且用户填了值的字段，避免把无关字段塞进 prompt。 */
@@ -178,6 +184,8 @@ const STRING_KEYS = [
   "copyNumber",
   "issuingOrg",
   "annotation",
+  "printingOffice",
+  "printingDate",
 ] as const
 
 const ARRAY_KEYS = [
@@ -233,8 +241,8 @@ export function docToFormValues(doc: LegalDoc): FormValues {
 
 /**
  * 把要素编辑面板的值应用回 LegalDoc（#29）。只写面板定义过的字段——
- * formFields 是各文种"可编辑要素子集"，不在子集内的字段（正文段落、版记印发
- * 机关/日期等）保持 AI 原样不动，避免面板误删生成内容。
+ * formFields 是各文种"可编辑要素子集"，不在子集内的字段（正文段落等）保持
+ * AI 原样不动，避免面板误删生成内容。
  * array 类型空数组 → undefined（渲染时空壳段落由 toMarkdown 已处理，但 IR 里
  * 应保留 schema 语义）；text 空串 → undefined。返回浅拷贝，不改原 doc。
  */

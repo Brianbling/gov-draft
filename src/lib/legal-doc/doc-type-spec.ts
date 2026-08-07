@@ -45,6 +45,8 @@ export type FormFieldKey =
   | "copyNumber"
   | "issuingOrg"
   | "annotation"
+  | "printingOffice"
+  | "printingDate"
   | "attachments"
   | "cc"
   | "attendees"
@@ -399,6 +401,12 @@ function buildFormFields(docType: DocType): FormField[] {
         }),
         arrayField("attachments", "附件"),
         arrayField("cc", "抄送机关"),
+        textField("printingOffice", "印发机关", {
+          placeholder: "如：××市人民政府办公厅",
+        }),
+        textField("printingDate", "印发日期", {
+          placeholder: "如：2026-08-01",
+        }),
         booleanField("seal", "加盖公章"),
       ]
     case "decision":

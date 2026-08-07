@@ -27,27 +27,23 @@ import {
 import {
   useGenerateDocument,
   errorCodeToI18nKey,
+  errorCodeToI18nActionKey,
+  shouldShowSettingsCta,
+  httpStatusFromCode,
 } from "@/hooks/use-generate-document"
-import {
-  DOC_TYPES,
-  type DocType,
-} from "@/lib/legal-doc"
-import {
-  DOC_TYPE_SPECS,
-  type FormField,
-} from "@/lib/legal-doc/doc-type-spec"
+import { DOC_TYPES, type DocType } from "@/lib/legal-doc"
+import { DOC_TYPE_SPECS, type FormField } from "@/lib/legal-doc/doc-type-spec"
 import { severityOfIssue, type IssueSeverity } from "./issue-severity"
-import {
-  hasFormValues,
-  type FormValues,
-} from "@/lib/legal-doc/form-adaptor"
-
-const DOC_TYPE_ITEMS: DocType[] = [...DOC_TYPES]
+import { hasFormValues, type FormValues } from "@/lib/legal-doc/form-adaptor"
 
 interface AiGenerateDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** P0-3 未配置 API Key 时一键跳设置（由 Toolbar 传入）。 */
+  onOpenSettings?: () => void
 }
+
+const DOC_TYPE_ITEMS: DocType[] = [...DOC_TYPES]
 
 const ISSUE_VISUAL: Record<
   IssueSeverity,
@@ -81,7 +77,10 @@ function SectionLabel({
   children: ReactNode
 }) {
   return (
-    <Label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
+    <Label
+      htmlFor={htmlFor}
+      className="text-xs font-medium text-muted-foreground"
+    >
       {children}
     </Label>
   )
@@ -99,7 +98,7 @@ function formValueString(values: FormValues, field: FormField): string {
 function setFormValueString(
   values: FormValues,
   field: FormField,
-  next: string,
+  next: string
 ): FormValues {
   if (field.type === "array") {
     const parts = next
@@ -151,14 +150,9 @@ function FieldControl({
   }
   return (
     <div className="grid gap-1.5">
-      <Label
-        htmlFor={`ai-generate-${field.key}`}
-        className="text-sm"
-      >
+      <Label htmlFor={`ai-generate-${field.key}`} className="text-sm">
         {field.label}
-        {field.required && (
-          <span className="ml-0.5 text-destructive">*</span>
-        )}
+        {field.required && <span className="ml-0.5 text-destructive">*</span>}
       </Label>
       <Input
         id={`ai-generate-${field.key}`}
@@ -173,7 +167,13 @@ function FieldControl({
   )
 }
 
-function AiGeneratePanel({ onClose }: { onClose: () => void }) {
+function AiGeneratePanel({
+  onClose,
+  onOpenSettings,
+}: {
+  onClose: () => void
+  onOpenSettings?: () => void
+}) {
   const { t } = useTranslation()
   const {
     prompt,
@@ -306,7 +306,13 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
 
         {/* 生成前：表单辅助约束；生成后：要素编辑面板（同一组 FieldControl，仅 onChange 语义不同） */}
         <div className="grid gap-2">
-          <SectionLabel>{t(isDone ? "aiGenerate.editFieldsLabel" : "aiGenerate.formFieldsLabel")}</SectionLabel>
+          <SectionLabel>
+            {t(
+              isDone
+                ? "aiGenerate.editFieldsLabel"
+                : "aiGenerate.formFieldsLabel"
+            )}
+          </SectionLabel>
           <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-3">
             {(isDone ? editingFields : fields).map((field) => (
               <FieldControl
@@ -320,15 +326,27 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {isError && (
+        {isError && errorCode && (
           <div className="grid gap-2 rounded-2xl border border-destructive/25 bg-destructive/10 px-3 py-2.5">
             <p className="flex items-start gap-1.5 text-xs text-destructive">
               <HugeiconsIcon
                 icon={AlertCircleIcon}
                 className="mt-0.5 size-3.5 shrink-0"
               />
-              <span>{t(errorCodeToI18nKey(errorCode ?? "UNKNOWN"))}</span>
+              <span>
+                {errorCodeToI18nKey(errorCode) ===
+                "aiGenerate.errors.llmHttpError"
+                  ? t(errorCodeToI18nKey(errorCode), {
+                      status: httpStatusFromCode(errorCode) ?? "?",
+                    })
+                  : t(errorCodeToI18nKey(errorCode))}
+              </span>
             </p>
+            {errorCodeToI18nActionKey(errorCode) && (
+              <p className="flex items-start gap-1.5 pl-5 text-xs text-muted-foreground">
+                <span>{t(errorCodeToI18nActionKey(errorCode)!)}</span>
+              </p>
+            )}
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -344,6 +362,16 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
                 />
                 {t("aiGenerate.retry")}
               </Button>
+              {shouldShowSettingsCta(errorCode) && onOpenSettings && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={onOpenSettings}
+                >
+                  {t("aiGenerate.goToSettings")}
+                </Button>
+              )}
               <p className="text-xs text-muted-foreground">
                 {t("aiGenerate.retryHint")}
               </p>
@@ -444,6 +472,7 @@ function AiGeneratePanel({ onClose }: { onClose: () => void }) {
 export function AiGenerateDialog({
   open,
   onOpenChange,
+  onOpenSettings,
 }: AiGenerateDialogProps) {
   const { t } = useTranslation()
 
@@ -456,7 +485,10 @@ export function AiGenerateDialog({
           aria-describedby={undefined}
           className="fixed top-1/2 left-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-3xl bg-background text-foreground shadow-2xl duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
         >
-          <AiGeneratePanel onClose={() => onOpenChange(false)} />
+          <AiGeneratePanel
+            onClose={() => onOpenChange(false)}
+            onOpenSettings={onOpenSettings}
+          />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

@@ -8,6 +8,11 @@ import {
   Heading03Icon,
   LeftToRightListBulletIcon,
   LeftToRightListNumberIcon,
+  TextAlignLeftIcon,
+  TextAlignCenterIcon,
+  TextAlignRightIcon,
+  ListIndentIncreaseIcon,
+  ListIndentDecreaseIcon,
 } from "@hugeicons/core-free-icons"
 import type { CodeMirrorHandle } from "../CodeMirrorReact"
 import type { FormatAction } from "../core/features/format-commands"
@@ -57,6 +62,36 @@ const actions: {
     icon: LeftToRightListNumberIcon,
     titleKey: "toolbar.formatOlTitle",
     labelKey: "toolbar.formatOl",
+  },
+  {
+    action: "alignLeft",
+    icon: TextAlignLeftIcon,
+    titleKey: "toolbar.alignLeftTitle",
+    labelKey: "toolbar.alignLeft",
+  },
+  {
+    action: "alignCenter",
+    icon: TextAlignCenterIcon,
+    titleKey: "toolbar.alignCenterTitle",
+    labelKey: "toolbar.alignCenter",
+  },
+  {
+    action: "alignRight",
+    icon: TextAlignRightIcon,
+    titleKey: "toolbar.alignRightTitle",
+    labelKey: "toolbar.alignRight",
+  },
+  {
+    action: "indentIncrease",
+    icon: ListIndentIncreaseIcon,
+    titleKey: "toolbar.indentIncreaseTitle",
+    labelKey: "toolbar.indentIncrease",
+  },
+  {
+    action: "indentDecrease",
+    icon: ListIndentDecreaseIcon,
+    titleKey: "toolbar.indentDecreaseTitle",
+    labelKey: "toolbar.indentDecrease",
   },
 ]
 

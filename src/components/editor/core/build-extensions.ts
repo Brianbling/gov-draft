@@ -5,6 +5,7 @@ import {
   history,
   historyKeymap,
   indentWithTab,
+  isolateHistory,
 } from "@codemirror/commands"
 import {
   EditorView,
@@ -26,6 +27,7 @@ import {
   lineNumbersExtension,
   tabSizeExtension,
 } from "./features/editor-config"
+import { sugarFoldExtension } from "./features/syntax-fold"
 
 interface CreateEditorStateOptions {
   content: string
@@ -70,6 +72,8 @@ export function createEditorState(
     ...autoPairExtension,
     highlightActiveLine(),
     lineWrapExtension(settings.wordWrap),
+    // 折叠 `:::` 排版代码：showLayoutCode=false（默认）折叠隐藏，true 显示原始行。
+    sugarFoldExtension(!settings.showLayoutCode),
     // 空文档占位提示：与 store 默认文档逻辑无关，纯展示层
     placeholder(i18n.t("codemirror.emptyEditorHint")),
     EditorView.updateListener.of((update) => {
@@ -82,4 +86,19 @@ export function createEditorState(
   ]
 
   return EditorState.create({ doc: options.content, extensions })
+}
+
+/**
+ * 外部整篇替换（AI 生成 / 导入 / store 回灌）的唯一入口。
+ * 用 isolateHistory("full") 让替换自身成为撤销栈里一条独立记录：
+ * 一次 Ctrl+Z 撤掉整篇替换回到替换前文档，再 Ctrl+Z 继续沿用户手动击键历史回退。
+ * 若直接 dispatch 全量 replace，CodeMirror 会把替换与最后一条手动击键合并成一条
+ * 撤销记录，用户一次 Ctrl+Z 就把整篇新内容连同手动历史一起清空（M5 缺陷）。
+ */
+export function replaceDocument(view: EditorView, content: string): void {
+  if (content === view.state.doc.toString()) return
+  view.dispatch({
+    changes: { from: 0, to: view.state.doc.length, insert: content },
+    annotations: [isolateHistory.of("full")],
+  })
 }

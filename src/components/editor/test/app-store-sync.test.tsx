@@ -24,13 +24,11 @@ vi.mock("@/hooks/use-auto-save", () => ({
 // CodeMirror 的 contenteditable 在 jsdom 里无法模拟输入，用真实 <textarea> 替代，
 // 以便测 App 的 store↔编辑器 同步闭环（这正是要验证的 bug）。
 vi.mock("@/components/editor/CodeMirrorReact", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/components/editor/CodeMirrorReact")>()
+  const actual =
+    await importOriginal<typeof import("@/components/editor/CodeMirrorReact")>()
   return {
     ...actual,
-    default: (props: {
-      value: string
-      onChange: (value: string) => void
-    }) => (
+    default: (props: { value: string; onChange: (value: string) => void }) => (
       <textarea
         aria-label="editor"
         value={props.value}
@@ -60,7 +58,9 @@ describe("App store→编辑器 回灌", () => {
 
     // AI 生成走 setContent 写入 store
     act(() => {
-      useDocStore.getState().setContent("# 关于推进垃圾分类工作的通知\n\n正文内容")
+      useDocStore
+        .getState()
+        .setContent("# 关于推进垃圾分类工作的通知\n\n正文内容")
     })
     expect(editor.value).toContain("关于推进垃圾分类工作的通知")
   })

@@ -22,6 +22,8 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
       "copyNumber",
       "issuingOrg",
       "annotation",
+      "printingOffice",
+      "printingDate",
       "attachments",
       "cc",
       "attendees",
@@ -118,8 +120,24 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
       "annotation",
       "attachments",
       "cc",
+      "printingOffice",
+      "printingDate",
       "seal",
     ])
+  })
+
+  it("gongwen 版记（印发机关/印发日期）是 text 可编辑项（M6 修复）", () => {
+    const printingOffice = DOC_TYPE_SPECS.gongwen.formFields.find(
+      (f) => f.key === "printingOffice"
+    )
+    const printingDate = DOC_TYPE_SPECS.gongwen.formFields.find(
+      (f) => f.key === "printingDate"
+    )
+    expect(printingOffice).toBeDefined()
+    expect(printingDate).toBeDefined()
+    expect(printingOffice?.type).toBe("text")
+    expect(printingDate?.type).toBe("text")
+    expect(printingDate?.placeholder).toContain("2026")
   })
 
   it("decision 决定事项靠正文，不设附件/抄送", () => {

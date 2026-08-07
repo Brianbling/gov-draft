@@ -1,20 +1,26 @@
-import { useState, useRef, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useRuleStore } from '@/stores/rule-store'
-import { useDocStore } from '@/stores/doc-store'
-import { useStyleInjector } from '@/hooks/use-style-injector'
-import { useMarkdown } from '@/hooks/use-markdown'
-import { useSplitPane } from '@/hooks/use-split-pane'
-import { useAutoSave } from '@/hooks/use-auto-save'
-import CodeMirrorReact from '@/components/editor/CodeMirrorReact'
-import type { CodeMirrorHandle } from '@/components/editor/CodeMirrorReact'
-import { A4Paper } from '@/components/preview/A4Paper'
-import { Toolbar } from '@/components/editor/Toolbar'
-import { StatusBar } from '@/components/editor/StatusBar'
-import { TooltipProvider } from '@/components/ui/tooltip'
+import { useState, useRef, useEffect, useCallback } from "react"
+import { useRuleStore } from "@/stores/rule-store"
+import { useDocStore, BLANK_DOCUMENT } from "@/stores/doc-store"
+import { useStyleInjector } from "@/hooks/use-style-injector"
+import { useMarkdown } from "@/hooks/use-markdown"
+import { useSplitPane } from "@/hooks/use-split-pane"
+import { useAutoSave } from "@/hooks/use-auto-save"
+import CodeMirrorReact from "@/components/editor/CodeMirrorReact"
+import type { CodeMirrorHandle } from "@/components/editor/CodeMirrorReact"
+import { A4Paper } from "@/components/preview/A4Paper"
+import { Toolbar } from "@/components/editor/Toolbar"
+import { StatusBar } from "@/components/editor/StatusBar"
+import { WelcomeDialog, hasSeenWelcome } from "@/components/WelcomeDialog"
+import { ConfirmOverwriteDialog } from "@/components/ConfirmOverwriteDialog"
+import { ConfirmNewDocumentDialog } from "@/components/ConfirmNewDocumentDialog"
+import { TooltipProvider } from "@/components/ui/tooltip"
+
+/** 全局事件：跨组件打开 AI 生成 / 导入（Toolbar 与引导层共用）。 */
+const OPEN_AI_EVENT = "ezdoc:open-ai-generate"
+const OPEN_IMPORT_EVENT = "ezdoc:open-import"
+const NEW_DOCUMENT_EVENT = "ezdoc:new-document"
 
 export function App() {
-  const { t } = useTranslation()
   const initializeRule = useRuleStore((state) => state.initializeRule)
   const storeContent = useDocStore((state) => state.content)
   const setStoreContent = useDocStore((state) => state.setContent)
@@ -35,13 +41,19 @@ export function App() {
   useAutoSave()
 
   // Split pane
-  const { workspaceRef, workspaceStyle, startResize } = useSplitPane({ minPanelWidth: 360 })
+  const { workspaceRef, workspaceStyle, startResize } = useSplitPane({
+    minPanelWidth: 360,
+  })
 
   // Editor ref
   const editorRef = useRef<CodeMirrorHandle>(null)
 
-  // Local editor content state (synced to store via effect)
-  const [content, setContent] = useState(storeContent || t('app.defaultDocument'))
+  // P0-1 首屏改空白编辑器：有用户文档痕迹（store 水合了非空内容）才沿用，
+  // 全新首启（localStorage 无内容）加载空白文档（未命名标题占位）。
+  // app.defaultDocument 整篇 `:::` 覆写语法示例不再作首启默认内容。
+  const [content, setContent] = useState(() =>
+    storeContent.trim() ? storeContent : BLANK_DOCUMENT
+  )
 
   // Sync local content to store when it changes
   useEffect(() => {
@@ -55,6 +67,9 @@ export function App() {
   // content→store 与 store→content 两个 effect 互相触发形成无限循环。
   // setContent 只在值真正变化时 set store，故回灌前后 ref 不必提前更新，
   // 下一轮 effect 自会因 content 变化而重新求值。
+  // 注意：deps 只放 storeContent，不放 content。若把 content 也放进 deps，
+  // 用户每次击键的渲染里 back-fill 就会读到上一次的旧 store 值并回退编辑器，
+  // 形成"输入→回灌→覆盖输入"的 Maximum update depth 死循环。
   const lastSyncedStoreRef = useRef(storeContent)
   useEffect(() => {
     if (storeContent === lastSyncedStoreRef.current) return
@@ -65,40 +80,135 @@ export function App() {
     setContent(storeContent)
   }, [storeContent])
 
+  // P0-1 首启引导：首次启动弹欢迎层（localStorage 记 seen）。
+  const [welcomeOpen, setWelcomeOpen] = useState(() => !hasSeenWelcome())
+  // P0-5 二次生成确认 / P0-1 新建确认。
+  const [confirmGenerate, setConfirmGenerate] = useState(false)
+  const [confirmNew, setConfirmNew] = useState(false)
+
+  // P0-1 新建文档：清空正文，回到未命名空白文档。
+  const createNewDocument = useCallback(() => {
+    useDocStore.getState().newDocument()
+    lastSyncedStoreRef.current = BLANK_DOCUMENT
+    setContent(BLANK_DOCUMENT)
+  }, [])
+
+  // P0-1 新建文档逻辑（供按钮/快捷键/确认弹窗复用）。
+  const handleNewRequestRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    handleNewRequestRef.current = () => {
+      if (useDocStore.getState().isBlankDocument()) {
+        createNewDocument()
+      } else {
+        setConfirmNew(true)
+      }
+    }
+  }, [createNewDocument])
+
+  // P0-1 工具栏"新建文档"按钮 → 空白则直接新建，有内容先弹确认。
+  // 用稳定闭包读 ref，避免监听器永远指向初始空函数。
+  useEffect(() => {
+    const stableHandler = () => handleNewRequestRef.current()
+    window.addEventListener(NEW_DOCUMENT_EVENT, stableHandler)
+    return () => window.removeEventListener(NEW_DOCUMENT_EVENT, stableHandler)
+  }, [])
+
+  // P0-2/P0-4 全局快捷键：Ctrl+J 打开 AI 生成、Ctrl+N 新建、Ctrl+S 保存。
+  // capture 阶段拦截，避免 CodeMirror（Ctrl-n 光标下移）与浏览器默认动作抢先。
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey
+      if (!mod) return
+      const key = e.key.toLowerCase()
+      if (key === "j") {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
+      } else if (key === "n") {
+        e.preventDefault()
+        handleNewRequestRef.current()
+      } else if (key === "s") {
+        e.preventDefault()
+        useDocStore.getState().saveManually()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown, { capture: true })
+    return () =>
+      window.removeEventListener("keydown", onKeyDown, { capture: true })
+  }, [])
+
+  const openAiGenerate = useCallback(() => {
+    window.dispatchEvent(new CustomEvent(OPEN_AI_EVENT))
+  }, [])
+
   return (
     <TooltipProvider>
-    <div
-      ref={workspaceRef}
-      className="app-shell flex h-svh flex-col"
-      style={workspaceStyle}
-    >
-      {/* Editor panel */}
-      <div className="flex flex-1 overflow-hidden">
-        <div
-          className="editor-panel flex flex-col overflow-hidden border-r"
-          style={{ width: 'var(--editor-width)' }}
-        >
-          <Toolbar editorRef={editorRef} />
-          <CodeMirrorReact
-            ref={editorRef}
-            value={content}
-            onChange={setContent}
+      <div
+        ref={workspaceRef}
+        className="app-shell flex h-svh flex-col"
+        style={workspaceStyle}
+      >
+        {/* Editor panel */}
+        <div className="flex flex-1 overflow-hidden">
+          <div
+            className="editor-panel flex flex-col overflow-hidden border-r"
+            style={{ width: "var(--editor-width)" }}
+          >
+            <Toolbar editorRef={editorRef} />
+            <CodeMirrorReact
+              ref={editorRef}
+              value={content}
+              onChange={setContent}
+            />
+            <StatusBar />
+          </div>
+
+          {/* Resizer */}
+          <div
+            className="resizer w-1 cursor-col-resize bg-border hover:bg-primary/50 active:bg-primary"
+            onPointerDown={startResize}
           />
-          <StatusBar />
+
+          {/* Preview panel */}
+          <div className="preview-panel flex-1 overflow-hidden">
+            <A4Paper html={html} />
+          </div>
         </div>
 
-        {/* Resizer */}
-        <div
-          className="resizer w-1 cursor-col-resize bg-border hover:bg-primary/50 active:bg-primary"
-          onPointerDown={startResize}
+        {/* P0-1 首启引导层：四步 + 两个主入口 */}
+        <WelcomeDialog
+          open={welcomeOpen}
+          onOpenChange={setWelcomeOpen}
+          onGenerate={openAiGenerate}
+          onImport={() =>
+            window.dispatchEvent(new CustomEvent(OPEN_IMPORT_EVENT))
+          }
         />
 
-        {/* Preview panel */}
-        <div className="preview-panel flex-1 overflow-hidden">
-          <A4Paper html={html} />
-        </div>
+        {/* P0-5 二次生成覆盖确认：覆盖 / 保留并新建 */}
+        <ConfirmOverwriteDialog
+          open={confirmGenerate}
+          onOpenChange={setConfirmGenerate}
+          onConfirm={() => {
+            setConfirmGenerate(false)
+            openAiGenerate()
+          }}
+          onNewDocument={() => {
+            setConfirmGenerate(false)
+            createNewDocument()
+            openAiGenerate()
+          }}
+        />
+
+        {/* P0-1 新建确认 */}
+        <ConfirmNewDocumentDialog
+          open={confirmNew}
+          onOpenChange={setConfirmNew}
+          onConfirm={() => {
+            setConfirmNew(false)
+            createNewDocument()
+          }}
+        />
       </div>
-    </div>
     </TooltipProvider>
   )
 }

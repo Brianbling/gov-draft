@@ -1,8 +1,18 @@
-import { Compartment, EditorState, type Extension } from "@codemirror/state"
+import {
+  Compartment,
+  EditorState,
+  type Extension,
+  type StateEffect,
+} from "@codemirror/state"
 import { EditorView, lineNumbers } from "@codemirror/view"
 import { indentUnit } from "@codemirror/language"
 import type { EditorSettings } from "@/stores/settings-store"
 import { lineWrapCompartment } from "./line-wrap"
+import {
+  refoldSugar,
+  sugarFoldCompartment,
+  sugarFoldEnabledExtensions,
+} from "./syntax-fold"
 
 /**
  * Live-reconfigurable editor settings, driven by the settings-store.
@@ -54,7 +64,9 @@ export function applyEditorSettings(
   prev: EditorSettings | null,
   next: EditorSettings
 ): void {
-  const effects = []
+  const effects: StateEffect<unknown>[] = []
+  const showLayoutCodeChanged =
+    !prev || prev.showLayoutCode !== next.showLayoutCode
 
   if (!prev || prev.fontSize !== next.fontSize) {
     effects.push(fontSizeCompartment.reconfigure(fontSizeTheme(next.fontSize)))
@@ -74,8 +86,21 @@ export function applyEditorSettings(
       )
     )
   }
+  if (showLayoutCodeChanged) {
+    effects.push(
+      sugarFoldCompartment.reconfigure(
+        !next.showLayoutCode ? sugarFoldEnabledExtensions() : []
+      )
+    )
+  }
 
   if (effects.length > 0) {
     view.dispatch({ effects })
+  }
+
+  // Refold after the compartment change lands so the fold state matches the new
+  // setting (fold-all when the layout code is hidden, unfold-all when shown).
+  if (showLayoutCodeChanged && prev) {
+    refoldSugar(view, !next.showLayoutCode)
   }
 }

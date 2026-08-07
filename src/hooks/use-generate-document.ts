@@ -49,12 +49,58 @@ const ERROR_CODE_TO_I18N: Record<string, string> = {
 /** Map an LLM_, LEGAL_DOC_ or FORM_REQUIRED_ error code to an aiGenerate.errors i18n key. */
 export function errorCodeToI18nKey(code: string): string {
   if (ERROR_CODE_TO_I18N[code]) return ERROR_CODE_TO_I18N[code]
-  if (code.startsWith("FORM_REQUIRED_"))
-    return "aiGenerate.errors.formRequired"
+  if (code.startsWith("FORM_REQUIRED_")) return "aiGenerate.errors.formRequired"
+  if (code === "LLM_NO_API_KEY") return "aiGenerate.errors.llmNoApiKey"
+  if (code === "LLM_TIMEOUT") return "aiGenerate.errors.llmTimeout"
+  if (code === "LLM_NETWORK_ERROR") return "aiGenerate.errors.llmNetworkError"
+  if (code === "LLM_HTTP_401" || code === "LLM_HTTP_403")
+    return "aiGenerate.errors.llmInvalidKey"
+  if (code === "LLM_HTTP_429") return "aiGenerate.errors.llmRateLimit"
+  if (code.startsWith("LLM_HTTP_")) return "aiGenerate.errors.llmHttpError"
   if (code.startsWith("LLM_")) return "aiGenerate.errors.llmRequestFailed"
   if (code.startsWith("LEGAL_DOC_"))
     return "aiGenerate.errors.legalDocParseFailed"
   return "aiGenerate.errors.unknown"
+}
+
+/**
+ * 失败"下一步行动"说明 key（原因说明 + 可执行动作的粒度）。
+ * 与 errorCodeToI18nKey 配对：message 讲原因，action 讲怎么做。
+ */
+export function errorCodeToI18nActionKey(code: string): string | null {
+  if (code.startsWith("FORM_REQUIRED_")) return null
+  if (
+    code === "LLM_NO_API_KEY" ||
+    code === "LLM_HTTP_401" ||
+    code === "LLM_HTTP_403"
+  )
+    return "aiGenerate.errors.llmInvalidKeyAction"
+  if (code === "LLM_NETWORK_ERROR")
+    return "aiGenerate.errors.llmNetworkErrorAction"
+  if (code === "LLM_TIMEOUT") return "aiGenerate.errors.llmTimeoutAction"
+  if (code === "LLM_HTTP_429") return "aiGenerate.errors.llmRateLimitAction"
+  if (code.startsWith("LLM_HTTP_")) return "aiGenerate.errors.llmHttpAction"
+  if (code.startsWith("LEGAL_DOC_"))
+    return "aiGenerate.errors.legalDocParseAction"
+  return "aiGenerate.errors.unknownAction"
+}
+
+/**
+ * 是否需要"去设置"按钮（LLM 认证类错误：未配置 Key / Key 无效）。
+ * 点击后打开设置页并落在 AI 服务 section。
+ */
+export function shouldShowSettingsCta(code: string): boolean {
+  return (
+    code === "LLM_NO_API_KEY" ||
+    code === "LLM_HTTP_401" ||
+    code === "LLM_HTTP_403"
+  )
+}
+
+/** LLM_HTTP_<status> 提取 HTTP 状态码，供 i18n 插值展示。 */
+export function httpStatusFromCode(code: string): string | null {
+  if (!code.startsWith("LLM_HTTP_")) return null
+  return code.slice("LLM_HTTP_".length)
 }
 
 function extractErrorCode(err: unknown): string {
@@ -127,7 +173,8 @@ export function useGenerateDocument() {
         ? `${docType}\n${prompt}\n${formRequirement}`
         : `${docType}\n${prompt}`
       // 用户显式勾选盖章 → 覆盖文种默认；未触碰（undefined）→ 沿用 sealDefault。
-      const effectiveSeal = formValues.seal ?? DOC_TYPE_SPECS[docType].sealDefault
+      const effectiveSeal =
+        formValues.seal ?? DOC_TYPE_SPECS[docType].sealDefault
       const userPrompt = buildUserPrompt(mergedPrompt, { seal: effectiveSeal })
       const raw = await generateDocument({
         prompt: userPrompt,
@@ -221,7 +268,7 @@ export function useGenerateDocument() {
       setIssues(reviewDocument(next))
       return markdown
     },
-    [result],
+    [result]
   )
 
   return {

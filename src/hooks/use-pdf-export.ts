@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import { isTauri, trackedInvoke } from "@/lib/tauri"
 import { buildExportHtml } from "@/lib/export/build-export-html"
 import { pdfErrorCodeToI18nKey } from "@/lib/export/pdf-error-codes"
+import { toast } from "@/components/ui/toast"
 import { useRuleStore } from "@/stores/rule-store"
 import { useDocStore } from "@/stores/doc-store"
 import { useSettingsStore } from "@/stores/settings-store"
@@ -76,7 +77,7 @@ export function usePdfExport() {
     // Tauri 和浏览器模式共享：收集渲染页面 + 构建导出 HTML
     const pages = collectRenderedPages(document)
     if (pages.length === 0) {
-      window.alert(t("pdfExport.errors.unknown"))
+      toast.error(t("fileSystem.pdfExportNoPages"))
       return
     }
     const html = buildExportHtml({
@@ -105,16 +106,16 @@ export function usePdfExport() {
             printBackground: true,
           },
         })
-        window.alert(t("pdfExport.success", { path: result.outputPath }))
+        toast.success(t("pdfExport.success", { path: result.outputPath }))
       } catch (err) {
         const code = typeof err === "string" ? err : String(err)
-        window.alert(t(pdfErrorCodeToI18nKey(code)))
+        toast.error(t(pdfErrorCodeToI18nKey(code)))
       }
     } else {
       // 浏览器模式：新窗口打开导出 HTML → 浏览器打印
       const w = window.open("", "_blank")
       if (!w) {
-        window.alert(t("fileSystem.popupBlocked"))
+        toast.error(t("fileSystem.popupBlocked"))
         return
       }
       w.document.write(html)

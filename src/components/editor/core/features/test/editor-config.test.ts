@@ -9,6 +9,7 @@ const BASE: EditorSettings = {
   lineNumbers: true,
   wordWrap: true,
   tabSize: 2,
+  showLayoutCode: false,
 }
 
 /** Minimal EditorView stand-in: only `dispatch` is exercised. */
@@ -18,12 +19,12 @@ function fakeView() {
 }
 
 describe("applyEditorSettings", () => {
-  it("dispatches all four compartments on first apply (prev = null)", () => {
+  it("dispatches all five compartments on first apply (prev = null)", () => {
     const { view, dispatch } = fakeView()
     applyEditorSettings(view, null, BASE)
     expect(dispatch).toHaveBeenCalledTimes(1)
     const { effects } = dispatch.mock.calls[0]![0]
-    expect(effects).toHaveLength(4)
+    expect(effects).toHaveLength(5)
   })
 
   it("does not dispatch when nothing changed", () => {

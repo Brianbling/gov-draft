@@ -1,7 +1,10 @@
-import type { AtRule, StyleDeclaration, StyleRule } from './types'
-import type { ContentItemConfig, PageConfig, RuleConfig } from '../schema'
-import { toCssCustomProperty } from './css-variable'
-import { sanitizeCssProperty, sanitizeCssValue } from '../utils/css-sanitize-utils'
+import type { AtRule, StyleDeclaration, StyleRule } from "./types"
+import type { ContentItemConfig, PageConfig, RuleConfig } from "../schema"
+import { toCssCustomProperty } from "./css-variable"
+import {
+  sanitizeCssProperty,
+  sanitizeCssValue,
+} from "../utils/css-sanitize-utils"
 
 export const PARAGRAPH_LINES_PATTERN = /^(-?\d+(\.\d+)?)lines$/
 
@@ -13,19 +16,21 @@ export type HeadingStyleTarget = {
 export function normalizeParagraphSpacing(value: unknown): string {
   const normalized = sanitizeCssValue(value)
   if (!normalized) {
-    return '0'
+    return "0"
   }
   const matched = normalized.match(PARAGRAPH_LINES_PATTERN)
   if (!matched) {
     return normalized
   }
 
-  const lines = matched[1] ?? '0'
+  const lines = matched[1] ?? "0"
   return `${lines}lh`
 }
 
-export function isContentItemConfig(value: unknown): value is ContentItemConfig {
-  if (!value || typeof value !== 'object') {
+export function isContentItemConfig(
+  value: unknown
+): value is ContentItemConfig {
+  if (!value || typeof value !== "object") {
     return false
   }
 
@@ -35,42 +40,54 @@ export function isContentItemConfig(value: unknown): value is ContentItemConfig 
 
   return (
     !!candidate.fonts &&
-    typeof candidate.fonts === 'object' &&
+    typeof candidate.fonts === "object" &&
     !!style &&
-    typeof style === 'object' &&
+    typeof style === "object" &&
     !!(style as Record<string, unknown>).colors &&
-    typeof (style as Record<string, unknown>).colors === 'object' &&
+    typeof (style as Record<string, unknown>).colors === "object" &&
     !!paragraph &&
-    typeof paragraph === 'object' &&
+    typeof paragraph === "object" &&
     !!(paragraph as Record<string, unknown>).spacing &&
-    typeof (paragraph as Record<string, unknown>).spacing === 'object'
+    typeof (paragraph as Record<string, unknown>).spacing === "object"
   )
 }
 
-export function declaration(property: string, value: unknown): StyleDeclaration {
+export function declaration(
+  property: string,
+  value: unknown
+): StyleDeclaration {
   return {
     property: sanitizeCssProperty(property),
-    value: sanitizeCssValue(value)
+    value: sanitizeCssValue(value),
   }
 }
 
-export function styleRule(selectors: string[], declarations: StyleDeclaration[]): StyleRule {
+export function styleRule(
+  selectors: string[],
+  declarations: StyleDeclaration[]
+): StyleRule {
   return {
-    type: 'style',
+    type: "style",
     selectors,
-    declarations
+    declarations,
   }
 }
 
-export function atRule(name: string, options: Omit<AtRule, 'type' | 'name'> = {}): AtRule {
+export function atRule(
+  name: string,
+  options: Omit<AtRule, "type" | "name"> = {}
+): AtRule {
   return {
-    type: 'at-rule',
+    type: "at-rule",
     name,
-    ...options
+    ...options,
   }
 }
 
-export function buildFontFamilyValue(primaryPath: string, fallbackPath: string): string {
+export function buildFontFamilyValue(
+  primaryPath: string,
+  fallbackPath: string
+): string {
   return `var(${toCssCustomProperty(primaryPath)}, var(${toCssCustomProperty(fallbackPath)}))`
 }
 
@@ -78,10 +95,12 @@ export function buildContentFontPath(level: string, suffix: string): string {
   return `content.${level}.fonts.${suffix}`
 }
 
-export function resolveHeadingTargets(content: RuleConfig['content']): HeadingStyleTarget[] {
+export function resolveHeadingTargets(
+  content: RuleConfig["content"]
+): HeadingStyleTarget[] {
   return Object.keys(content)
     .map((level): HeadingStyleTarget | null => {
-      if (level === 'body') {
+      if (level === "body") {
         return null
       }
 
@@ -90,7 +109,7 @@ export function resolveHeadingTargets(content: RuleConfig['content']): HeadingSt
         return null
       }
 
-      const headingIndex = Number.parseInt(matched[1] ?? '', 10)
+      const headingIndex = Number.parseInt(matched[1] ?? "", 10)
       if (!Number.isFinite(headingIndex) || headingIndex < 1) {
         return null
       }
@@ -98,20 +117,20 @@ export function resolveHeadingTargets(content: RuleConfig['content']): HeadingSt
       if (headingIndex === 4) {
         return {
           level,
-          selectors: ['h4', 'h5', 'h6']
+          selectors: ["h4", "h5", "h6"],
         }
       }
 
       if (headingIndex > 6) {
         return {
           level,
-          selectors: ['h6']
+          selectors: ["h6"],
         }
       }
 
       return {
         level,
-        selectors: [`h${headingIndex}`]
+        selectors: [`h${headingIndex}`],
       }
     })
     .filter((item): item is HeadingStyleTarget => item !== null)
@@ -122,9 +141,12 @@ export function resolveHeadingTargets(content: RuleConfig['content']): HeadingSt
     })
 }
 
-export function buildPageSizeValue(page: PageConfig, dimensions: { width: string; height: string }): string {
+export function buildPageSizeValue(
+  page: PageConfig,
+  dimensions: { width: string; height: string }
+): string {
   const size = sanitizeCssValue(page.size)
-  const orientation = sanitizeCssValue(page.orientation ?? 'portrait')
+  const orientation = sanitizeCssValue(page.orientation ?? "portrait")
 
   if (size.length > 0) {
     return `${size} ${orientation}`.trim()
@@ -133,8 +155,28 @@ export function buildPageSizeValue(page: PageConfig, dimensions: { width: string
   return `${dimensions.width} ${dimensions.height}`
 }
 
-export function mapTokensToDeclarations(tokens: Record<string, string>): StyleDeclaration[] {
-  return Object.entries(tokens).map(([property, value]) => declaration(property, value))
+export function mapTokensToDeclarations(
+  tokens: Record<string, string>
+): StyleDeclaration[] {
+  return Object.entries(tokens).map(([property, value]) =>
+    declaration(property, value)
+  )
+}
+
+function buildCharGridExpression(level: string, charsPerLine: number): string {
+  const contentWidth = `(var(${toCssCustomProperty("page.dimension.width")}) - var(${toCssCustomProperty("page.margins.left")}) - var(${toCssCustomProperty("page.margins.right")}))`
+  const fontSize = `var(${toCssCustomProperty(`content.${level}.style.size`)})`
+  return `${contentWidth} / ${charsPerLine} - ${fontSize}`
+}
+
+function isUsableCharsPerLine(
+  charsPerLine: number | null | undefined
+): charsPerLine is number {
+  return (
+    typeof charsPerLine === "number" &&
+    Number.isInteger(charsPerLine) &&
+    charsPerLine > 0
+  )
 }
 
 // Emits a CJK character-grid letter-spacing for the given content level when
@@ -143,13 +185,37 @@ export function mapTokensToDeclarations(tokens: Record<string, string>): StyleDe
 // The value depends only on page width, margins, and font size — never on the
 // rendered content — so heading numbering prefixes and .latin-text spans do
 // not perturb the grid. Returns null when charsPerLine is unset.
-export function buildCharGridLetterSpacing(level: string, charsPerLine: number | null | undefined): StyleDeclaration | null {
-  if (typeof charsPerLine !== 'number' || !Number.isInteger(charsPerLine) || charsPerLine <= 0) {
+export function buildCharGridLetterSpacing(
+  level: string,
+  charsPerLine: number | null | undefined
+): StyleDeclaration | null {
+  if (!isUsableCharsPerLine(charsPerLine)) {
     return null
   }
 
-  const contentWidth = `(var(${toCssCustomProperty('page.dimension.width')}) - var(${toCssCustomProperty('page.margins.left')}) - var(${toCssCustomProperty('page.margins.right')}))`
-  const fontSize = `var(${toCssCustomProperty(`content.${level}.style.size`)})`
+  return declaration(
+    "letter-spacing",
+    `calc(${buildCharGridExpression(level, charsPerLine)})`
+  )
+}
 
-  return declaration('letter-spacing', `calc(${contentWidth} / ${charsPerLine} - ${fontSize})`)
+// Compensates the trailing letter-spacing that the char-grid adds after the last
+// glyph of every line: `letter-spacing` is applied after *each* character, so a
+// full line of N glyphs carries N trailing spacings — the last one would push the
+// line past the content box and force the Nth glyph to wrap (off-by-one). A
+// zero-width `::after` with `margin-right: -letterSpacing` cancels that trailing
+// space so a line holds exactly charsPerLine glyphs without overflow. Must be
+// paired with buildCharGridLetterSpacing; returns null when charsPerLine is unset.
+export function buildCharGridTrailingCompensation(
+  level: string,
+  charsPerLine: number | null | undefined
+): StyleDeclaration | null {
+  if (!isUsableCharsPerLine(charsPerLine)) {
+    return null
+  }
+
+  return declaration(
+    "margin-right",
+    `calc(-1 * (${buildCharGridExpression(level, charsPerLine)}))`
+  )
 }

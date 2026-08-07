@@ -96,6 +96,37 @@ describe("compileRule", () => {
     )
   })
 
+  it("M3：字格 letter-spacing 生成末字尾距补偿（p::after / h1::after 负 margin-right）", () => {
+    // letter-spacing 在行末字符后仍附加一个 spacing，整行等宽行会把第 N 字挤到
+    // 换行位（off-by-one）。::after 零宽元素用负 margin-right 抵消该尾距。
+    const compiled = compileRule(createValidRule(), DEFAULT_HOST)
+
+    expect(compiled.cssText).toContain(
+      ".preview-content p::after, .export-document p::after"
+    )
+    expect(compiled.cssText).toContain('content: "";')
+    expect(compiled.cssText).toContain(
+      "margin-right: calc(-1 * ((var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 28 - var(--content-body-style-size)));"
+    )
+    // 标题 h1（charsPerLine=20）同样有尾距补偿
+    expect(compiled.cssText).toContain(
+      "margin-right: calc(-1 * ((var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 20 - var(--content-h1-style-size)));"
+    )
+  })
+
+  it("M3：字格下内联 span（.latin-text 等）显式重置 letter-spacing: 0，避免继承字格被拉宽", () => {
+    const compiled = compileRule(createValidRule(), DEFAULT_HOST)
+
+    expect(compiled.cssText).toContain(
+      ".preview-content .latin-text, .export-document .latin-text"
+    )
+    expect(compiled.cssText).toContain("letter-spacing: 0;")
+    // 标题行内的 span 同样重置（h1 .latin-text）
+    expect(compiled.cssText).toContain(
+      ".preview-content h1 .latin-text, .export-document h1 .latin-text"
+    )
+  })
+
   it("omits letter-spacing when charsPerLine is unset", () => {
     const rule = createValidRule()
     Object.values(rule.content).forEach((item) => {
@@ -105,6 +136,9 @@ describe("compileRule", () => {
     const compiled = compileRule(rule, DEFAULT_HOST)
 
     expect(compiled.cssText).not.toContain("letter-spacing")
+    // 无字格时也不生成 ::after 尾距补偿与 span 重置（避免为无字格文档注入无用规则）
+    expect(compiled.cssText).not.toContain("p::after")
+    expect(compiled.cssText).not.toContain("margin-right")
   })
 
   it("uses injected custom host selectors instead of defaults", () => {

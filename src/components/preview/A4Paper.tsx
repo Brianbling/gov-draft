@@ -34,8 +34,39 @@ export function A4Paper({ html }: A4PaperProps) {
 
   const isEmpty = html.trim().length === 0
 
+  // Pagination is the layout-measurement hotspot (innerHTML + scrollHeight
+  // reflow per page). Typing produces one parse result every ~100ms, so
+  // paginating each intermediate state pays the reflow cost for content the
+  // user never sees. Coalesce rapid html changes into a single pagination that
+  // runs when the main thread is idle; the pending value guarantees the latest
+  // html is always paginated (trailing edge), and the rIC timeout bounds lag.
+  const pendingHtmlRef = useRef<string | null>(null)
+  const idleHandleRef = useRef<number | null>(null)
+
   useEffect(() => {
-    paginate(html)
+    pendingHtmlRef.current = html
+    if (idleHandleRef.current !== null) return
+    const run = () => {
+      idleHandleRef.current = null
+      const target = pendingHtmlRef.current
+      pendingHtmlRef.current = null
+      if (target !== null) void paginate(target)
+    }
+    if (typeof requestIdleCallback === "function") {
+      idleHandleRef.current = requestIdleCallback(run, { timeout: 200 })
+    } else {
+      idleHandleRef.current = window.setTimeout(run, 50)
+    }
+    return () => {
+      if (idleHandleRef.current !== null) {
+        if (typeof cancelIdleCallback === "function") {
+          cancelIdleCallback(idleHandleRef.current)
+        } else {
+          clearTimeout(idleHandleRef.current)
+        }
+        idleHandleRef.current = null
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [html, ruleStore.compiledRule, ruleStore.currentRule?.pagination])
 
@@ -87,7 +118,7 @@ export function A4Paper({ html }: A4PaperProps) {
               <p className="text-sm text-muted-foreground">
                 {t("preview.emptyHint")}
               </p>
-              <p className="text-xs text-muted-foreground/70">
+              <p className="text-xs text-muted-foreground">
                 {t("preview.emptySubHint")}
               </p>
             </div>

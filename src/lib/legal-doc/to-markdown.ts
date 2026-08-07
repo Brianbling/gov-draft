@@ -3,6 +3,18 @@ import { isValidIsoDate } from "./format-check"
 
 const SEPARATOR = "\n"
 
+/**
+ * 标题中的 markdown 行内特殊字符转义（M2）：标题经 markdown-it 渲染成红头
+ * `<h1>`，行内 `*`/`_`/`[`/`]`/`` ` ``/`~~`/`<` 等若不转义会被渲染成
+ * `<em>`/`<a>`/`<code>`/`<s>` 等，与表单/LLM 提供的标题视觉不一致。
+ * 这里只转义行内结构的成对标记字符，不做整个标题的全面 escape（保留标题
+ * 原有文本，仅阻止 markdown-it 把它当行内语法）。用反斜杠转义后
+ * markdown-it 会渲染成字面字符（`\*` → `*`）。
+ */
+function escapeMarkdownInline(text: string): string {
+  return text.replace(/([\\`*_[\]<>~])/g, "\\$1")
+}
+
 const CENTERED =
   "content.body.paragraph.align: center; content.body.paragraph.indent: 0em"
 const RIGHT_ALIGNED =
@@ -146,7 +158,7 @@ export function toMarkdown(doc: LegalDoc): string {
   // 而是输出一个可见占位标题，让生成的文档始终有可辨识的标题行；空缺本身
   // 由 checkFormat 的 TITLE_EMPTY（error 级）在结果面板显著提示。
   if (doc.title.trim().length > 0) {
-    blocks.push([`# ${doc.title}`])
+    blocks.push([`# ${escapeMarkdownInline(doc.title)}`])
   } else {
     blocks.push([`# 未命名公文`])
   }
@@ -348,13 +360,12 @@ function isElementAnchorBlock(block: string): boolean {
  */
 export function patchMarkdownElements(
   currentMarkdown: string,
-  nextDoc: LegalDoc,
+  nextDoc: LegalDoc
 ): string {
   const rebuilt = toMarkdown(nextDoc)
   const rebuiltBlocks = splitDocBlocks(rebuilt)
-  const currentBodyBlocks = splitDocBlocks(currentMarkdown).filter(
-    isBodyTypedBlock,
-  )
+  const currentBodyBlocks =
+    splitDocBlocks(currentMarkdown).filter(isBodyTypedBlock)
 
   let inBody = false
   let ended = false

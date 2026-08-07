@@ -7,6 +7,8 @@ import {
   toggleUnorderedList,
   toggleOrderedList,
   executeFormat,
+  setParagraphAlign,
+  adjustParagraphIndent,
 } from "../format-commands"
 
 let container: HTMLDivElement
@@ -139,5 +141,55 @@ describe("executeFormat", () => {
     const view2 = mkView("x", 0)
     executeFormat(view2, "ol")
     expect(doc(view2)).toBe("1. x")
+  })
+
+  it("dispatches align actions", () => {
+    const view = mkView("段落", 0)
+    executeFormat(view, "alignCenter")
+    expect(doc(view)).toBe(
+      "::: content.body.paragraph.align: center;\n段落\n:::"
+    )
+  })
+
+  it("dispatches indent increase/decrease", () => {
+    const view = mkView("段落", 0)
+    executeFormat(view, "indentIncrease")
+    expect(doc(view)).toBe("::: content.body.paragraph.indent: 2em;\n段落\n:::")
+  })
+})
+
+describe("setParagraphAlign", () => {
+  it("wraps the paragraph in an align container with a closing line", () => {
+    const view = mkView("段落", 0)
+    setParagraphAlign(view, "center")
+    expect(doc(view)).toBe(
+      "::: content.body.paragraph.align: center;\n段落\n:::"
+    )
+  })
+
+  it("replaces an existing align value in the enclosing container", () => {
+    const view = mkView("::: body.paragraph.align:left\n段落\n:::", 11)
+    setParagraphAlign(view, "right")
+    expect(doc(view)).toBe("::: body.paragraph.align: right\n段落\n:::")
+  })
+})
+
+describe("adjustParagraphIndent", () => {
+  it("wraps the paragraph in an indent container on increase", () => {
+    const view = mkView("段落", 0)
+    adjustParagraphIndent(view, 2)
+    expect(doc(view)).toBe("::: content.body.paragraph.indent: 2em;\n段落\n:::")
+  })
+
+  it("bumps an existing indent value by the delta", () => {
+    const view = mkView("::: body.paragraph.indent:2em\n段落\n:::", 12)
+    adjustParagraphIndent(view, 2)
+    expect(doc(view)).toBe("::: body.paragraph.indent: 4em\n段落\n:::")
+  })
+
+  it("clamps indent at zero on decrease", () => {
+    const view = mkView("::: body.paragraph.indent:1em\n段落\n:::", 12)
+    adjustParagraphIndent(view, -2)
+    expect(doc(view)).toBe("::: body.paragraph.indent: 0em\n段落\n:::")
   })
 })

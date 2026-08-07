@@ -31,7 +31,7 @@ export function AiSettingsForm({ draft, onChange }: AiSettingsFormProps) {
             value={draft.llmApiKey}
             onChange={(e) => onChange({ ...draft, llmApiKey: e.target.value })}
           />
-          <span className="text-[11px] text-muted-foreground/70">
+          <span className="text-[11px] text-muted-foreground">
             {t("settings.llmApiKeyHint")}
           </span>
         </label>

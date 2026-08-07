@@ -10,6 +10,8 @@ export interface EditorSettings {
   lineNumbers: boolean
   wordWrap: boolean
   tabSize: number
+  /** 显示 `:::` 排版代码（默认隐藏折叠，展开显示原始 descriptor 行）。 */
+  showLayoutCode?: boolean
 }
 
 export interface PreviewSettings {
@@ -44,6 +46,7 @@ const DEFAULT_EDITOR: EditorSettings = {
   lineNumbers: true,
   wordWrap: true,
   tabSize: 2,
+  showLayoutCode: false,
 }
 
 const DEFAULT_PREVIEW: PreviewSettings = {

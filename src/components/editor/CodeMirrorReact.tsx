@@ -1,7 +1,7 @@
 import { useEffect, useRef, useImperativeHandle, forwardRef } from "react"
 import { EditorView } from "@codemirror/view"
 import { undo, redo, undoDepth, redoDepth } from "@codemirror/commands"
-import { createEditorState } from "./core/build-extensions"
+import { createEditorState, replaceDocument } from "./core/build-extensions"
 import { applyEditorSettings } from "./core/features/editor-config"
 import {
   executeFormat,
@@ -101,13 +101,7 @@ const CodeMirrorReact = forwardRef<CodeMirrorHandle, CodeMirrorReactProps>(
       if (!view) return
       const current = view.state.doc.toString()
       if (current !== value) {
-        view.dispatch({
-          changes: {
-            from: 0,
-            to: current.length,
-            insert: value,
-          },
-        })
+        replaceDocument(view, value)
       }
     }, [value])
 

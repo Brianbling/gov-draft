@@ -4,6 +4,7 @@ import {
   formatChineseDate,
   patchMarkdownElements,
 } from "../to-markdown"
+import { MarkdownParser } from "@/engine/parser/markdown-parser"
 import type { LegalDoc } from "../types"
 
 function buildDoc(overrides: Partial<LegalDoc> = {}): LegalDoc {
@@ -169,9 +170,42 @@ describe("toMarkdown", () => {
       buildDoc({ title: "关于 #1 重点任务 *清单* 的通知" })
     )
     // 标题必须仍是单行 # 一级标题，不能被解析成多个标题或加粗
-    expect(markdown).toContain("# 关于 #1 重点任务 *清单* 的通知")
+    expect(markdown).toContain("# 关于 #1 重点任务 \\*清单\\* 的通知")
     expect(markdown).not.toContain("## 关于")
     expect(markdown).not.toContain("**清单**")
+  })
+
+  it("M2：标题含 markdown 行内字符时转义，round-trip 解析后不含 <em>/<a>/<code>/<s>", () => {
+    // 标题来自 LLM/表单，可能含 * _ [ ] ` ~~ 等。toMarkdown 先转义，
+    // 经 MarkdownParser 渲染的 HTML 必须是纯文本红头，不出现强调/链接/代码/删除线。
+    const markdown = toMarkdown(
+      buildDoc({
+        title: "关于 *清单* 与 _重点_ [附件] `代码` ~~删除~~ 的通知",
+      })
+    )
+    // 转义后仍保留可读标题文本（反斜杠是 markdown 转义，渲染后即为字面字符）
+    expect(markdown).toContain(
+      "# 关于 \\*清单\\* 与 \\_重点\\_ \\[附件\\] \\`代码\\` \\~\\~删除\\~\\~ 的通知"
+    )
+
+    const html = new MarkdownParser(undefined, {
+      headingNumbering: false,
+      disabledSyntax: [
+        "codeBlock",
+        "blockquote",
+        "unorderedList",
+        "horizontalRule",
+      ],
+    }).parse(markdown).html
+    expect(html).toContain("<h1>")
+    expect(html).not.toContain("<em>")
+    expect(html).not.toContain("<a ")
+    expect(html).not.toContain("<code>")
+    expect(html).not.toContain("<s>")
+    // 标题文本原样保留（markdown 转义渲染成字面字符）
+    expect(html).toContain(
+      "关于 *清单* 与 _重点_ [附件] `代码` ~~删除~~ 的通知"
+    )
   })
 
   it("body 为空数组时仍输出标题不崩溃", () => {
@@ -441,7 +475,10 @@ describe("patchMarkdownElements · 要素编辑面板回填（H1 数据丢失修
 
   it("要素改动生效（文号更新），用户手动改过的正文保留", () => {
     // 用户在编辑器里把第一段正文改掉了
-    const edited = md.replace("第一段正文内容。", "第一段正文内容【用户修改】。")
+    const edited = md.replace(
+      "第一段正文内容。",
+      "第一段正文内容【用户修改】。"
+    )
     const next = { ...doc, docNumber: "国发〔2026〕99号" }
     const patched = patchMarkdownElements(edited, next)
 
@@ -453,7 +490,10 @@ describe("patchMarkdownElements · 要素编辑面板回填（H1 数据丢失修
   })
 
   it("标题改动生效，正文不受影响", () => {
-    const edited = md.replace("第一段正文内容。", "第一段正文内容【用户修改】。")
+    const edited = md.replace(
+      "第一段正文内容。",
+      "第一段正文内容【用户修改】。"
+    )
     const next = { ...doc, title: "关于更新标题的通知" }
     const patched = patchMarkdownElements(edited, next)
     expect(patched).toContain("# 关于更新标题的通知")
