@@ -6,6 +6,7 @@ import { useStyleInjector } from "@/hooks/use-style-injector"
 import { useMarkdown } from "@/hooks/use-markdown"
 import { useSplitPane } from "@/hooks/use-split-pane"
 import { useAutoSave } from "@/hooks/use-auto-save"
+import { useIsMobile } from "@/hooks/use-is-mobile"
 import CodeMirrorReact from "@/components/editor/CodeMirrorReact"
 import type { CodeMirrorHandle } from "@/components/editor/CodeMirrorReact"
 import { A4Paper } from "@/components/preview/A4Paper"
@@ -15,6 +16,8 @@ import { WelcomeDialog, hasSeenWelcome } from "@/components/WelcomeDialog"
 import { ConfirmOverwriteDialog } from "@/components/ConfirmOverwriteDialog"
 import { ConfirmNewDocumentDialog } from "@/components/ConfirmNewDocumentDialog"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Button } from "@/components/ui/button"
+import { useTranslation } from "react-i18next"
 
 /** 全局事件：跨组件打开 AI 生成 / 导入（Toolbar 与引导层共用）。 */
 const OPEN_AI_EVENT = "ezdoc:open-ai-generate"
@@ -22,6 +25,7 @@ const OPEN_IMPORT_EVENT = "ezdoc:open-import"
 const NEW_DOCUMENT_EVENT = "ezdoc:new-document"
 
 export function App() {
+  const { t } = useTranslation()
   const initializeRule = useRuleStore((state) => state.initializeRule)
   const storeContent = useDocStore((state) => state.content)
   const setStoreContent = useDocStore((state) => state.setContent)
@@ -40,6 +44,10 @@ export function App() {
 
   // Auto-save on the configured interval
   useAutoSave()
+
+  // Mobile: <768px → editor/preview tab switcher instead of split-pane.
+  const isMobile = useIsMobile()
+  const [mobileTab, setMobileTab] = useState<"editor" | "preview">("editor")
 
   // Split pane
   const { workspaceRef, workspaceStyle, startResize } = useSplitPane({
@@ -183,31 +191,60 @@ export function App() {
         className="app-shell flex h-svh flex-col"
         style={workspaceStyle}
       >
-        {/* Editor panel */}
-        <div className="flex flex-1 overflow-hidden">
-          <div
-            className="editor-panel flex flex-col overflow-hidden border-r"
-            style={{ width: "var(--editor-width)" }}
-          >
-            <Toolbar editorRef={editorRef} />
-            <CodeMirrorReact
-              ref={editorRef}
-              value={content}
-              onChange={setContent}
-            />
-            <StatusBar />
+        {/* 移动端 tab 切换（编辑/预览），桌面端不渲染 */}
+        {isMobile && (
+          <div className="mobile-tabs flex shrink-0 items-center gap-1 border-b bg-background px-3 py-1.5">
+            <Button
+              variant={mobileTab === "editor" ? "secondary" : "ghost"}
+              size="sm"
+              className="flex-1"
+              aria-pressed={mobileTab === "editor"}
+              onClick={() => setMobileTab("editor")}
+            >
+              {t("mobile.tabEdit")}
+            </Button>
+            <Button
+              variant={mobileTab === "preview" ? "secondary" : "ghost"}
+              size="sm"
+              className="flex-1"
+              aria-pressed={mobileTab === "preview"}
+              onClick={() => setMobileTab("preview")}
+            >
+              {t("mobile.tabPreview")}
+            </Button>
           </div>
+        )}
 
-          {/* Resizer */}
-          <div
-            className="resizer w-1 cursor-col-resize bg-border hover:bg-primary/50 active:bg-primary"
-            onPointerDown={startResize}
-          />
+        <div className="flex flex-1 overflow-hidden">
+          {(isMobile ? mobileTab === "editor" : true) && (
+            <div
+              className="editor-panel flex flex-col overflow-hidden border-r"
+              style={isMobile ? undefined : { width: "var(--editor-width)" }}
+            >
+              <Toolbar editorRef={editorRef} />
+              <CodeMirrorReact
+                ref={editorRef}
+                value={content}
+                onChange={setContent}
+              />
+              <StatusBar />
+            </div>
+          )}
+
+          {/* Resizer — desktop only */}
+          {!isMobile && (
+            <div
+              className="resizer w-1 cursor-col-resize bg-border hover:bg-primary/50 active:bg-primary"
+              onPointerDown={startResize}
+            />
+          )}
 
           {/* Preview panel */}
-          <div className="preview-panel flex-1 overflow-hidden">
-            <A4Paper html={html} />
-          </div>
+          {(isMobile ? mobileTab === "preview" : true) && (
+            <div className="preview-panel flex-1 overflow-hidden">
+              <A4Paper html={html} />
+            </div>
+          )}
         </div>
 
         {/* P0-1 首启引导层：四步 + 两个主入口 */}

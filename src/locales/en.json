@@ -350,6 +350,10 @@
 			"keepEditing": "Keep editing",
 			"discardChanges": "Discard changes"
 	},
+	"mobile": {
+		"tabEdit": "Edit",
+		"tabPreview": "Preview"
+	},
 	"codemirror": {
 		"editorAria": "Official document Markdown editor",
 		"emptyEditorHint": "Type your document, or click the AI icon in the toolbar to generate…",

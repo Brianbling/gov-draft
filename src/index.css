@@ -381,3 +381,21 @@ body {
     @apply select-text;
   }
 }
+
+/* ---- mobile responsive ---- */
+@media (max-width: 768px) {
+  /* 编辑器面板在移动端占满剩余高度，取消边框分隔。 */
+  .editor-panel {
+    border-right: none;
+  }
+
+  /* 移动端隐藏桌面端才需要的拖拽留白（纸面外灰色区域）。 */
+  .paper-stage {
+    padding: 1rem !important;
+  }
+
+  /* 触控目标 ≥ 44px：工具栏按钮在移动端加高。 */
+  .toolbar button {
+    min-height: 40px;
+  }
+}

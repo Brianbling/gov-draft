@@ -350,6 +350,10 @@
 			"keepEditing": "继续编辑",
 			"discardChanges": "放弃更改"
 	},
+	"mobile": {
+		"tabEdit": "编辑",
+		"tabPreview": "预览"
+	},
 	"codemirror": {
 		"editorAria": "公文 Markdown 编辑器",
 		"emptyEditorHint": "输入公文内容，或点击工具栏 AI 图标一键生成…",

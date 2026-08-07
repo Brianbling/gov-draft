@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { usePaginator } from "@/hooks/use-paginator"
 import {
   getPaginationText,
   getPaginationInlineStyle,
 } from "@/hooks/use-pagination-display"
+import { useIsMobile } from "@/hooks/use-is-mobile"
 import { useRuleStore } from "@/stores/rule-store"
 import { useSettingsStore } from "@/stores/settings-store"
 
@@ -18,6 +19,31 @@ export function A4Paper({ html }: A4PaperProps) {
   const previewZoom = useSettingsStore((s) => s.previewSettings.zoom)
   const { pages, pageMetas, paginate, measureRef } = usePaginator()
   const stageRef = useRef<HTMLDivElement>(null)
+  const [fitScale, setFitScale] = useState(1)
+
+  // 移动端纸面适配视口宽度：210mm 纸张在窄屏下等比缩小到 <768px 内可见。
+  // 桌面端保持用户 zoom 不缩放（fit-to-width 固定，分屏变化不改渲染尺寸）。
+  const isNarrow = useIsMobile()
+
+  useEffect(() => {
+    if (!isNarrow) {
+      setFitScale(1)
+      return
+    }
+    const measure = () => {
+      const mmToPx = (mm: number) => (mm * 96) / 25.4
+      const paperWidthPx = mmToPx(210)
+      const availablePx = (stageRef.current?.clientWidth ?? 0) - 2 * 16
+      setFitScale(Math.min(1, availablePx / paperWidthPx))
+    }
+    measure()
+    window.addEventListener("resize", measure)
+    return () => window.removeEventListener("resize", measure)
+  }, [isNarrow])
+
+  const scale = (previewZoom / 100) * fitScale
+
+  const isEmpty = html.trim().length === 0
 
   const drag = useRef({
     active: false,
@@ -26,13 +52,6 @@ export function A4Paper({ html }: A4PaperProps) {
     startLeft: 0,
     startTop: 0,
   })
-
-  // Preview scale is the user zoom only. The paper deliberately does NOT
-  // fit-to-width: resizing the split pane must not change the rendered size,
-  // since the preview mirrors a fixed-width printed page.
-  const scale = previewZoom / 100
-
-  const isEmpty = html.trim().length === 0
 
   // Pagination is the layout-measurement hotspot (innerHTML + scrollHeight
   // reflow per page). Typing produces one parse result every ~100ms, so

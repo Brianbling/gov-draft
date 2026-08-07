@@ -111,18 +111,54 @@ export function usePdfExport() {
         const code = typeof err === "string" ? err : String(err)
         toast.error(t(pdfErrorCodeToI18nKey(code)))
       }
-    } else {
-      // 浏览器模式：新窗口打开导出 HTML → 浏览器打印
-      const w = window.open("", "_blank")
-      if (!w) {
-        toast.error(t("fileSystem.popupBlocked"))
-        return
-      }
-      w.document.write(html)
-      w.document.close()
-      // 等待样式加载完成后自动弹出打印对话框
-      w.onload = () => w.print()
+      return
     }
+
+    // 移动端（Web Share API 可用）：navigator.share 分享导出 HTML，
+    // 由系统分享面板转存/打印/发送。桌面浏览器仍走打印新窗口。
+    const canShareHtml =
+      typeof navigator !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      typeof navigator.share === "function"
+    if (canShareHtml) {
+      const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(
+        typeof navigator !== "undefined" ? navigator.userAgent : ""
+      )
+      if (isMobileUA) {
+        try {
+          const blob = new Blob([html], {
+            type: "text/html;charset=utf-8",
+          })
+          const file = new File(
+            [blob],
+            `${title || "document"}.html`,
+            { type: "text/html;charset=utf-8" }
+          )
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: title || "document",
+              text: html,
+              files: [file],
+            })
+            return
+          }
+        } catch (err) {
+          // 用户取消分享 / 分享失败 → 回退打印
+          console.warn("navigator.share failed, falling back to print:", err)
+        }
+      }
+    }
+
+    // 浏览器模式（桌面或分享不可用）：新窗口打开导出 HTML → 浏览器打印
+    const w = window.open("", "_blank")
+    if (!w) {
+      toast.error(t("fileSystem.popupBlocked"))
+      return
+    }
+    w.document.write(html)
+    w.document.close()
+    // 等待样式加载完成后自动弹出打印对话框
+    w.onload = () => w.print()
   }, [isTauriEnv, getRuleCssText, pageConfig, title, chromiumPath, t])
 
   return { exportPdf, isSupported }
