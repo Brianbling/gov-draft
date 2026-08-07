@@ -6,11 +6,12 @@ import {
 } from "@codemirror/state"
 import { EditorView, keymap } from "@codemirror/view"
 import {
-  foldAll,
+  foldEffect,
   foldGutter,
   foldKeymap,
   foldService,
-  unfoldAll,
+  foldState,
+  unfoldEffect,
 } from "@codemirror/language"
 
 /**
@@ -104,11 +105,43 @@ export function sugarFoldExtension(enabled: boolean): Extension {
   return sugarFoldCompartment.of(enabled ? sugarFoldEnabledExtensions() : [])
 }
 
-/** Fold/unfold every container, matching the settings toggle state. */
+/**
+ * Fold/unfold every `:::` container, matching the settings toggle state.
+ *
+ * 只对 findSugarBlocks 找到的 `:::` 容器发 foldEffect —— 不能用 foldAll：那会连
+ * markdown 自带的 h1-h6 标题折叠也一起执行，长文档从 `# 标题` 一路折到文末，
+ * 整篇文本肉眼消失（M-7）。展开侧同样只解 sugar 折叠的 range，保留用户手动
+ * 折叠的标题。
+ */
 export function refoldSugar(view: EditorView, enabled: boolean): void {
+  const { state } = view
+  const blocks = findSugarBlocks(state.doc)
+
   if (enabled) {
-    foldAll(view)
-  } else {
-    unfoldAll(view)
+    if (blocks.length === 0) return
+    const effects = blocks
+      .map((block) => {
+        const closeLine = state.doc.lineAt(block.to)
+        if (closeLine.to <= block.from) return null
+        return foldEffect.of({ from: closeLine.from, to: closeLine.to })
+      })
+      .filter((e): e is NonNullable<typeof e> => e !== null)
+    if (effects.length > 0) view.dispatch({ effects })
+    return
   }
+
+  const field = view.state.field(foldState, false)
+  if (!field || field.size === 0) return
+  const effects: Array<ReturnType<typeof unfoldEffect.of>> = []
+  for (const block of blocks) {
+    const closeLine = state.doc.lineAt(block.to)
+    const range = { from: closeLine.from, to: closeLine.to }
+    let containsFolded = false
+    field.between(range.from, range.to, () => {
+      containsFolded = true
+      return undefined
+    })
+    if (containsFolded) effects.push(unfoldEffect.of(range))
+  }
+  if (effects.length > 0) view.dispatch({ effects })
 }

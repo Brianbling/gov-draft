@@ -1,6 +1,80 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, beforeEach } from "vitest"
 import { EditorState, Text } from "@codemirror/state"
-import { findSugarBlocks, sugarFoldRange } from "../syntax-fold"
+import { EditorView } from "@codemirror/view"
+import { foldState } from "@codemirror/language"
+import {
+  findSugarBlocks,
+  refoldSugar,
+  sugarFoldRange,
+  sugarFoldEnabledExtensions,
+} from "../syntax-fold"
+
+// M-7 回归：refoldSugar(enable) 只折叠 `:::` 容器，不得动用 markdown 自带
+// h1-h6 折叠——foldAll 会把 `# 标题` 一路折到文末，整篇文本肉眼消失。
+describe("refoldSugar（M-7：只折叠 :: 容器，不碰标题折叠）", () => {
+  let mount: HTMLDivElement
+  let view: EditorView
+
+  beforeEach(() => {
+    mount = document.createElement("div")
+    document.body.appendChild(mount)
+  })
+
+  function makeView(doc: string): EditorView {
+    return new EditorView({
+      doc,
+      parent: mount,
+      extensions: [...sugarFoldEnabledExtensions()],
+    })
+  }
+
+  function closeView(v: EditorView): void {
+    v.destroy()
+    mount.remove()
+  }
+
+  function readFoldedRanges(v: EditorView): Array<{ from: number; to: number }> {
+    const field = v.state.field(foldState, false)
+    if (!field) return []
+    const ranges: Array<{ from: number; to: number }> = []
+    field.between(0, v.state.doc.length, (f, t) => {
+      ranges.push({ from: f, to: t })
+      return undefined
+    })
+    return ranges
+  }
+
+  it("有 :: 容器 + h1 标题的文档，启用折叠只折容器不折标题", () => {
+    const doc = [
+      "# 关于加强政务服务的通知",
+      "",
+      "::: content.body.paragraph.indent: 2em",
+      "第一段正文。",
+      ":::",
+      "",
+      "## 总体要求",
+      "正文第二段。",
+    ].join("\n")
+    view = makeView(doc)
+    refoldSugar(view, true)
+
+    const ranges = readFoldedRanges(view)
+    expect(ranges.length).toBeGreaterThan(0)
+    // 折叠范围只覆盖 :: 闭合行（":::" 3 字符），不是从 # 标题到文末
+    for (const r of ranges) {
+      expect(doc.slice(r.from, r.to).trim()).toBe(":::")
+      expect(r.to - r.from).toBeLessThanOrEqual(4)
+    }
+    closeView(view)
+  })
+
+  it("纯手写长文（无 ::）启用折叠不产生任何折叠", () => {
+    view = makeView("# 标题\n\n正文一\n\n正文二")
+    refoldSugar(view, true)
+    expect(readFoldedRanges(view)).toHaveLength(0)
+    closeView(view)
+  })
+})
 
 describe("findSugarBlocks", () => {
   it("pairs a single container", () => {
