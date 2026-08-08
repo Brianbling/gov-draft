@@ -305,6 +305,33 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
     expect(codes(issues)).not.toContain("DOC_NUMBER_LEADING_ZERO")
   })
 
+  it("发文字号顺序号前误加“第”字（〔2026〕第12号）时报 DOC_NUMBER_SEQUENCE_MALFORMED", () => {
+    const issues = checkDocFormat(buildDoc({ docNumber: "国发〔2026〕第12号" }))
+    expect(codes(issues)).toContain("DOC_NUMBER_SEQUENCE_MALFORMED")
+  })
+
+  it("发文字号顺序号后缺“号”字（〔2026〕12）时报 DOC_NUMBER_SEQUENCE_MALFORMED", () => {
+    const issues = checkDocFormat(buildDoc({ docNumber: "国发〔2026〕12" }))
+    expect(codes(issues)).toContain("DOC_NUMBER_SEQUENCE_MALFORMED")
+  })
+
+  it("合法发文字号（国发〔2026〕12号）不报 DOC_NUMBER_SEQUENCE_MALFORMED", () => {
+    const issues = checkDocFormat(buildDoc({ docNumber: "国发〔2026〕12号" }))
+    expect(codes(issues)).not.toContain("DOC_NUMBER_SEQUENCE_MALFORMED")
+  })
+
+  it("命令（令）顺序号“第8号”不报 DOC_NUMBER_SEQUENCE_MALFORMED", () => {
+    const issues = checkDocFormat(
+      buildDoc({ docType: "order", docNumber: "第8号" })
+    )
+    expect(codes(issues)).not.toContain("DOC_NUMBER_SEQUENCE_MALFORMED")
+  })
+
+  it("发文字号代字含字母（渝府办发〔2026〕3号）不报 DOC_NUMBER_SEQUENCE_MALFORMED", () => {
+    const issues = checkDocFormat(buildDoc({ docNumber: "渝府办发〔2026〕3号" }))
+    expect(codes(issues)).not.toContain("DOC_NUMBER_SEQUENCE_MALFORMED")
+  })
+
   it("正文含口语化词时给出 COLLOQUIAL_WORD", () => {
     const issues = checkDocFormat(
       buildDoc({

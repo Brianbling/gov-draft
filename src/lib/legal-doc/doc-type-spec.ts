@@ -223,6 +223,42 @@ const COLLOQUIAL_WORDS = [
 /** 文号序号前导 0：〔2026〕0号 或 〔2026〕07号 这类非法写法（GB/T 15835 §7.4）。 */
 const DOC_NUMBER_LEADING_ZERO_PATTERN = /〔\d{4}〕0\d*号/
 
+/**
+ * 发文字号（非命令类）：序号后应加"号"字且不加"第"字（GB/T 9704 §7.2.5）。
+ * 合法形态：`国发〔2026〕12号`、`渝府办发〔2026〕3号`。缺失"号"字（`〔2026〕12`）
+ * 或误加"第"（`〔2026〕第12号`）都属违规。命令（令）用顺序号"第×号"，不适用，
+ * 由 ORDER_DOC_NUMBER_SHOULD_BE_SEQ 单独约束。
+ * 用两个定向正则做增量检测（不校验整串格式），避免误伤机关代字含字母/占位符
+ * × 等合法形态：缺"号"（年份括号后紧跟数字但后一位不是号/数字）与多余"第"。
+ */
+const DOC_NUMBER_MISSING_SUFFIX_PATTERN = /〔\d{4}〕\d+(?![0-9号])/
+const DOC_NUMBER_EXTRA_YI_PATTERN = /〔\d{4}〕第\d/
+
+function buildDocNumberSequenceRule(): DocFormatRequirement {
+  return {
+    code: "DOC_NUMBER_SEQUENCE_MALFORMED",
+    field: "docNumber",
+    check: (doc) => {
+      if (doc.docType === "order" || !doc.docNumber) return null
+      if (DOC_NUMBER_EXTRA_YI_PATTERN.test(doc.docNumber)) {
+        return issue(
+          "DOC_NUMBER_SEQUENCE_MALFORMED",
+          "docNumber",
+          "发文字号顺序号前不应加“第”字（GB/T 9704 §7.2.5）：如“国发〔2026〕12号”，非“国发〔2026〕第12号”。"
+        )
+      }
+      if (DOC_NUMBER_MISSING_SUFFIX_PATTERN.test(doc.docNumber)) {
+        return issue(
+          "DOC_NUMBER_SEQUENCE_MALFORMED",
+          "docNumber",
+          "发文字号顺序号后应加“号”字（GB/T 9704 §7.2.5）：如“国发〔2026〕12号”，非“国发〔2026〕12”。"
+        )
+      }
+      return null
+    },
+  }
+}
+
 function buildDocNumberLeadingZeroRule(): DocFormatRequirement {
   return {
     code: "DOC_NUMBER_LEADING_ZERO",
@@ -347,6 +383,7 @@ function buildUnitSuperscriptRule(): DocFormatRequirement {
 function buildUniversalRules(docType: DocType): DocFormatRequirement[] {
   const rules: DocFormatRequirement[] = [
     buildDocNumberLeadingZeroRule(),
+    buildDocNumberSequenceRule(),
     buildColloquialRule(),
     buildAttachmentMismatchRule(),
     buildParagraphLeadingOrderRule(),
