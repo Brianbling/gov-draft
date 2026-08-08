@@ -10,6 +10,8 @@ import {
 import type { CompiledRule, ValidationResult, HostSelectors } from "@/engine"
 import { RuleConfigSchema } from "@/engine/schema"
 import { sanitizeCssValue } from "@/engine/utils/css-sanitize-utils"
+import { toast } from "@/components/ui/toast"
+import i18n from "@/locales"
 
 const RULE_STORAGE_KEY = "ezdoc-rule"
 
@@ -157,15 +159,44 @@ export const useRuleStore = create<RuleState>()(
           return
         }
 
+        // zod 失败（如 weight:""）与 validateRule 失败（如单位数字）两条路径
+        // 都会静默重置用户配置。统一走 recover：备份损坏 JSON 供用户找回，
+        // 回退内置规则，并弹 toast 明确告知，避免"设置莫名没了"。
+        const recover = (reason: unknown) => {
+          console.error("[rule-store] Invalid persisted rule, resetting:", reason)
+          // 保留损坏的原始 JSON（localStorage key "ezdoc-rule-poisoned"）：
+          // 用户可据规则名在文本里找回丢失的标题层级/字体配置，便于手工重建。
+          try {
+            const persisted = window.localStorage.getItem(RULE_STORAGE_KEY)
+            if (persisted) {
+              window.localStorage.setItem(
+                RULE_STORAGE_KEY + "-poisoned",
+                persisted
+              )
+            }
+          } catch {
+            // localStorage 满/禁用时忽略，不因保留失败阻塞启动
+          }
+          const fallbackName = builtin[0]?.name ?? ""
+          set({ currentRule: null, ruleOrigin: null, customStyles: {} })
+          if (builtin.length > 0) {
+            get().loadRule(builtin[0]!)
+          }
+          // toast 模块级 store 不依赖 React 树，启动期可用；i18n 全局实例已就绪。
+          toast.error(
+            i18n.t("settings.ruleResetTitle") +
+              " " +
+              i18n.t("settings.ruleResetMessage", { name: fallbackName })
+          )
+        }
+
         try {
           // Zustand persist rehydrates from localStorage with no schema
           // validation, so re-validate before use and fall back to a builtin
           // rule if the persisted value is corrupted or stale.
           const parsed = RuleConfigSchema.safeParse(saved)
           if (!parsed.success) {
-            if (builtin.length > 0) {
-              get().loadRule(builtin[0]!)
-            }
+            recover(new Error(`zod validation failed: ${parsed.error.message}`))
             return
           }
           // A rule the user edited must survive rehydration as-is. Only a rule
@@ -187,14 +218,8 @@ export const useRuleStore = create<RuleState>()(
         } catch (error) {
           // A persisted value that survives zod (e.g. a unitless number in a
           // CSS-length field) can still be rejected by validateRule — never let
-          // that throw out of initialization and white-screen the app. Clear
-          // the poisoned value so the next launch does not read it again, and
-          // fall back to a builtin rule.
-          console.error("[rule-store] Invalid persisted rule, resetting:", error)
-          set({ currentRule: null, ruleOrigin: null, customStyles: {} })
-          if (builtin.length > 0) {
-            get().loadRule(builtin[0]!)
-          }
+          // that throw out of initialization and white-screen the app.
+          recover(error)
         }
       },
 

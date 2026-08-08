@@ -9,6 +9,7 @@ import type { RuleConfig } from "@/engine"
 import { useRuleStore } from "@/stores/rule-store"
 import { useSettingsStore } from "@/stores/settings-store"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/toast"
 import { RuleSettingsForm } from "./RuleSettingsForm"
 import { EditorSettingsForm } from "./EditorSettingsForm"
 import type { EditorSettingsDraft } from "./EditorSettingsForm"
@@ -386,8 +387,12 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
       settings.setLlmModel(draft.editor.llmModel)
 
       onClose()
-    } catch {
-      setError(t("settings.saveFailed"))
+      toast.success(t("settings.saveSuccess"))
+    } catch (e) {
+      // loadRule/validateRule 抛出的 "Invalid rule: <字段路径>" 带具体原因，
+      // 直接透传给用户，避免只显示笼统"保存失败"无从排查。
+      const detail = e instanceof Error ? e.message : ""
+      setError(detail || t("settings.saveFailed"))
     } finally {
       setSaving(false)
     }

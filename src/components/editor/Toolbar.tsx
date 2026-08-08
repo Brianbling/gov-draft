@@ -116,7 +116,7 @@ export function Toolbar({ editorRef }: ToolbarProps) {
         title={t("toolbar.newDocumentTitle")}
         aria-label={t("toolbar.newDocumentTitle")}
         onClick={() =>
-          document.dispatchEvent(new CustomEvent("ezdoc:new-document"))
+          window.dispatchEvent(new CustomEvent("ezdoc:new-document"))
         }
       >
         <HugeiconsIcon icon={Add01Icon} />

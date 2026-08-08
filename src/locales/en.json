@@ -321,6 +321,7 @@
 		"saving": "Saving...",
 		"saveAndApply": "Save and Apply",
 		"saveFailed": "Save failed, please check your input format",
+		"saveSuccess": "Settings saved and applied",
 		"navAria": "Settings sections",
 		"searchPlaceholder": "Search settings",
 		"searchEmpty": "No matching settings",
@@ -348,7 +349,9 @@
 			"confirmDiscardTitle": "Discard unsaved changes?",
 			"confirmDiscardMessage": "You have unsaved changes that will be lost. Save and apply them, or discard them and close.",
 			"keepEditing": "Keep editing",
-			"discardChanges": "Discard changes"
+			"discardChanges": "Discard changes",
+			"ruleResetTitle": "Layout rule reset",
+			"ruleResetMessage": "The locally saved layout rule contains invalid configuration and has been reset to the built-in \"{{name}}\". Your manual heading-level/font settings could not be restored — please reconfigure them."
 	},
 	"mobile": {
 		"tabEdit": "Edit",

@@ -116,32 +116,33 @@ export function usePdfExport() {
 
     // 移动端（Web Share API 可用）：navigator.share 分享导出 HTML，
     // 由系统分享面板转存/打印/发送。桌面浏览器仍走打印新窗口。
-    const canShareHtml =
+    // 以能力检测为准（navigator.canShare({files})），而不是 UA 字符串——
+    // iPadOS 13+ Safari 上报 Macintosh 桌面 UA，会被 /Mobile/ 正则漏掉；
+    // 只要系统支持文件分享就走 share，避免桌面 UA 平板误走被拦截的 window.open。
+    const canShareFiles =
       typeof navigator !== "undefined" &&
       typeof navigator.canShare === "function" &&
       typeof navigator.share === "function"
-    if (canShareHtml) {
-      const isMobileUA = /Android|iPhone|iPad|iPod|Mobile/i.test(
-        typeof navigator !== "undefined" ? navigator.userAgent : ""
+    if (canShareFiles) {
+      const blob = new Blob([html], {
+        type: "text/html;charset=utf-8",
+      })
+      const file = new File(
+        [blob],
+        `${title || "document"}.html`,
+        { type: "text/html;charset=utf-8" }
       )
-      if (isMobileUA) {
+      if (navigator.canShare({ files: [file] })) {
         try {
-          const blob = new Blob([html], {
-            type: "text/html;charset=utf-8",
+          // 只分享 files，不把整篇 HTML 塞进 text 字段：
+          // 1) text 明文会出现在系统分享面板的"文本"目标（泄露全文）；
+          // 2) 超大 text 在 Android 触发 TransactionTooLarge/AbortError，
+          //    导致整个分享失败并回退被拦截的 window.open。
+          await navigator.share({
+            title: title || "document",
+            files: [file],
           })
-          const file = new File(
-            [blob],
-            `${title || "document"}.html`,
-            { type: "text/html;charset=utf-8" }
-          )
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: title || "document",
-              text: html,
-              files: [file],
-            })
-            return
-          }
+          return
         } catch (err) {
           // 用户取消分享 / 分享失败 → 回退打印
           console.warn("navigator.share failed, falling back to print:", err)

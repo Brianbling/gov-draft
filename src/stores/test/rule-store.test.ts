@@ -135,4 +135,37 @@ describe("rule-store initializeRule", () => {
       400
     )
   })
+
+  it("preserves the poisoned persisted rule JSON in a -poisoned backup on reset", () => {
+    // 用户手动配置的标题层级/字体被静默清空是最痛的场景：reset 前把损坏的
+    // 原始 JSON 备份到 "ezdoc-rule-poisoned"，用户可据此找回丢失的配置手工重建。
+    const poisoned = JSON.parse(
+      JSON.stringify(getBuiltinRules()[0]!),
+    ) as RuleConfig
+    ;(poisoned.content.body.style as { weight: unknown }).weight = ""
+    ;(poisoned as unknown as { content: { body: { style: { size?: string } } } })
+      .content.body.style.size = "18pt"
+
+    // 真实场景：zustand persist 以 {state, version} 包装格式把损坏规则写进
+    // localStorage "ezdoc-rule"（setState 触发 persist 自动落盘）。
+    useRuleStore.setState({ currentRule: poisoned, ruleOrigin: "custom" })
+    const persisted = window.localStorage.getItem("ezdoc-rule")
+    expect(persisted).not.toBeNull()
+    expect(JSON.parse(persisted!).state.currentRule.content.body.style.weight).toBe(
+      ""
+    )
+
+    useRuleStore.getState().initializeRule()
+
+    const backup = window.localStorage.getItem("ezdoc-rule-poisoned")
+    expect(backup).not.toBeNull()
+    // 备份保留了用户的 18pt 手工字号（重置后丢失的那部分配置）。
+    const restored = JSON.parse(backup!).state.currentRule as RuleConfig
+    expect((restored.content.body.style as { size: string }).size).toBe(
+      "18pt"
+    )
+    // 当前规则已回退内置，不再是损坏值。
+    const builtin = getBuiltinRules()[0]!
+    expect(useRuleStore.getState().currentRule?.name).toBe(builtin.name)
+  })
 })

@@ -34,11 +34,21 @@ export function A4Paper({ html }: A4PaperProps) {
       const mmToPx = (mm: number) => (mm * 96) / 25.4
       const paperWidthPx = mmToPx(210)
       const availablePx = (stageRef.current?.clientWidth ?? 0) - 2 * 16
-      setFitScale(Math.min(1, availablePx / paperWidthPx))
+      // clientWidth 为 0（tab 切换/初始未布局）时算出负值会让预览消失，
+      // clamp 到最小可用缩放 0.1。
+      setFitScale(Math.max(0.1, Math.min(1, availablePx / paperWidthPx)))
     }
+    // ResizeObserver 比 window resize 更准：stage 尺寸变化（tab 切换、
+    // 初始布局、分栏拖拽）都触发重算，且首帧未布局时在布局完成后自动补测。
     measure()
-    window.addEventListener("resize", measure)
-    return () => window.removeEventListener("resize", measure)
+    const stage = stageRef.current
+    if (!stage || typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure)
+      return () => window.removeEventListener("resize", measure)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(stage)
+    return () => observer.disconnect()
   }, [isNarrow])
 
   const scale = (previewZoom / 100) * fitScale

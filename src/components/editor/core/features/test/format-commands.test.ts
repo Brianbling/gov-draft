@@ -127,10 +127,10 @@ describe("executeFormat", () => {
     expect(doc(view)).toBe("**hello**")
   })
 
-  it('dispatches to toggleHeading for "h1" action', () => {
+  it('dispatches to toggleHeading for "h1" action (公文一级标题 = ##)', () => {
     const view = mkView("hello", 0)
     executeFormat(view, "h1")
-    expect(doc(view)).toBe("# hello")
+    expect(doc(view)).toBe("## hello")
   })
 
   it("dispatches for ul and ol", () => {

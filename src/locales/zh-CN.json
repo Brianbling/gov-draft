@@ -321,6 +321,7 @@
 		"saving": "保存中...",
 		"saveAndApply": "保存并应用",
 		"saveFailed": "保存失败，请检查输入格式",
+		"saveSuccess": "设置已保存并应用",
 		"navAria": "设置分区导航",
 		"searchPlaceholder": "搜索设置项",
 		"searchEmpty": "没有匹配的设置项",
@@ -348,7 +349,9 @@
 			"confirmDiscardTitle": "放弃未保存的更改？",
 			"confirmDiscardMessage": "你还有未保存的更改，关闭后将丢失。请保存并应用，或放弃更改后关闭。",
 			"keepEditing": "继续编辑",
-			"discardChanges": "放弃更改"
+			"discardChanges": "放弃更改",
+			"ruleResetTitle": "排版规则已重置",
+			"ruleResetMessage": "本机保存的排版规则包含无效配置，已回退到内置「{{name}}」。你手动设置的标题层级/字体等配置未能恢复，请重新设置。"
 	},
 	"mobile": {
 		"tabEdit": "编辑",
@@ -447,10 +450,10 @@
 		"pagination": "Pagination",
 		"parser": "Parser",
 		"body": "正文",
-		"h1": "标题 H1",
-		"h2": "标题 H2",
-		"h3": "标题 H3",
-		"h4": "标题 H4",
+		"h1": "一级标题",
+		"h2": "二级标题",
+		"h3": "三级标题",
+		"h4": "四级标题",
 		"fonts": "字体",
 		"latinFamily": "Latin 字体",
 		"cjkFamily": "CJK 字体",

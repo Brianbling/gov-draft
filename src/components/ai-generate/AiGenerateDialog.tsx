@@ -184,6 +184,7 @@ function AiGeneratePanel({
     setFormValues,
     status,
     errorCode,
+    formErrors,
     issues,
     result,
     generate,
@@ -346,6 +347,13 @@ function AiGeneratePanel({
               <p className="flex items-start gap-1.5 pl-5 text-xs text-muted-foreground">
                 <span>{t(errorCodeToI18nActionKey(errorCode)!)}</span>
               </p>
+            )}
+            {formErrors.length > 0 && (
+              <ul className="grid gap-0.5 pl-5 text-xs text-destructive">
+                {formErrors.map((label) => (
+                  <li key={label}>· {label}</li>
+                ))}
+              </ul>
             )}
             <div className="flex items-center gap-2">
               <Button

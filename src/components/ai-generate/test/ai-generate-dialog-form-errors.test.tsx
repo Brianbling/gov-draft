@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 
 // zustand persist 在模块求值期读取 localStorage；jsdom 无此实现，先装内存 shim。
@@ -15,28 +15,27 @@ if (typeof globalThis.localStorage === "undefined") {
   })
 }
 
-// i18n：不加载真实语言包，t 原样返回 key（按钮文案断言用 key 定位）。
+// i18n：不加载真实语言包，t 原样返回 key。
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 
-// mock 生成 hook：错误态（status=error）下验证重试按钮的空 prompt 守卫。
-let mockPrompt = ""
+let mockFormErrors: string[] = []
 vi.mock("@/hooks/use-generate-document", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/hooks/use-generate-document")>()
   return {
     ...actual,
     useGenerateDocument: () => ({
-      prompt: mockPrompt,
+      prompt: "生成一份通知",
       setPrompt: vi.fn(),
       docType: "gongwen",
       setDocType: vi.fn(),
-      formValues: {},
+      formValues: { title: "通知" },
       setFormValues: vi.fn(),
       status: "error",
-      errorCode: "LLM_EMPTY_RESULT",
-      formErrors: [],
+      errorCode: "FORM_REQUIRED_GONGWEN",
+      formErrors: mockFormErrors,
       issues: [],
       generate: vi.fn(),
       reset: vi.fn(),
@@ -46,22 +45,20 @@ vi.mock("@/hooks/use-generate-document", async (importOriginal) => {
 
 const { AiGenerateDialog } = await import("../AiGenerateDialog")
 
-describe("AiGenerateDialog · 重试按钮空 prompt 守卫", () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockPrompt = ""
+describe("AiGenerateDialog · FORM_REQUIRED 错误详情", () => {
+  it("错误态下逐条列出缺失的必填字段", () => {
+    mockFormErrors = ["aiGenerate.field.title", "aiGenerate.field.recipient"]
+    render(<AiGenerateDialog open onOpenChange={vi.fn()} />)
+    // 两条缺失字段都渲染进错误块
+    expect(screen.getByText(/aiGenerate.field.title/)).toBeTruthy()
+    expect(screen.getByText(/aiGenerate.field.recipient/)).toBeTruthy()
   })
 
-  it("生成失败且 prompt 为空时，重试按钮不可点（不会以空 prompt 调 LLM）", () => {
+  it("无缺失字段时不渲染字段列表", () => {
+    mockFormErrors = []
     render(<AiGenerateDialog open onOpenChange={vi.fn()} />)
-    const retry = screen.getByRole("button", { name: "aiGenerate.retry" })
-    expect(retry).toHaveProperty("disabled", true)
-  })
-
-  it("生成失败且 prompt 有内容时，重试按钮可点", () => {
-    mockPrompt = "重新生成一份通知"
-    render(<AiGenerateDialog open onOpenChange={vi.fn()} />)
-    const retry = screen.getByRole("button", { name: "aiGenerate.retry" })
-    expect(retry).toHaveProperty("disabled", false)
+    // 错误文案仍在，但不出现字段列表条目（无 '· ' 前缀的 li）
+    expect(screen.getByText(/aiGenerate.errors.formRequired/)).toBeTruthy()
+    expect(screen.queryByText(/^· /)).toBeNull()
   })
 })

@@ -134,3 +134,31 @@ describe("search", () => {
     expect(hits[0]!.sectionId).toBe("page")
   })
 })
+
+describe("search finds content levels by product names", () => {
+  const entries = buildNavEntries(descriptors, modelWith(BUILTIN_LEVELS))
+  // Realistic i18n labels as the UI resolves them.
+  const labels: Record<string, string> = {
+    "content.body": "正文",
+    "content.h1": "一级标题",
+    "content.h2": "二级标题",
+    "content.h3": "三级标题",
+    "content.h4": "四级标题",
+  }
+  const index = buildSearchIndex(
+    entries,
+    (path) => path.split(".").pop() ?? path,
+    (section) => labels[section.id] ?? section.id
+  )
+
+  it('"一级标题" search hits the h1 section', () => {
+    const hits = searchFields(index, "一级标题")
+    expect(hits.length).toBeGreaterThan(0)
+    expect(hits[0]!.sectionLabel).toBe("一级标题")
+  })
+
+  it('"一级" search hits the h1 section', () => {
+    const hits = searchFields(index, "一级")
+    expect(hits.some((h) => h.sectionLabel === "一级标题")).toBe(true)
+  })
+})

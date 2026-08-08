@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **加号（新建文档）按钮无效果**：工具栏派发 `document.dispatchEvent` 但 App 监听 `window`，CustomEvent 默认 `bubbles:false` 到不了 window → 点击静默无反应。改为 `window.dispatchEvent`。
+- **"一级标题设置没了"整组修复**：① 工具栏"一级标题"按钮原本插入 `# `（引擎红头/文题，22pt 居中无编号），改为插 `## `（引擎 h2，16pt 黑体 + 自动"一、"序号），符合公文正文一级标题语义；② 设置搜索命中盲区——导航 label"标题 H1"与产品词"一级标题"脱节，统一改为"一级标题/二级标题/三级标题/四级标题"，搜"一级"可命中；③ 手写 `## 一、标题` 渲染双号"一、一、标题"，heading 处理器新增 `alreadyNumbered` 前缀识别，手动已带序号的标题不再重复加号。
+- **持久化规则校验失败静默整条重置（HIGH）**：localStorage 规则含非法字段（如 `weight:""`、无单位数字）时，启动静默清空用户全部标题层级/字体配置并换内置规则，表现为"设置都没了"。修复：reset 前把损坏 JSON 备份到 `ezdoc-rule-poisoned`（用户可找回手工重建），回退内置规则并弹 toast 明确告知已回退到哪条规则。
+- **AI 生成必填校验不指认缺失字段**：表单必填缺失只报通用文案。修复：`FORM_REQUIRED_*` 错误现在逐条列出缺失的必填字段（标题/主送机关等）。
+- **LLM 返回空/非法 JSON 误报"服务配置错误"**：`LLM_INVALID_RESPONSE` 无专条落入通用回退，误导用户去查 API Key/网络。补映射为"AI 未返回有效内容"。
+- **设置保存失败吞具体原因 + 成功无反馈**：catch 只显示"保存失败"；现在透传 `loadRule` 抛出的字段路径（如 `Invalid rule: ...`），成功加"已保存并应用"toast。
+- **navigator.share 泄露全文 HTML**：分享同时把整篇公文 HTML 塞进 `text` 字段（明文出现在系统"文本"目标，超大内容致 Android 分享失败）。移除 `text`，仅分享 `files`；并以 `navigator.canShare({files})` 能力检测替代 UA 正则（iPadOS 13+ 桌面 UA 不再误判）。
+- **工具栏格式按钮点击后不回焦编辑器**：点击 `<button>` 使 DOM 焦点离开编辑器，后续打字/Ctrl+Z 失效。`format()` 执行成功后 `view.focus()` 回焦。
+- **A4Paper fitScale 负值闪跳**：clientWidth 为 0 时 fitScale 算出负值让预览消失；clamp 到 0.1，并用 ResizeObserver 替代 window resize 监听。
+- **要素编辑面板回填丢用户正文修改**：patchMarkdownElements 按槽位替换丢新增段，重写为整体区域替换（要素区重建自 IR 快照、正文区保留编辑器当前内容）。
+
 ## [0.1.9] - 2026-08-08
 
 ### Added

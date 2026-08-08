@@ -553,4 +553,30 @@ describe("patchMarkdownElements · 要素编辑面板回填（H1 数据丢失修
     expect(patched).toContain("会议第一段【用户改】。")
     expect(patched).toContain("出席：张三、李四")
   })
+
+  it("用户在编辑器里新增正文段后 applyEdit 不丢段落", () => {
+    // 生成时正文 2 段；用户手动加了第 3 段正文容器。
+    const edited =
+      md +
+      '\n\n::: content.body.paragraph.indent: 2em\n用户新增的第三段。\n:::'
+    const next = { ...doc, docNumber: "国发〔2026〕99号" }
+    const patched = patchMarkdownElements(edited, next)
+
+    expect(patched).toContain("用户新增的第三段。")
+    expect(patched).toContain("第一段正文内容。")
+    expect(patched).toContain("第二段正文。")
+    expect(patched).toContain("国发〔2026〕99号")
+  })
+
+  it("用户在编辑器里删除正文段后 applyEdit 不还原已删段", () => {
+    // 生成时正文含"总体要求"标题段；用户手动删掉它。
+    const edited = md.replace("\n## 总体要求\n", "\n")
+    const next = { ...doc, docNumber: "国发〔2026〕99号" }
+    const patched = patchMarkdownElements(edited, next)
+
+    expect(patched).not.toContain("总体要求")
+    expect(patched).toContain("第一段正文内容。")
+    expect(patched).toContain("第二段正文。")
+    expect(patched).toContain("国发〔2026〕99号")
+  })
 })

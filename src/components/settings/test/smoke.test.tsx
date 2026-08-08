@@ -44,7 +44,7 @@ describe("SettingsOverlay smoke", () => {
     expect(labels).toContain("基础")
     expect(labels).toContain("AI 服务")
     expect(labels).toContain("正文")
-    expect(labels).toContain("标题 H1")
+    expect(labels).toContain("一级标题")
     expect(labels).toContain("页面")
     expect(labels).toContain("编辑器与预览")
   })

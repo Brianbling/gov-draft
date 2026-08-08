@@ -287,17 +287,24 @@ export function adjustParagraphIndent(
   return true
 }
 
-/** 格式化分派:工具栏按钮通过 CodeMirrorHandle 调用此函数。 */
+/**
+ * 格式化分派:工具栏按钮通过 CodeMirrorHandle 调用此函数。
+ *
+ * 公文语义:引擎里 `#` 是红头/文题(GB/T 9704 §7.2.4, 22pt 红字居中),
+ * 正文标题从 `##` 起(§7.3.1 h2 一级标题 → h3 二级 → h4 三级)。
+ * 工具栏"一级/二级/三级标题"按钮对应公文章标题,故映射到 h2/h3/h4,
+ * `#` 红头保留给 AI 生成路径,不暴露在手动工具栏。
+ */
 export function executeFormat(view: EditorView, action: FormatAction): boolean {
   switch (action) {
     case "bold":
       return toggleBold(view)
     case "h1":
-      return toggleHeading(view, 1)
-    case "h2":
       return toggleHeading(view, 2)
-    case "h3":
+    case "h2":
       return toggleHeading(view, 3)
+    case "h3":
+      return toggleHeading(view, 4)
     case "ul":
       return toggleUnorderedList(view)
     case "ol":

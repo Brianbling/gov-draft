@@ -456,3 +456,36 @@ describe('MarkdownParser behavior', () => {
     })
   })
 })
+
+describe('heading numbering does not double-number manual prefixes', () => {
+  const parser = (styles: Record<string, string>) =>
+    new MarkdownParser(undefined, {
+      headingNumbering: true,
+      disabledSyntax: [],
+      headingStyles: styles,
+    })
+
+  it('does not renumber a heading that already has a zh prefix', () => {
+    const html = parser({ h2: '{zhHansIndex}、' }).parse('## 一、已有序号').html
+    expect(html).toContain('<h2>一、已有序号</h2>')
+    expect(html).not.toContain('一、一、已有序号')
+  })
+
+  it('does not renumber a heading with a paren prefix', () => {
+    const html = parser({ h3: '（{zhHansIndex}）' }).parse('### （一）括号序号').html
+    expect(html).toContain('<h3>（一）括号序号</h3>')
+    expect(html).not.toContain('（一）（一）')
+  })
+
+  it('does not renumber a heading with an arabic prefix', () => {
+    const html = parser({ h4: '{arabicIndex}．' }).parse('#### 1．阿拉伯序号').html
+    expect(html).not.toContain('1．1．')
+    // 数字 1 被 latin-text span 包裹，但仍只出现一次，无双号。
+    expect(html.match(/<h4>/g)).toHaveLength(1)
+  })
+
+  it('still numbers headings without a manual prefix', () => {
+    const html = parser({ h2: '{zhHansIndex}、' }).parse('## 无序号标题').html
+    expect(html).toContain('<h2>一、无序号标题</h2>')
+  })
+})

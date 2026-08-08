@@ -369,24 +369,22 @@ export function patchMarkdownElements(
   const currentBodyBlocks =
     splitDocBlocks(currentMarkdown).filter(isBodyTypedBlock)
 
-  let inBody = false
-  let ended = false
-  let bodyIdx = 0
-  const out = rebuiltBlocks.map((block) => {
-    const isBody = isBodyTypedBlock(block)
-    const isAnchor = isElementAnchorBlock(block)
-    if (isAnchor) {
-      ended = true
-      inBody = false
-    } else if (isBody && !ended) {
-      inBody = true
+  // 定位重建稿正文区（第一个正文块 → 第一个要素锚块之前的连续区间）。
+  // 用户可能在编辑器里增删过正文段，槽位对不上——按"正文区整体替换"处理：
+  // 重建稿正文区整体换成编辑器当前的正文块列表，数量可以不同。
+  const firstBody = rebuiltBlocks.findIndex(isBodyTypedBlock)
+  let bodyEnd = rebuiltBlocks.length
+  for (let i = firstBody + 1; i < rebuiltBlocks.length; i += 1) {
+    if (isElementAnchorBlock(rebuiltBlocks[i]!)) {
+      bodyEnd = i
+      break
     }
-    if (inBody && isBody) {
-      const replacement = currentBodyBlocks[bodyIdx]
-      bodyIdx += 1
-      return replacement ?? block
-    }
-    return block
-  })
+  }
+
+  if (firstBody === -1) return rebuilt
+
+  const prefix = rebuiltBlocks.slice(0, firstBody)
+  const suffix = rebuiltBlocks.slice(bodyEnd)
+  const out = [...prefix, ...currentBodyBlocks, ...suffix]
   return out.join("\n")
 }

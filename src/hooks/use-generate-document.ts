@@ -40,6 +40,7 @@ function getEzdocEnv(name: string): string | undefined {
 
 const ERROR_CODE_TO_I18N: Record<string, string> = {
   LLM_EMPTY_RESULT: "aiGenerate.errors.llmEmptyResult",
+  LLM_INVALID_RESPONSE: "aiGenerate.errors.llmEmptyResult",
   LEGAL_DOC_PARSE_FAILED: "aiGenerate.errors.legalDocParseFailed",
   LEGAL_DOC_UNSUPPORTED_TYPE: "aiGenerate.errors.legalDocUnsupportedType",
   LEGAL_DOC_MISSING_TITLE: "aiGenerate.errors.legalDocMissingTitle",
@@ -132,6 +133,7 @@ export function useGenerateDocument() {
   const [formValues, setFormValues] = useState<FormValues>({})
   const [status, setStatus] = useState<GenerateStatus>("idle")
   const [errorCode, setErrorCode] = useState<string | null>(null)
+  const [formErrors, setFormErrors] = useState<string[]>([])
   const [result, setResult] = useState<LegalDoc | null>(null)
   const [issues, setIssues] = useState<FormatIssue[]>([])
 
@@ -156,6 +158,7 @@ export function useGenerateDocument() {
       const missing = validateFormRequired(docType, formValues)
       if (missing.length > 0) {
         setStatus("error")
+        setFormErrors(missing)
         setErrorCode(`FORM_REQUIRED_${docType.toUpperCase()}`)
         return null
       }
@@ -164,6 +167,7 @@ export function useGenerateDocument() {
     abortRef.current = abortController
     setStatus("generating")
     setErrorCode(null)
+    setFormErrors([])
     setResult(null)
     setIssues([])
     try {
@@ -238,6 +242,7 @@ export function useGenerateDocument() {
     setFormValues({})
     setStatus("idle")
     setErrorCode(null)
+    setFormErrors([])
     setResult(null)
     setIssues([])
   }, [])
@@ -280,6 +285,7 @@ export function useGenerateDocument() {
     setFormValues,
     status,
     errorCode,
+    formErrors,
     issues,
     result,
     generate,

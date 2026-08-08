@@ -57,7 +57,11 @@ const CodeMirrorReact = forwardRef<CodeMirrorHandle, CodeMirrorReactProps>(
       },
       format: (action: FormatAction) => {
         if (!viewRef.current) return false
-        return executeFormat(viewRef.current, action)
+        // 点击工具栏 <button> 会把 DOM 焦点移出编辑器，后续打字/Ctrl+Z
+        // （historyKeymap 只在编辑器聚焦时响应）全部失效。dispatch 后回焦。
+        const applied = executeFormat(viewRef.current, action)
+        if (applied) viewRef.current.focus()
+        return applied
       },
     }))
 

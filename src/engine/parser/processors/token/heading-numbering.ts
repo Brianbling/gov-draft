@@ -62,6 +62,14 @@ function formatHeadingPrefix(currentIndex: number, style: string | undefined): s
   return `${template}${currentIndex}`
 }
 
+/** 中文序号前缀：`一、` `（一）` `1.` 等。用户手动写在标题文本里时引擎不再重复加号。 */
+const MANUAL_ORDER_PREFIX =
+  /^(?:[一二三四五六七八九十百]+、|\d+[．.、]|[（(][一二三四五六七八九十百\d]+[）)])/
+
+function alreadyNumbered(text: string): boolean {
+  return MANUAL_ORDER_PREFIX.test(text)
+}
+
 export const headingNumberingProcessor: TokenProcessor = {
   name: 'heading-numbering',
   process(tokens: Token[], options: ParserConfig): Token[] {
@@ -97,6 +105,11 @@ export const headingNumberingProcessor: TokenProcessor = {
 
       const headingLevel = `h${level}` as HeadingLevel
       const style = headingStyles?.[headingLevel] ?? getDefaultHeadingStyle(headingLevel)
+      // 用户手动写的标题已带序号（`一、` `（一）` `1.`）时不再重复加号，
+      // 否则 `## 一、标题` 会渲染成 `一、一、标题` 双号。
+      if (alreadyNumbered(inlineToken.content)) {
+        continue
+      }
       const prefix = formatHeadingPrefix(counters[counterIndex] ?? 0, style)
       if (!prefix) {
         continue
