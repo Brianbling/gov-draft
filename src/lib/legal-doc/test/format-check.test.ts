@@ -27,6 +27,23 @@ describe("checkFormat", () => {
     expect(checkFormat(buildDoc())).toEqual([])
   })
 
+  it("决议标题放宽长度上限（含会议名称，30-50 字不算 TITLE_TOO_LONG）", () => {
+    const title =
+      "××市第×届人民代表大会第×次会议关于批准市人民政府工作报告的决议"
+    expect(Array.from(title).length).toBeGreaterThan(30)
+    const issues = checkFormat(buildDoc({ docType: "resolution", title }))
+    expect(issues.map((i) => i.code)).not.toContain("TITLE_TOO_LONG")
+
+    // 超过 50 字仍报
+    const tooLong =
+      "××市第×届人民代表大会第×次会议关于批准市人民政府工作报告的决议草案修改情况的说明补充说明表决方式的说明"
+    expect(Array.from(tooLong).length).toBeGreaterThan(50)
+    const issues2 = checkFormat(
+      buildDoc({ docType: "resolution", title: tooLong })
+    )
+    expect(issues2.map((i) => i.code)).toContain("TITLE_TOO_LONG")
+  })
+
   it("flags a title longer than 30 characters", () => {
     const issues = checkFormat(
       buildDoc({
@@ -42,6 +59,15 @@ describe("checkFormat", () => {
     const issues = checkFormat(buildDoc({ title: "   " }))
     expect(issues).toHaveLength(1)
     expect(issues[0]).toMatchObject({ field: "title", code: "TITLE_EMPTY" })
+  })
+
+  it("命令文种用顺序号“第×号”，无年份括号不算 DOC_NUMBER_YEAR_MISSING", () => {
+    const issues = checkFormat(
+      buildDoc({ docType: "order", docNumber: "第8号" })
+    )
+    expect(issues.map((i) => i.code)).not.toContain(
+      "DOC_NUMBER_YEAR_MISSING"
+    )
   })
 
   it("flags a docNumber without a bracketed year", () => {
@@ -71,6 +97,57 @@ describe("checkFormat", () => {
 
   it("accepts a docNumber with a red head", () => {
     expect(checkFormat(buildDoc())).toEqual([])
+  })
+
+  it("flags a red head without a docNumber (gongwen)", () => {
+    const issues = checkFormat(
+      buildDoc({ docNumber: undefined, issuingOrg: "××市人民政府文件" })
+    )
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      field: "docNumber",
+      code: "RED_HEAD_WITHOUT_DOC_NUMBER",
+      severity: "error",
+    })
+  })
+
+  it("意见文种有文号无红头不算红头错误（无红头格式）", () => {
+    const issues = checkFormat(
+      buildDoc({
+        docType: "opinion",
+        docNumber: "渝府办发〔2026〕45号",
+        issuingOrg: undefined,
+      })
+    )
+    expect(issues.map((i) => i.code)).not.toContain(
+      "DOC_NUMBER_WITHOUT_RED_HEAD"
+    )
+  })
+
+  it("通报文种同样使用文件式红头：有文号无红头报错", () => {
+    const issues = checkFormat(
+      buildDoc({
+        docType: "communique",
+        docNumber: "渝府发〔2026〕46号",
+        issuingOrg: undefined,
+      })
+    )
+    expect(issues.map((i) => i.code)).toContain(
+      "DOC_NUMBER_WITHOUT_RED_HEAD"
+    )
+  })
+
+  it("决议文种有文号无红头不算红头错误（无文件式红头）", () => {
+    const issues = checkFormat(
+      buildDoc({
+        docType: "resolution",
+        docNumber: "第5号",
+        issuingOrg: undefined,
+      })
+    )
+    expect(issues.map((i) => i.code)).not.toContain(
+      "DOC_NUMBER_WITHOUT_RED_HEAD"
+    )
   })
 
   it.each(["秘密", "机密", "绝密"])(

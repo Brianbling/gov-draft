@@ -60,7 +60,14 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
   })
 
   it("sealDefault：决定/请示/批复/函默认盖章，通知/报告/纪要/通告默认不盖章", () => {
-    const sealDocs: DocType[] = ["decision", "request", "reply", "letter"]
+    const sealDocs: DocType[] = [
+      "decision",
+      "request",
+      "reply",
+      "letter",
+      "communique",
+      "proposal",
+    ]
     for (const docType of sealDocs) {
       expect(DOC_TYPE_SPECS[docType].sealDefault).toBe(true)
     }
@@ -70,6 +77,9 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
       "report",
       "minutes",
       "announcement",
+      "resolution",
+      "order",
+      "gazette",
     ]
     for (const docType of noSealDocs) {
       expect(DOC_TYPE_SPECS[docType].sealDefault).toBe(false)
@@ -173,6 +183,51 @@ describe("DOC_TYPE_SPECS · 分文种要素集 + 按需盖章默认（v2 表单�
     expect(requestRecipient?.required).toBe(true)
     expect(replyRecipient?.required).toBe(true)
     expect(DOC_TYPE_SPECS.reply.formFields.map((f) => f.key)).not.toContain(
+      "attachments"
+    )
+  })
+
+  it("resolution 决议：无文号无红头，题注用会议署名+日期", () => {
+    const keys = DOC_TYPE_SPECS.resolution.formFields.map((f) => f.key)
+    expect(keys).toContain("title")
+    expect(keys).toContain("issuer")
+    expect(keys).toContain("date")
+    expect(keys).not.toContain("docNumber")
+    expect(keys).not.toContain("issuingOrg")
+    expect(keys).not.toContain("recipient")
+  })
+
+  it("order 命令（令）：文号用顺序号“第×号”，无红头", () => {
+    const keys = DOC_TYPE_SPECS.order.formFields.map((f) => f.key)
+    expect(keys).toContain("docNumber")
+    expect(keys).not.toContain("issuingOrg")
+    const docNumber = DOC_TYPE_SPECS.order.formFields.find(
+      (f) => f.key === "docNumber"
+    )
+    expect(docNumber?.placeholder).toContain("第×号")
+  })
+
+  it("gazette 公报：无主送无文号", () => {
+    const keys = DOC_TYPE_SPECS.gazette.formFields.map((f) => f.key)
+    expect(keys).not.toContain("recipient")
+    expect(keys).not.toContain("docNumber")
+    expect(keys).not.toContain("issuingOrg")
+  })
+
+  it("communique 通报：文件式红头+文号+抄送", () => {
+    const keys = DOC_TYPE_SPECS.communique.formFields.map((f) => f.key)
+    expect(keys).toContain("issuingOrg")
+    expect(keys).toContain("docNumber")
+    expect(keys).toContain("cc")
+    expect(keys).toContain("seal")
+  })
+
+  it("proposal 议案：主送必填且单一", () => {
+    const recipient = DOC_TYPE_SPECS.proposal.formFields.find(
+      (f) => f.key === "recipient"
+    )
+    expect(recipient?.required).toBe(true)
+    expect(DOC_TYPE_SPECS.proposal.formFields.map((f) => f.key)).toContain(
       "attachments"
     )
   })

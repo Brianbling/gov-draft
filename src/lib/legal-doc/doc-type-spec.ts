@@ -492,16 +492,72 @@ function buildFormFields(docType: DocType): FormField[] {
         arrayField("attachments", "附件"),
         booleanField("seal", "加盖公章"),
       ]
+    case "resolution":
+      // 决议：会议通过的文件，不套文件式红头，无文号（题注写明通过时间与会议）
+      return [
+        textField("title", "标题", { placeholder: "××会议关于…的决议" }),
+        textField("issuer", "会议署名", {
+          placeholder: "如：××会议（第×次会议）",
+        }),
+        textField("date", "通过日期", { placeholder: "2026-08-01" }),
+      ]
+    case "order":
+      // 命令（令）：发文机关标志为“×××令”（主席令/市长令），文号为“第×号”，非文件式红头
+      return [
+        textField("title", "标题", { placeholder: "关于…的命令" }),
+        textField("docNumber", "文号", { placeholder: "第×号" }),
+        textField("recipient", "主送机关", { placeholder: "各市人民政府，省政府各部门" }),
+        textField("issuer", "署名", { placeholder: "×××（机关首长）" }),
+        textField("date", "签发日期", { placeholder: "2026-08-01" }),
+      ]
+    case "gazette":
+      // 公报：面向社会公开发布，无主送机关、无文号
+      return [
+        textField("title", "标题", { placeholder: "××会议公报" }),
+        textField("issuer", "发布机关"),
+        textField("date", "发布日期", { placeholder: "2026-08-01" }),
+        arrayField("attachments", "附件"),
+      ]
+    case "communique":
+      // 通报：文件式红头 + 文号，可抄送相关单位
+      return [
+        textField("title", "标题", { placeholder: "关于…的通报" }),
+        textField("docNumber", "发文字号", { placeholder: "×政发〔2026〕×号" }),
+        textField("issuingOrg", "发文机关标志", {
+          placeholder: "如：××市人民政府文件",
+        }),
+        textField("recipient", "主送机关", { placeholder: "各区人民政府，市政府各部门" }),
+        textField("issuer", "发文机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        arrayField("attachments", "附件"),
+        arrayField("cc", "抄送机关"),
+        booleanField("seal", "加盖公章"),
+      ]
+    case "proposal":
+      // 议案：人民政府向本级人大提请审议，主送机关为人民代表大会（单一主送）
+      return [
+        textField("title", "标题", { placeholder: "关于…的议案" }),
+        textField("docNumber", "文号", { placeholder: "×政函〔2026〕×号" }),
+        textField("recipient", "主送机关", {
+          required: true,
+          placeholder: "市人民代表大会（常务委员会）",
+        }),
+        textField("issuer", "提出机关署名"),
+        textField("date", "成文日期", { placeholder: "2026-08-01" }),
+        arrayField("attachments", "附件"),
+      ]
   }
 }
 
-/** 各文种默认盖章：决定/请示/批复/函/意见等依惯例盖章，通告/纪要/报告一般用版记替代。 */
+/** 各文种默认盖章：决定/请示/批复/函/通报/议案等依惯例盖章，通告/纪要/报告/公报/决议/命令等一般用版记或题注替代。 */
 function buildSealDefault(docType: DocType): boolean {
   switch (docType) {
     case "decision":
     case "request":
     case "reply":
     case "letter":
+    case "communique":
+    case "proposal":
       return true
     default:
       return false
@@ -737,11 +793,117 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
       })
       break
     }
+    case "resolution": {
+      rules.push(
+        {
+          code: "RESOLUTION_TITLE_MISSING_VENUE",
+          field: "title",
+          check: (doc) => {
+            if (!/会议/.test(doc.title)) {
+              return issue(
+                "RESOLUTION_TITLE_MISSING_VENUE",
+                "title",
+                "决议标题应写明通过决议的会议名称，如“××会议关于…的决议”。"
+              )
+            }
+            return null
+          },
+        },
+        {
+          code: "RESOLUTION_NO_BULLET_ITEMS",
+          field: "body",
+          check: (doc) => {
+            if (
+              !doc.body.some(
+                (paragraph) =>
+                  paragraph.type === "h1" || /^\d+[.、]/.test(paragraph.text)
+              )
+            ) {
+              return issue(
+                "RESOLUTION_NO_BULLET_ITEMS",
+                "body",
+                "决议正文应分条列项写明议定事项，可采用 h1/h2 标题或“一、二、”序号分层。"
+              )
+            }
+            return null
+          },
+        }
+      )
+      break
+    }
+    case "order": {
+      rules.push({
+        code: "ORDER_DOC_NUMBER_SHOULD_BE_SEQ",
+        field: "docNumber",
+        check: (doc) => {
+          if (doc.docNumber && !/^第\s*\d+\s*号/.test(doc.docNumber)) {
+            return issue(
+              "ORDER_DOC_NUMBER_SHOULD_BE_SEQ",
+              "docNumber",
+              "命令（令）的文号采用顺序号“第×号”（如“主席令第×号”），不使用“××发〔2026〕×号”式发文字号。"
+            )
+          }
+          return null
+        },
+      })
+      break
+    }
+    case "gazette": {
+      rules.push({
+        code: "GAZETTE_RECIPIENT_SHOULD_BE_EMPTY",
+        field: "recipient",
+        check: (doc) => {
+          if (doc.recipient && doc.recipient.trim().length > 0) {
+            return issue(
+              "GAZETTE_RECIPIENT_SHOULD_BE_EMPTY",
+              "recipient",
+              "公报面向社会公开发布，不应填写主送机关（recipient 应为空）。"
+            )
+          }
+          return null
+        },
+      })
+      break
+    }
+    case "communique": {
+      rules.push({
+        code: "COMMUNIQUE_TITLE_HAS_TOPIC",
+        field: "title",
+        check: (doc) => {
+          if (!/关于/.test(doc.title)) {
+            return issue(
+              "COMMUNIQUE_TITLE_HAS_TOPIC",
+              "title",
+              "通报标题应写明事由，如“关于…的通报”。"
+            )
+          }
+          return null
+        },
+      })
+      break
+    }
+    case "proposal": {
+      rules.push({
+        code: "PROPOSAL_RECIPIENT_SINGLE",
+        field: "recipient",
+        check: (doc) => {
+          if (doc.recipient && doc.recipient.includes("、")) {
+            return issue(
+              "PROPOSAL_RECIPIENT_SINGLE",
+              "recipient",
+              "议案主送机关应单一（本级人民代表大会或常务委员会），用顿号列多个主送机关不符合行文规则。"
+            )
+          }
+          return null
+        },
+      })
+      break
+    }
   }
   return rules
 }
 
-/** 文种 → 规范（含通用规则）。key 覆盖全部 9 个 DOC_TYPES。 */
+/** 文种 → 规范（含通用规则）。key 覆盖全部 14 个 DOC_TYPES。 */
 export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
   gongwen: {
     docType: "gongwen",
@@ -763,6 +925,57 @@ export const DOC_TYPE_SPECS: Record<DocType, DocTypeSpec> = {
     ],
     formFields: buildFormFields("decision"),
     sealDefault: buildSealDefault("decision"),
+  },
+  resolution: {
+    docType: "resolution",
+    name: "决议",
+    promptRequirement:
+      "文种为决议，适用于会议讨论通过的重要决策事项。标题应写明通过决议的会议名称（如“××会议关于…的决议”）；正文分条列项写明议定事项；无发文字号，采用题注形式标注通过会议与日期。语气庄重。",
+    rules: [
+      ...buildDocTypeRules("resolution"),
+      ...buildUniversalRules("resolution"),
+    ],
+    formFields: buildFormFields("resolution"),
+    sealDefault: buildSealDefault("resolution"),
+  },
+  order: {
+    docType: "order",
+    name: "命令（令）",
+    promptRequirement:
+      "文种为命令（令），适用于公布行政法规和规章、宣布施行重大强制性措施、嘉奖有关单位及人员。发文机关标志为“×××令”，文号采用顺序号“第×号”（如“主席令第×号”），不使用“××发〔2026〕×号”式发文字号。由机关首长署名。语气威严、简洁。",
+    rules: [...buildDocTypeRules("order"), ...buildUniversalRules("order")],
+    formFields: buildFormFields("order"),
+    sealDefault: buildSealDefault("order"),
+  },
+  gazette: {
+    docType: "gazette",
+    name: "公报",
+    promptRequirement:
+      "文种为公报，适用于公布重要决定或重大事项，面向社会公开发布，无主送机关、无发文字号。标题常用“××会议公报”，正文分条写明发布事项。",
+    rules: [...buildDocTypeRules("gazette"), ...buildUniversalRules("gazette")],
+    formFields: buildFormFields("gazette"),
+    sealDefault: buildSealDefault("gazette"),
+  },
+  communique: {
+    docType: "communique",
+    name: "通报",
+    promptRequirement:
+      "文种为通报，适用于表彰先进、批评错误、传达重要精神或情况。采用文件式红头（发文机关标志+发文字号），标题写明事由（如“关于…的通报”）。正文分条写明通报事项与要求。",
+    rules: [
+      ...buildDocTypeRules("communique"),
+      ...buildUniversalRules("communique"),
+    ],
+    formFields: buildFormFields("communique"),
+    sealDefault: buildSealDefault("communique"),
+  },
+  proposal: {
+    docType: "proposal",
+    name: "议案",
+    promptRequirement:
+      "文种为议案，适用于各级人民政府按照法律程序向本级人民代表大会或人民代表大会常务委员会提请审议事项。主送机关（recipient）必填且为单一机关（本级人大或其常委会）；正文写明提请审议的事项、理由及建议。",
+    rules: [...buildDocTypeRules("proposal"), ...buildUniversalRules("proposal")],
+    formFields: buildFormFields("proposal"),
+    sealDefault: buildSealDefault("proposal"),
   },
   opinion: {
     docType: "opinion",

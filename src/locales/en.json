@@ -119,9 +119,14 @@
 		"docType": {
 			"gongwen": "Notice",
 			"decision": "Decision",
+			"order": "Order (Ling)",
+			"gazette": "Gazette",
+			"communique": "Circulation Notice (Tongbao)",
 			"opinion": "Opinion",
 			"request": "Request (Qingshi)",
 			"reply": "Reply (Pifu)",
+			"proposal": "Proposal (Yian)",
+			"resolution": "Resolution",
 			"letter": "Letter",
 			"minutes": "Meeting Minutes",
 			"announcement": "Announcement/Public Notice",
@@ -138,6 +143,26 @@
 			"decision": {
 				"placeholder": "e.g. A decision commending a unit, specifying the honoree, the title awarded and the reward standard…",
 				"hint": "A decision (决定) arranges important matters, awards or removals. State the decision and the execution requirements."
+			},
+			"order": {
+				"placeholder": "e.g. Promulgating the city's management regulations, stating the review and effective date…",
+				"hint": "An order (命令/令) promulgates rules, announces major compulsory measures, or commends personnel. Its doc number uses the sequence form 第×号."
+			},
+			"gazette": {
+				"placeholder": "e.g. A gazette on the city's first-half economic performance, aggregating key indicators…",
+				"hint": "A gazette (公报) publicly announces important decisions or major matters. No recipient, no doc number."
+			},
+			"communique": {
+				"placeholder": "e.g. A circulation notice commending work-safety advanced units, naming honorees and requirements…",
+				"hint": "A circulation notice (通报) commends, criticizes or conveys important information. Uses the file-style red head."
+			},
+			"proposal": {
+				"placeholder": "e.g. Submitting the draft data regulation to the people's congress standing committee for review…",
+				"hint": "A proposal (议案) is submitted by a government to the local people's congress (or its standing committee) for deliberation. Single recipient."
+			},
+			"resolution": {
+				"placeholder": "e.g. A resolution of a session approving a report, stating the adoption and decided matters…",
+				"hint": "A resolution (决议) covers major decisions adopted at a meeting. No doc number; adoption meeting and date are noted."
 			},
 			"opinion": {
 				"placeholder": "e.g. An opinion on advancing the city's digital transformation, proposing principles and concrete measures…",

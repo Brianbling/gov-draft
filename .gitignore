@@ -34,3 +34,6 @@ bench/history.jsonl
 *.sw?
 .tokensave
 .env
+
+# Claude scratch (session artifacts, API-generated docs)
+.claude/tmp/

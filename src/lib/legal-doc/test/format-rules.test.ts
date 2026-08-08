@@ -559,8 +559,72 @@ describe("checkDocFormat · 新 L2 通用规则", () => {
   })
 })
 
+describe("checkDocFormat · 新增法定文种", () => {
+  it("resolution 决议：标题含会议名称时通过，缺会议名报 RESOLUTION_TITLE_MISSING_VENUE", () => {
+    const ok = checkDocFormat(
+      buildDoc({
+        docType: "resolution",
+        title: "××市第十五届人民代表大会第二次会议关于××的决议",
+        body: [
+          { type: "p", text: "会议听取并审议了××报告，决定批准该报告。" },
+          { type: "h1", text: "工作要求" },
+          { type: "p", text: "各级各部门要抓好落实。" },
+        ],
+      })
+    )
+    expect(codes(ok)).not.toContain("RESOLUTION_TITLE_MISSING_VENUE")
+    expect(codes(ok)).not.toContain("RESOLUTION_NO_BULLET_ITEMS")
+
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "resolution",
+        title: "关于加强城市管理的决议",
+        body: [{ type: "p", text: "会议决定加强城市管理。" }],
+      })
+    )
+    expect(codes(issues)).toContain("RESOLUTION_TITLE_MISSING_VENUE")
+    expect(codes(issues)).toContain("RESOLUTION_NO_BULLET_ITEMS")
+  })
+
+  it("order 命令：顺序号文号通过，发文字号式文号报 ORDER_DOC_NUMBER_SHOULD_BE_SEQ", () => {
+    const ok = checkDocFormat(
+      buildDoc({ docType: "order", docNumber: "第8号" })
+    )
+    expect(codes(ok)).not.toContain("ORDER_DOC_NUMBER_SHOULD_BE_SEQ")
+
+    const issues = checkDocFormat(
+      buildDoc({ docType: "order", docNumber: "×政发〔2026〕8号" })
+    )
+    expect(codes(issues)).toContain("ORDER_DOC_NUMBER_SHOULD_BE_SEQ")
+  })
+
+  it("gazette 公报：填主送机关报 GAZETTE_RECIPIENT_SHOULD_BE_EMPTY", () => {
+    const issues = checkDocFormat(
+      buildDoc({ docType: "gazette", recipient: "各市人民政府：" })
+    )
+    expect(codes(issues)).toContain("GAZETTE_RECIPIENT_SHOULD_BE_EMPTY")
+  })
+
+  it("communique 通报：标题缺事由报 COMMUNIQUE_TITLE_HAS_TOPIC", () => {
+    const issues = checkDocFormat(
+      buildDoc({ docType: "communique", title: "通报" })
+    )
+    expect(codes(issues)).toContain("COMMUNIQUE_TITLE_HAS_TOPIC")
+  })
+
+  it("proposal 议案：多头主送报 PROPOSAL_RECIPIENT_SINGLE", () => {
+    const issues = checkDocFormat(
+      buildDoc({
+        docType: "proposal",
+        recipient: "市人民代表大会、市人民代表大会常务委员会：",
+      })
+    )
+    expect(codes(issues)).toContain("PROPOSAL_RECIPIENT_SINGLE")
+  })
+})
+
 describe("单一事实源 · DOC_TYPE_SPECS 覆盖全部文种且与 prompt/规则一致", () => {
-  it("DOC_TYPE_SPECS 的 key 覆盖全部 9 个 DOC_TYPES", () => {
+  it("DOC_TYPE_SPECS 的 key 覆盖全部 DOC_TYPES", () => {
     expect(Object.keys(DOC_TYPE_SPECS).sort()).toEqual([...DOC_TYPES].sort())
   })
 

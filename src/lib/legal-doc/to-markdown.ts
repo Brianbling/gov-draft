@@ -156,8 +156,14 @@ export function toMarkdown(doc: LegalDoc): string {
 
   // 发文字号（GB/T 9704 §7.2.5）：编排在发文机关标志（红头）下空二行处，
   // 居中排布（机关代字〔年份〕顺序号）。紧跟红头、在标题之前。
+  // 空二行 = 2 × 3 号行高（28.95pt/行，与附件"正文下空一行"同口径）；
+  // 无红头时（意见等无文件式红头文种）文号顶格无前置间距。
   if (doc.docNumber) {
-    blocks.push(container(CENTERED, [doc.docNumber]))
+    const hasRedHead = doc.issuingOrg && doc.issuingOrg.trim().length > 0
+    const docNumberStyle = hasRedHead
+      ? `${CENTERED}; content.body.paragraph.spacing.before: 57.9pt`
+      : CENTERED
+    blocks.push(container(docNumberStyle, [doc.docNumber]))
   }
 
   // 标题空缺（LLM 未给出、且用户关闭表单必填门槛时）不输出幽灵红头 `# `，

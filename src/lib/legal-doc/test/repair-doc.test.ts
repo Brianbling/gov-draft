@@ -286,4 +286,77 @@ describe("repairDoc · 保守修复带", () => {
     expect(doc.body).toHaveLength(1)
     expect(repairs).toHaveLength(0)
   })
+
+  it("标题开头重复红头发文机关名时剥除（通知）", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        title: "重庆市人民政府关于印发《×××》的通知",
+        issuingOrg: "重庆市人民政府文件",
+      })
+    )
+    expect(doc.title).toBe("关于印发《×××》的通知")
+    expect(repairs).toEqual([
+      expect.objectContaining({ code: "REPAIR_STRIP_ORG_FROM_TITLE" }),
+    ])
+  })
+
+  it("标题开头机关名后不是公文动词时不剥（防误剥）", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        title: "重庆市人民政府工作报告（节选）",
+        issuingOrg: "重庆市人民政府文件",
+      })
+    )
+    expect(doc.title).toBe("重庆市人民政府工作报告（节选）")
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("标题中间的机关名（非开头）不剥", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        title: "关于加强重庆市数字经济建设的通知",
+        issuingOrg: "重庆市人民政府文件",
+      })
+    )
+    expect(doc.title).toBe("关于加强重庆市数字经济建设的通知")
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("意见文种即使有文号也不推导红头", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        docType: "opinion",
+        issuer: "××市市场监督管理局",
+        issuingOrg: undefined,
+      })
+    )
+    expect(doc.issuingOrg).toBeUndefined()
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("通报文种有文号无红头时同样推导红头（文件式红头）", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        docType: "communique",
+        issuer: "××省人民政府办公厅",
+        issuingOrg: undefined,
+      })
+    )
+    expect(doc.issuingOrg).toBe("××省人民政府办公厅文件")
+    expect(repairs).toEqual([
+      expect.objectContaining({ code: "REPAIR_INFER_RED_HEAD" }),
+    ])
+  })
+
+  it("决议文种有文号也不推导红头（无文件式红头）", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        docType: "resolution",
+        issuer: "××市第十五届人民代表大会",
+        issuingOrg: undefined,
+      })
+    )
+    expect(doc.issuingOrg).toBeUndefined()
+    expect(repairs).toHaveLength(0)
+  })
 })

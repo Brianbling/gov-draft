@@ -56,15 +56,24 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
     })
   }
 
-  if (textLength(doc.title) > MAX_TITLE_LENGTH) {
+  // 决议标题须写明通过决议的会议名称（如"××市第×届人民代表大会第×次会议
+  // 关于批准××报告的决议"），天然较长，放宽到 50 字；其余文种 30 字。
+  const titleLimit = doc.docType === "resolution" ? 50 : MAX_TITLE_LENGTH
+  if (textLength(doc.title) > titleLimit) {
     issues.push({
       field: "title",
       code: "TITLE_TOO_LONG",
-      message: `标题超过 ${MAX_TITLE_LENGTH} 字（当前 ${textLength(doc.title)} 字），公文标题宜简短醒目。`,
+      message: `标题超过 ${titleLimit} 字（当前 ${textLength(doc.title)} 字），公文标题宜简短醒目。`,
     })
   }
 
-  if (doc.docNumber && !DOC_NUMBER_YEAR_PATTERN.test(doc.docNumber)) {
+  // 发文字号年份括号：仅适用于使用发文字号式文号的文种。命令（令）的文号是
+  // 顺序号"第×号"（如"主席令第×号"），无年份括号，跳过该检查。
+  if (
+    doc.docType !== "order" &&
+    doc.docNumber &&
+    !DOC_NUMBER_YEAR_PATTERN.test(doc.docNumber)
+  ) {
     issues.push({
       field: "docNumber",
       code: "DOC_NUMBER_YEAR_MISSING",
@@ -72,16 +81,34 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
     })
   }
 
-  if (doc.docNumber && !doc.issuingOrg) {
-    issues.push({
-      field: "issuingOrg",
-      code: "DOC_NUMBER_WITHOUT_RED_HEAD",
-      message:
-        "发文字号“" +
-        doc.docNumber +
-        "”上方缺少发文机关标志（红头，如“××市人民政府文件”），文号将顶在版心首行。",
-      severity: "error",
-    })
+  // 红头（发文机关标志）+ 发文字号成对：仅通知（gongwen）、通报（communique）
+  // 使用文件式红头版头。其他文种（意见/请示/批复/函/决议/命令/公报/议案等）
+  // 无文件式红头格式，有文号无红头属正常，不强制成对。
+  const usesFileRedHead = doc.docType === "gongwen" || doc.docType === "communique"
+  if (usesFileRedHead) {
+    if (doc.docNumber && !doc.issuingOrg) {
+      issues.push({
+        field: "issuingOrg",
+        code: "DOC_NUMBER_WITHOUT_RED_HEAD",
+        message:
+          "发文字号“" +
+          doc.docNumber +
+          "”上方缺少发文机关标志（红头，如“××市人民政府文件”），文号将顶在版心首行。",
+        severity: "error",
+      })
+    }
+
+    if (doc.issuingOrg && !doc.docNumber) {
+      issues.push({
+        field: "docNumber",
+        code: "RED_HEAD_WITHOUT_DOC_NUMBER",
+        message:
+          "已有红头“" +
+          doc.issuingOrg +
+          "”但缺少发文字号（如“渝府发〔2026〕12号”），红头下应空二行编排文号。",
+        severity: "error",
+      })
+    }
   }
 
   if (

@@ -136,8 +136,10 @@ function inferRedHeadFromIssuer(
 ): LegalDoc {
   if (doc.issuingOrg) return doc
   if (!doc.docNumber) return doc
-  // 会议纪要的版头是“××会议纪要”而非“××文件”，不适用文件式红头推导
-  if (doc.docType === "minutes") return doc
+  // 仅通知（gongwen）、通报（communique）使用文件式红头版头；其他文种
+  // （意见/请示/批复/函/决议/命令/公报/议案等）无红头格式，不推导。
+  // 会议纪要的版头是"××会议纪要"而非"××文件"，同样排除。
+  if (doc.docType !== "gongwen" && doc.docType !== "communique") return doc
   const issuer = doc.issuer?.trim() ?? ""
   if (issuer.length === 0) return doc
   if (issuer.includes("文件")) return doc
@@ -220,8 +222,41 @@ function extractCcParagraph(doc: LegalDoc, repairs: RepairInfo[]): LegalDoc {
 }
 
 /**
+ * 标题去发文机关名（GB/T 9704 §7.3.1）：红头已写明发文机关，标题只写事由+文种。
+ * LLM 常把机关名带进标题（如"重庆市人民政府关于印发《×××》的通知"），
+ * 与红头"重庆市人民政府文件"视觉重复。只在标题**最开头**、且与红头机关名
+ * （剥掉"文件"后缀）完全匹配时剥除，绝不剥标题中间的机关名（如"重庆市数字经济"）。
+ */
+function stripOrgNameFromTitle(
+  doc: LegalDoc,
+  repairs: RepairInfo[]
+): LegalDoc {
+  const redHead = doc.issuingOrg?.trim() ?? ""
+  if (redHead.length === 0) return doc
+  const orgName = redHead.replace(/文件$/, "").trim()
+  if (orgName.length === 0) return doc
+  const title = doc.title.trim()
+  if (!title.startsWith(orgName)) return doc
+  const next = title.slice(orgName.length)
+  // 剥完后的下一个字符必须是"关于/印发/转发/批准/批转/发布"等公文标题动词，
+  // 或直接是"的通知"等文种结尾，防止误剥（如标题恰以某词开头恰好匹配机关名）。
+  if (!/^(关于|印发|转发|批转|批准|发布|决定|意见|通知|函)/.test(next)) return doc
+  const cleaned = next.trim()
+  if (cleaned.length === 0) return doc
+  const repaired = { ...doc, title: cleaned }
+  repairs.push(
+    makeRepair(
+      "REPAIR_STRIP_ORG_FROM_TITLE",
+      `标题开头重复了红头发文机关名“${orgName}”，已从标题移除（标题只写事由+文种）：${cleaned}。`
+    )
+  )
+  return repaired
+}
+
+/**
  * 依次执行全部保守修复（顺序敏感：先补 recipient 冒号，再提取附件段，
- * 再补红头兜底，再提取抄送段，最后统一文号括号）。返回修复后的 doc 与所有本次执行的修复说明。
+ * 再补红头兜底，再提取抄送段，再去标题机关名，最后统一文号括号）。
+ * 返回修复后的 doc 与所有本次执行的修复说明。
  */
 export function repairDoc(doc: LegalDoc): RepairResult {
   const repairs: RepairInfo[] = []
@@ -230,6 +265,7 @@ export function repairDoc(doc: LegalDoc): RepairResult {
   current = extractAttachmentParagraphs(current, repairs)
   current = inferRedHeadFromIssuer(current, repairs)
   current = extractCcParagraph(current, repairs)
+  current = stripOrgNameFromTitle(current, repairs)
   current = normalizeDocNumberYearBracket(current, repairs)
   return { doc: current, repairs }
 }

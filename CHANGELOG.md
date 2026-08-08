@@ -4,8 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **补 5 个法定公文文种**：按《党政机关公文处理工作条例》（中办发〔2012〕14号）15 文种补齐——新增 `resolution`（决议）、`order`（命令/令）、`gazette`（公报）、`communique`（通报）、`proposal`（议案），DOC_TYPES 从 9 扩到 14。全链路单源扩展：`types.ts` 枚举 + `doc-type-spec.ts`（name/promptRequirement/rules/formFields/sealDefault）+ `prompt.ts` 示例输出 + i18n（zh/en）+ 表单要素集。文种特性：命令文号用顺序号"第×号"（无年份括号）、决议/公报无文号、公报无主送机关、议案主送必填单一、通报用文件式红头。
+- **发文字号年份检查豁免命令文种**：命令（令）文号为顺序号"第×号"，`DOC_NUMBER_YEAR_MISSING` 不再误报。
+- **决议标题长度上限放宽到 50 字**：决议标题须写明通过决议的会议名称（"××市第×届人民代表大会第×次会议关于批准××报告的决议"），30 字上限必然误报，放宽到 50；其余文种维持 30。
+- **发文字号与红头之间空二行间距**（GB/T 9704 §7.2.5）：有红头时文号容器加 `spacing.before: 57.9pt`（2 × 3 号行高），无红头文种（意见等）不受影响。
+
 ### Fixed
 
+- **红头与发文字号成对检查（反向缺失）**：原先只查"有文号无红头"，漏了"有红头无文号"——LLM 只给红头不发文号时（如"××市人民政府文件"下面直接是标题）检查放行。修复：`checkFormat` 新增 `RED_HEAD_WITHOUT_DOC_NUMBER`（红头下应空二行排文号，error 级）；红头成对检查限定文件式红头文种（gongwen/communique），意见/请示/批复/函/决议/命令/公报/议案等无文件式红头文种不误报。
+- **标题开头重复红头发文机关名**：LLM 常把机关名写进标题（"重庆市人民政府关于印发《×××》的通知"）与红头"重庆市人民政府文件"视觉重复。修复：`repairDoc` 新增 `stripOrgNameFromTitle`——标题最开头与红头机关名（剥"文件"后缀）完全匹配、且后续为公文标题动词时剥除；绝不剥标题中间机关名、后续非公文动词不剥（防误剥）。配套：prompt 新增"标题严禁包含发文机关名称"指令。
+- **红头推导扩展到通报文种**：`repairDoc` 的 `inferRedHeadFromIssuer` 原来只对 gongwen 推导红头，现在通报（communique，同为文件式红头）也支持；决议等无文件式红头文种不推导。
 - **AI 生成/导入后语法糖排版代码不折叠**：`replaceDocument`（AI 生成/导入/store 回灌的整篇替换唯一入口）替换全文后 CodeMirror 不重算 fold，新内容里所有 `:::` 容器全部展开显示排版代码。修复：`replaceDocument` 在替换后按 `showLayoutCode` 设置重新折叠/展开。
 - **发文字号顶在版心首行（红头缺失）**：prompt 原引导"issuingOrg 一般不填以免与标题红头重复"，LLM 常不生成红头 → 文号成为第一个块顶格居中。三处修复：① prompt 改为"有发文字号必填红头"；② `checkFormat` 新增 `DOC_NUMBER_WITHOUT_RED_HEAD`（有文号无红头 → error）；③ `repairDoc` 兜底——有文号无红头但有发文机关署名时，按 GB/T 9704 §7.2.4 推导红头为"署名+文件"（会议纪要版头为"××会议纪要"，不适用文件式红头，排除）。
 - **抄送混进正文未入版记**：LLM 把"抄送：××"写进正文末段。修复：`repairDoc` 新增 `extractCcParagraph`——整段以"抄送："开头或收尾语（特此通知等）紧跟"抄送："时提取到 cc 字段并从正文移除；cc 已有条目或"抄送"出现在普通句子里（前文非收尾语）时不提取。

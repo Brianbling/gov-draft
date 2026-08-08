@@ -4,10 +4,15 @@ import { z } from "zod"
  * 公文文种（DocType）枚举 → 中文文种名对应关系：
  * - gongwen      → 通知
  * - decision     → 决定
+ * - order        → 命令（令）
+ * - gazette      → 公报
+ * - communique   → 通报
  * - opinion      → 意见
  * - request      → 请示
  * - report       → 报告
  * - reply        → 批复
+ * - proposal     → 议案
+ * - resolution   → 决议
  * - letter       → 函
  * - minutes      → 会议纪要
  * - announcement → 通告/公告
@@ -15,10 +20,15 @@ import { z } from "zod"
 export const DOC_TYPES = [
   "gongwen",
   "decision",
+  "order",
+  "gazette",
+  "communique",
   "opinion",
   "request",
   "report",
   "reply",
+  "proposal",
+  "resolution",
   "letter",
   "minutes",
   "announcement",
