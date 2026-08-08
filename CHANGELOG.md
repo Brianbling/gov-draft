@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **AI 生成/导入后语法糖排版代码不折叠**：`replaceDocument`（AI 生成/导入/store 回灌的整篇替换唯一入口）替换全文后 CodeMirror 不重算 fold，新内容里所有 `:::` 容器全部展开显示排版代码。修复：`replaceDocument` 在替换后按 `showLayoutCode` 设置重新折叠/展开。
+- **发文字号顶在版心首行（红头缺失）**：prompt 原引导"issuingOrg 一般不填以免与标题红头重复"，LLM 常不生成红头 → 文号成为第一个块顶格居中。三处修复：① prompt 改为"有发文字号必填红头"；② `checkFormat` 新增 `DOC_NUMBER_WITHOUT_RED_HEAD`（有文号无红头 → error）；③ `repairDoc` 兜底——有文号无红头但有发文机关署名时，按 GB/T 9704 §7.2.4 推导红头为"署名+文件"（会议纪要版头为"××会议纪要"，不适用文件式红头，排除）。
+- **抄送混进正文未入版记**：LLM 把"抄送：××"写进正文末段。修复：`repairDoc` 新增 `extractCcParagraph`——整段以"抄送："开头或收尾语（特此通知等）紧跟"抄送："时提取到 cc 字段并从正文移除；cc 已有条目或"抄送"出现在普通句子里（前文非收尾语）时不提取。
 - **加号（新建文档）按钮无效果**：工具栏派发 `document.dispatchEvent` 但 App 监听 `window`，CustomEvent 默认 `bubbles:false` 到不了 window → 点击静默无反应。改为 `window.dispatchEvent`。
 - **"一级标题设置没了"整组修复**：① 工具栏"一级标题"按钮原本插入 `# `（引擎红头/文题，22pt 居中无编号），改为插 `## `（引擎 h2，16pt 黑体 + 自动"一、"序号），符合公文正文一级标题语义；② 设置搜索命中盲区——导航 label"标题 H1"与产品词"一级标题"脱节，统一改为"一级标题/二级标题/三级标题/四级标题"，搜"一级"可命中；③ 手写 `## 一、标题` 渲染双号"一、一、标题"，heading 处理器新增 `alreadyNumbered` 前缀识别，手动已带序号的标题不再重复加号。
 - **持久化规则校验失败静默整条重置（HIGH）**：localStorage 规则含非法字段（如 `weight:""`、无单位数字）时，启动静默清空用户全部标题层级/字体配置并换内置规则，表现为"设置都没了"。修复：reset 前把损坏 JSON 备份到 `ezdoc-rule-poisoned`（用户可找回手工重建），回退内置规则并弹 toast 明确告知已回退到哪条规则。

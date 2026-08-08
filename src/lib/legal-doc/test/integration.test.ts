@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest"
 import { MarkdownParser, getBuiltinRules } from "@/engine"
-import { parseLegalDoc, toMarkdown, checkFormat, buildUserPrompt, type LegalDoc } from "../index"
+import {
+  parseLegalDoc,
+  toMarkdown,
+  checkFormat,
+  buildUserPrompt,
+  type LegalDoc,
+} from "../index"
 import { generateDocument } from "@/lib/llm"
 
 // 真实的 LLM 输出样例：一段合法 LegalDoc JSON 字符串，
@@ -8,6 +14,7 @@ import { generateDocument } from "@/lib/llm"
 const SAMPLE_LLM_OUTPUT = JSON.stringify({
   docType: "gongwen",
   title: "市政府关于推进城市数字化转型的实施意见",
+  issuingOrg: "市人民政府文件",
   docNumber: "X府发〔2026〕27号",
   securityLevel: "秘密",
   urgency: "加急",
@@ -48,7 +55,9 @@ function withFencedJson(doc: LegalDoc): string {
 
 function buildParser(): MarkdownParser {
   // 生产路径同 use-markdown.ts：取 GB/T 9704 规则的 parser 配置 + headingStyles
-  const rule = getBuiltinRules().find((r) => r.name.includes("9704")) ?? getBuiltinRules()[0]!
+  const rule =
+    getBuiltinRules().find((r) => r.name.includes("9704")) ??
+    getBuiltinRules()[0]!
   return new MarkdownParser(undefined, {
     ...rule.parser,
     headingStyles: {
@@ -95,7 +104,9 @@ describe("AI 生成公文 · 自然语言到渲染全链路集成", () => {
   })
 
   it("代码块围栏包裹的 JSON（真实 LLM 常返回的形态）也能走通全链路", () => {
-    const parsed = parseLegalDoc(withFencedJson(parseLegalDoc(SAMPLE_LLM_OUTPUT)))
+    const parsed = parseLegalDoc(
+      withFencedJson(parseLegalDoc(SAMPLE_LLM_OUTPUT))
+    )
     const markdown = toMarkdown(parsed)
     expect(markdown).toContain("# 市政府关于推进城市数字化转型的实施意见")
     expect(markdown).not.toContain("```")

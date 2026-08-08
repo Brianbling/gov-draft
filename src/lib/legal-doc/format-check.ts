@@ -20,10 +20,7 @@ export function isValidIsoDate(iso: string): boolean {
   const month = Number(match[2])
   const day = Number(match[3])
   return (
-    month >= 1 &&
-    month <= 12 &&
-    day >= 1 &&
-    day <= DAYS_IN_MONTH[month - 1]
+    month >= 1 && month <= 12 && day >= 1 && day <= DAYS_IN_MONTH[month - 1]
   )
 }
 
@@ -72,6 +69,18 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
       field: "docNumber",
       code: "DOC_NUMBER_YEAR_MISSING",
       message: "发文字号应包含中文方括号年份，如“国发〔2026〕12号”。",
+    })
+  }
+
+  if (doc.docNumber && !doc.issuingOrg) {
+    issues.push({
+      field: "issuingOrg",
+      code: "DOC_NUMBER_WITHOUT_RED_HEAD",
+      message:
+        "发文字号“" +
+        doc.docNumber +
+        "”上方缺少发文机关标志（红头，如“××市人民政府文件”），文号将顶在版心首行。",
+      severity: "error",
     })
   }
 

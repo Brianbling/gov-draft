@@ -25,10 +25,7 @@ function makeRepair(code: string, message: string): RepairInfo {
 /** 主送机关末尾应带全角冒号（通告/公告无主送机关，不适用）。
  * 只在末尾确为机关名（非标点）且非纯空白时补，避免把“省人民政府。”补成“省人民政府。：”，
  * 也避免纯空白主送被“修复”成“：”掩盖缺失（缺失由 L2 规则上报）。 */
-function repairRecipientColon(
-  doc: LegalDoc,
-  repairs: RepairInfo[],
-): LegalDoc {
+function repairRecipientColon(doc: LegalDoc, repairs: RepairInfo[]): LegalDoc {
   if (doc.docType === "announcement") return doc
   if (!doc.recipient) return doc
   const trimmed = doc.recipient.trimEnd()
@@ -42,8 +39,8 @@ function repairRecipientColon(
   repairs.push(
     makeRepair(
       "REPAIR_RECIPIENT_COLON",
-      "主送机关末尾缺少全角冒号，已自动补上“：”。",
-    ),
+      "主送机关末尾缺少全角冒号，已自动补上“：”。"
+    )
   )
   return repaired
 }
@@ -80,7 +77,7 @@ function splitAttachments(content: string): string[] {
 /** 正文 type:"p" 且整段形如 `^附件[:：]` 且 attachments 为空 → 提取为附件条目并从正文移除。 */
 function extractAttachmentParagraphs(
   doc: LegalDoc,
-  repairs: RepairInfo[],
+  repairs: RepairInfo[]
 ): LegalDoc {
   if ((doc.attachments ?? []).length > 0) return doc
   const added: string[] = []
@@ -103,8 +100,8 @@ function extractAttachmentParagraphs(
   repairs.push(
     makeRepair(
       "REPAIR_EXTRACT_ATTACHMENT",
-      `正文中“附件：…”段落已提取为附件条目（${added.join("、")}），避免版记与正文重复。`,
-    ),
+      `正文中“附件：…”段落已提取为附件条目（${added.join("、")}），避免版记与正文重复。`
+    )
   )
   return repaired
 }
@@ -112,33 +109,127 @@ function extractAttachmentParagraphs(
 /** 文号年份括号 [2026] / (2026) → 统一为六角括号 〔2026〕。 */
 function normalizeDocNumberYearBracket(
   doc: LegalDoc,
-  repairs: RepairInfo[],
+  repairs: RepairInfo[]
 ): LegalDoc {
   if (!doc.docNumber) return doc
-  const repairedNumber = doc.docNumber.replace(
-    /[[(](\d{4})[\])]/,
-    "〔$1〕",
-  )
+  const repairedNumber = doc.docNumber.replace(/[[(](\d{4})[\])]/, "〔$1〕")
   if (repairedNumber === doc.docNumber) return doc
   const repaired = { ...doc, docNumber: repairedNumber }
   repairs.push(
     makeRepair(
       "REPAIR_DOC_NUMBER_YEAR_BRACKET",
-      `发文字号年份括号已统一为中文六角括号：${repairedNumber}。`,
-    ),
+      `发文字号年份括号已统一为中文六角括号：${repairedNumber}。`
+    )
+  )
+  return repaired
+}
+
+/**
+ * 红头缺失兜底：有发文字号（docNumber）但无发文机关标志（issuingOrg）时，
+ * 用 issuer（发文机关署名）推导红头。红头 = 机关全称/规范化简称 + “文件”，
+ * 署名本身就是同一机关名，故红头 = issuer + “文件”（GB/T 9704 §7.2.4）。
+ * 只在 issuer 明确存在且不带“文件”字样时推导，其余交给 format-check 提示用户。
+ */
+function inferRedHeadFromIssuer(
+  doc: LegalDoc,
+  repairs: RepairInfo[]
+): LegalDoc {
+  if (doc.issuingOrg) return doc
+  if (!doc.docNumber) return doc
+  // 会议纪要的版头是“××会议纪要”而非“××文件”，不适用文件式红头推导
+  if (doc.docType === "minutes") return doc
+  const issuer = doc.issuer?.trim() ?? ""
+  if (issuer.length === 0) return doc
+  if (issuer.includes("文件")) return doc
+  const redHead = `${issuer}文件`
+  const repaired = { ...doc, issuingOrg: redHead }
+  repairs.push(
+    makeRepair(
+      "REPAIR_INFER_RED_HEAD",
+      `未提供红头（发文机关标志），已根据发文机关署名“${issuer}”推导为“${redHead}”。`
+    )
+  )
+  return repaired
+}
+
+// 公文正文收尾语（可作段末一句话独立成段）。LLM 常把“抄送：××”直接跟在收尾语后。
+
+/** 从“抄送：”内容拆出抄送机关列表（顿号/逗号/分号/换行分隔，去尾部句号，过滤空项）。 */
+function splitCcContent(content: string): string[] {
+  return content
+    .replace(/[。\.]$/, "")
+    .split(/[、，,;；\n]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+}
+
+/**
+ * 正文里混入的“抄送：××”提取到 cc 字段并从正文移除。
+ * 覆盖两种真实写法：
+ * - 整段以“抄送：”开头（LLM 把版记要素写进正文）→ 整段提取
+ * - “特此通知。抄送：××”（收尾语紧跟抄送）→ 收尾语保留为正文段，抄送提取
+ * 只有 doc.cc 为空时提取；段内“抄送：”之前存在非收尾语正文时绝不提取
+ * （避免把正文句子里作为普通用词的“抄送”误提取）。
+ */
+function extractCcParagraph(doc: LegalDoc, repairs: RepairInfo[]): LegalDoc {
+  if ((doc.cc ?? []).length > 0) return doc
+  const added: string[] = []
+  const remainingBody: LegalDoc["body"] = []
+  for (const paragraph of doc.body) {
+    if (paragraph.type !== "p") {
+      remainingBody.push(paragraph)
+      continue
+    }
+    const text = paragraph.text.trim()
+    // 整段以“抄送：”开头
+    const whole = text.match(/^抄送[:：]\s*(.+)$/)
+    if (whole) {
+      const names = splitCcContent(whole[1])
+      if (names.length > 0) {
+        added.push(...names)
+        continue
+      }
+    }
+    // 收尾语紧跟“抄送：”（如“特此通知。抄送：××”）
+    const trailing = text.match(
+      /^(特此通知|特此函告|特此公告|特此通告|特此批复|特此请示|此复|此告|特此)[。\.]?\s*抄送[:：]\s*(.+)$/
+    )
+    if (trailing) {
+      const names = splitCcContent(trailing[2])
+      if (names.length > 0) {
+        added.push(...names)
+        remainingBody.push({ ...paragraph, text: `${trailing[1]}。` })
+        continue
+      }
+    }
+    remainingBody.push(paragraph)
+  }
+  if (added.length === 0) return doc
+  const repaired = {
+    ...doc,
+    cc: [...added],
+    body: remainingBody,
+  }
+  repairs.push(
+    makeRepair(
+      "REPAIR_EXTRACT_CC",
+      `正文中的“抄送：…”已提取到版记抄送栏（${added.join("、")}），避免抄送混入正文。`
+    )
   )
   return repaired
 }
 
 /**
  * 依次执行全部保守修复（顺序敏感：先补 recipient 冒号，再提取附件段，
- * 最后统一文号括号）。返回修复后的 doc 与所有本次执行的修复说明。
+ * 再补红头兜底，再提取抄送段，最后统一文号括号）。返回修复后的 doc 与所有本次执行的修复说明。
  */
 export function repairDoc(doc: LegalDoc): RepairResult {
   const repairs: RepairInfo[] = []
   let current = doc
   current = repairRecipientColon(current, repairs)
   current = extractAttachmentParagraphs(current, repairs)
+  current = inferRedHeadFromIssuer(current, repairs)
+  current = extractCcParagraph(current, repairs)
   current = normalizeDocNumberYearBracket(current, repairs)
   return { doc: current, repairs }
 }

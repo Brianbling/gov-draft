@@ -20,9 +20,7 @@ function buildDoc(overrides: Partial<LegalDoc> = {}): LegalDoc {
 
 describe("repairDoc · 保守修复带", () => {
   it("recipient 末尾缺全角冒号时补上，并返回 REPAIR_RECIPIENT_COLON", () => {
-    const { doc, repairs } = repairDoc(
-      buildDoc({ recipient: "各区人民政府" })
-    )
+    const { doc, repairs } = repairDoc(buildDoc({ recipient: "各区人民政府" }))
     expect(doc.recipient).toBe("各区人民政府：")
     expect(repairs).toEqual([
       expect.objectContaining({ code: "REPAIR_RECIPIENT_COLON" }),
@@ -46,9 +44,7 @@ describe("repairDoc · 保守修复带", () => {
   })
 
   it("recipient 末尾是标点（“省人民政府。”）时不补冒号", () => {
-    const { doc, repairs } = repairDoc(
-      buildDoc({ recipient: "省人民政府。" })
-    )
+    const { doc, repairs } = repairDoc(buildDoc({ recipient: "省人民政府。" }))
     expect(doc.recipient).toBe("省人民政府。")
     expect(repairs).toHaveLength(0)
   })
@@ -79,9 +75,7 @@ describe("repairDoc · 保守修复带", () => {
   it("正文“附件：1.任务清单；2.责任分工表”按编号结构拆分为多个附件", () => {
     const { doc, repairs } = repairDoc(
       buildDoc({
-        body: [
-          { type: "p", text: "附件：1.任务清单；2.责任分工表" },
-        ],
+        body: [{ type: "p", text: "附件：1.任务清单；2.责任分工表" }],
       })
     )
     expect(doc.attachments).toEqual(["任务清单", "责任分工表"])
@@ -117,9 +111,7 @@ describe("repairDoc · 保守修复带", () => {
   it("正文“附件：1.任务清单，2.责任分工表”用逗号/顿号分隔的编号项也能拆分", () => {
     const { doc } = repairDoc(
       buildDoc({
-        body: [
-          { type: "p", text: "附件：1.任务清单，2.责任分工表" },
-        ],
+        body: [{ type: "p", text: "附件：1.任务清单，2.责任分工表" }],
       })
     )
     expect(doc.attachments).toEqual(["任务清单", "责任分工表"])
@@ -141,9 +133,7 @@ describe("repairDoc · 保守修复带", () => {
   it("正文“附件：任务清单；责任分工表”无编号结构时整段作为一个附件", () => {
     const { doc, repairs } = repairDoc(
       buildDoc({
-        body: [
-          { type: "p", text: "附件：任务清单；责任分工表" },
-        ],
+        body: [{ type: "p", text: "附件：任务清单；责任分工表" }],
       })
     )
     expect(doc.attachments).toEqual(["任务清单；责任分工表"])
@@ -153,7 +143,9 @@ describe("repairDoc · 保守修复带", () => {
   })
 
   it("recipient 末尾是问号/叹号时不补冒号", () => {
-    const { doc, repairs } = repairDoc(buildDoc({ recipient: "各区人民政府？" }))
+    const { doc, repairs } = repairDoc(
+      buildDoc({ recipient: "各区人民政府？" })
+    )
     expect(doc.recipient).toBe("各区人民政府？")
     expect(repairs).toHaveLength(0)
     const { doc: doc2, repairs: repairs2 } = repairDoc(
@@ -194,9 +186,104 @@ describe("repairDoc · 保守修复带", () => {
   })
 
   it("无任何命中时返回原 doc（repairs 为空）", () => {
-    const input = buildDoc()
+    const input = buildDoc({ issuingOrg: "××市人民政府文件" })
     const { doc, repairs } = repairDoc(input)
     expect(doc).toEqual(input)
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("有文号无红头但有发文机关署名时，推导红头为 署名+文件", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({ issuer: "重庆市人民政府办公室", issuingOrg: undefined })
+    )
+    expect(doc.issuingOrg).toBe("重庆市人民政府办公室文件")
+    expect(repairs).toEqual([
+      expect.objectContaining({ code: "REPAIR_INFER_RED_HEAD" }),
+    ])
+  })
+
+  it("有文号无红头且无 issuer 时不推导，交给 format-check 提示", () => {
+    const { doc, repairs } = repairDoc(buildDoc())
+    expect(doc.issuingOrg).toBeUndefined()
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("无文号时不推导红头", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({ docNumber: undefined, issuer: "××市人民政府" })
+    )
+    expect(doc.issuingOrg).toBeUndefined()
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("已有红头时不重复推导", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({ issuer: "××市人民政府", issuingOrg: "××市人民政府文件" })
+    )
+    expect(doc.issuingOrg).toBe("××市人民政府文件")
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("issuer 已带“文件”字样时不重复叠加", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({ issuer: "××市人民政府文件", issuingOrg: undefined })
+    )
+    expect(doc.issuingOrg).toBeUndefined()
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("正文整段“抄送：××”提取到 cc 并从正文移除", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        body: [
+          { type: "p", text: "现将有关事项通知如下。" },
+          { type: "p", text: "抄送：市委办公厅、市政府办公室。" },
+        ],
+      })
+    )
+    expect(doc.cc).toEqual(["市委办公厅", "市政府办公室"])
+    expect(doc.body).toHaveLength(1)
+    expect(doc.body[0].text).toBe("现将有关事项通知如下。")
+    expect(repairs).toEqual([
+      expect.objectContaining({ code: "REPAIR_EXTRACT_CC" }),
+    ])
+  })
+
+  it("正文“特此通知。抄送：××”保留收尾语、抄送提取到 cc", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        body: [
+          { type: "p", text: "特此通知。抄送：市委办公厅、市政府办公室。" },
+        ],
+      })
+    )
+    expect(doc.cc).toEqual(["市委办公厅", "市政府办公室"])
+    expect(doc.body).toHaveLength(1)
+    expect(doc.body[0].text).toBe("特此通知。")
+    expect(repairs).toEqual([
+      expect.objectContaining({ code: "REPAIR_EXTRACT_CC" }),
+    ])
+  })
+
+  it("正文句子中出现“抄送”但前文非收尾语时不提取", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        body: [{ type: "p", text: "本通知抄送有关部门备案。" }],
+      })
+    )
+    expect(doc.cc).toBeUndefined()
+    expect(repairs).toHaveLength(0)
+  })
+
+  it("cc 已有条目时不提取正文抄送段", () => {
+    const { doc, repairs } = repairDoc(
+      buildDoc({
+        cc: ["市委办公厅"],
+        body: [{ type: "p", text: "抄送：市政府办公室" }],
+      })
+    )
+    expect(doc.cc).toEqual(["市委办公厅"])
+    expect(doc.body).toHaveLength(1)
     expect(repairs).toHaveLength(0)
   })
 })

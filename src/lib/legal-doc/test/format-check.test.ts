@@ -6,6 +6,7 @@ function buildDoc(overrides: Partial<LegalDoc> = {}): LegalDoc {
   return {
     docType: "gongwen",
     title: "关于加强数字政府建设的通知",
+    issuingOrg: "××市人民政府文件",
     docNumber: "国发〔2026〕12号",
     securityLevel: "秘密",
     urgency: "加急",
@@ -54,6 +55,22 @@ describe("checkFormat", () => {
 
   it("accepts a valid bracketed year docNumber", () => {
     expect(checkFormat(buildDoc({ docNumber: "X政发〔2026〕3号" }))).toEqual([])
+  })
+
+  it("flags a docNumber without a red head (issuingOrg)", () => {
+    const issues = checkFormat(
+      buildDoc({ issuingOrg: undefined, docNumber: "国发〔2026〕12号" })
+    )
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({
+      field: "issuingOrg",
+      code: "DOC_NUMBER_WITHOUT_RED_HEAD",
+      severity: "error",
+    })
+  })
+
+  it("accepts a docNumber with a red head", () => {
+    expect(checkFormat(buildDoc())).toEqual([])
   })
 
   it.each(["秘密", "机密", "绝密"])(
@@ -161,9 +178,7 @@ describe("checkFormat", () => {
   })
 
   it("L1 结构性错误（空正文段落/空标题）标为 severity=error", () => {
-    const issues = checkFormat(
-      buildDoc({ body: [{ type: "p", text: "   " }] })
-    )
+    const issues = checkFormat(buildDoc({ body: [{ type: "p", text: "   " }] }))
     expect(issues[0]).toMatchObject({
       field: "body[0].text",
       code: "PARAGRAPH_EMPTY",

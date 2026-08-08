@@ -16,6 +16,7 @@ import {
 } from "@codemirror/view"
 import i18n from "@/locales"
 import type { EditorSettings } from "@/stores/settings-store"
+import { useSettingsStore } from "@/stores/settings-store"
 
 import { syntaxHighlightingExtension } from "./features/syntax-highlight"
 import { searchExtension } from "./features/search"
@@ -28,7 +29,7 @@ import {
   lineNumbersExtension,
   tabSizeExtension,
 } from "./features/editor-config"
-import { sugarFoldExtension } from "./features/syntax-fold"
+import { sugarFoldExtension, refoldSugar } from "./features/syntax-fold"
 
 interface CreateEditorStateOptions {
   content: string
@@ -110,4 +111,13 @@ export function replaceDocument(view: EditorView, content: string): void {
     changes: { from: 0, to: view.state.doc.length, insert: content },
     annotations: [isolateHistory.of("full")],
   })
+  // 外部整篇替换（AI 生成/导入/回灌）后折叠状态是旧的：replaceDocument 直接
+  // 替换全文，CodeMirror 不重算 fold，新内容里所有 `:::` 容器全部展开显示。
+  // 折叠是纯视觉态，dispatch 后立即按 showLayoutCode 重新折叠/展开。
+  // 读取 store 而非订阅 prop：这里不因设置变化重跑（设置变化走 editor-config
+  // 的 applyEditorSettings → refoldSugar，避免双重 dispatch）。
+  const settings = useSettingsStore.getState().editorSettings
+  if (!settings.showLayoutCode) {
+    refoldSugar(view, true)
+  }
 }
