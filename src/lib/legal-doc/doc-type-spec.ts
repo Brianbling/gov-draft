@@ -2,6 +2,18 @@ import type { DocType, LegalDoc } from "./types"
 import type { FormatIssue } from "./format-check"
 
 /**
+ * 是否文件式红头文种（GB/T 9704 §7.2.4）：仅通知（gongwen）、通报（communique）
+ * 使用"发文机关标志+文件"式红头版头。其他文种（意见/请示/批复/函/决议/命令/
+ * 公报/议案等）无文件式红头——命令是"×××令"标志、决议/公报用题注、纪要用
+ * "××会议纪要"版头。单一事实源：format-check 成对校验、repair-doc 红头兜底
+ * 推导、to-markdown 红头渲染三处共用，杜绝口径漂移。
+ */
+export function isFileRedHeadDocType(docType: DocType): boolean {
+  return docType === "gongwen" || docType === "communique"
+}
+
+
+/**
  * 文种规范（单一事实源）。
  * 现状问题：prompt.ts 的 DOC_TYPE_FORMAT_REQUIREMENTS 与 review/format-rules.ts
  * 的 registry 双写同一份文种知识（请示结尾语、批复收悉语、报告禁请示语、函协商语气、

@@ -1,5 +1,6 @@
 import type { LegalDoc } from "../types"
 import type { FormatIssue } from "../format-check"
+import { isFileRedHeadDocType } from "../doc-type-spec"
 
 /**
  * 保守修复带：在 normalizeDoc 之后、reviewDocument 之前调用。
@@ -139,7 +140,7 @@ function inferRedHeadFromIssuer(
   // 仅通知（gongwen）、通报（communique）使用文件式红头版头；其他文种
   // （意见/请示/批复/函/决议/命令/公报/议案等）无红头格式，不推导。
   // 会议纪要的版头是"××会议纪要"而非"××文件"，同样排除。
-  if (doc.docType !== "gongwen" && doc.docType !== "communique") return doc
+  if (!isFileRedHeadDocType(doc.docType)) return doc
   const issuer = doc.issuer?.trim() ?? ""
   if (issuer.length === 0) return doc
   if (issuer.includes("文件")) return doc

@@ -1,5 +1,6 @@
 import type { LegalDoc } from "./types"
 import { isValidIsoDate } from "./format-check"
+import { isFileRedHeadDocType } from "./doc-type-spec"
 
 const SEPARATOR = "\n"
 
@@ -187,7 +188,10 @@ export function toMarkdown(doc: LegalDoc): string {
   // 小字号收窄防多字铺不下）——该变量由 body-builder 的 .local-style-container
   // 规则消费，覆盖 body 的 charsPerLine 字距 calc（大字号下 calc 会变负值导致
   // 红字重叠，见 heading-builder 同构处理）。
-  if (doc.issuingOrg && doc.issuingOrg.trim().length > 0) {
+  // 仅文件式红头文种（通知/通报）渲染红头——其他文种的 issuingOrg 即使被 LLM
+  // 填了（如命令的"×××令"标志）也不渲染成"×××文件"式红头（isFileRedHeadDocType）。
+  const hasFileRedHead = isFileRedHeadDocType(doc.docType)
+  if (hasFileRedHead && doc.issuingOrg && doc.issuingOrg.trim().length > 0) {
     const org = doc.issuingOrg.trim()
     const redSize = redHeadFontSize(org)
     const redLetterSpacing = redSize === "42pt" || redSize === "36pt" ? "4pt" : "3pt"
@@ -209,7 +213,7 @@ export function toMarkdown(doc: LegalDoc): string {
   // 无红头时（意见等无文件式红头文种）文号顶格无前置间距。
   const isUpwardDoc = doc.docType === "request" || doc.docType === "report"
   if (doc.docNumber) {
-    const hasRedHead = doc.issuingOrg && doc.issuingOrg.trim().length > 0
+    const hasRedHead = hasFileRedHead && doc.issuingOrg && doc.issuingOrg.trim().length > 0
     const alignment = isUpwardDoc ? UPWARD_DOC_NUMBER : CENTERED
     const docNumberLines = [doc.docNumber]
     if (isUpwardDoc && doc.signer) {
@@ -223,7 +227,7 @@ export function toMarkdown(doc: LegalDoc): string {
 
   // 红色分隔线（GB/T 9704 §7.2.6）：文件式红头（红头+文号齐全）下方通栏红线的
   // 前置条件，在发文字号下 4mm 处。`---` 经 red-rule-line 插件渲染为红色横线。
-  if (doc.issuingOrg && doc.docNumber) {
+  if (hasFileRedHead && doc.issuingOrg && doc.docNumber) {
     blocks.push(["---"])
   }
 

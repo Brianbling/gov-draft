@@ -1,5 +1,6 @@
 import type { LegalDoc } from "./types"
 import { matchOrgCode } from "./org-code"
+import { isFileRedHeadDocType } from "./doc-type-spec"
 
 const MAX_TITLE_LENGTH = 30
 const DOC_NUMBER_YEAR_PATTERN = /〔\d{4}〕/
@@ -85,7 +86,7 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
   // 红头（发文机关标志）+ 发文字号成对：仅通知（gongwen）、通报（communique）
   // 使用文件式红头版头。其他文种（意见/请示/批复/函/决议/命令/公报/议案等）
   // 无文件式红头格式，有文号无红头属正常，不强制成对。
-  const usesFileRedHead = doc.docType === "gongwen" || doc.docType === "communique"
+  const usesFileRedHead = isFileRedHeadDocType(doc.docType)
   if (usesFileRedHead) {
     if (doc.docNumber && !doc.issuingOrg) {
       issues.push({

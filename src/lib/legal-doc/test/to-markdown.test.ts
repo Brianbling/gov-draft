@@ -473,6 +473,7 @@ describe("toMarkdown", () => {
   })
 
   it("上行文（请示）文号居左空一字 + 同容器签发人（doc-number-line）", () => {
+    // 请示非文件式红头文种：文号居左空一字、带签发人，但不套红头下空二行间距
     const markdown = toMarkdown(
       buildDoc({
         docType: "request",
@@ -481,9 +482,26 @@ describe("toMarkdown", () => {
       })
     )
     expect(markdown).toContain(
-      "::: content.body.paragraph.align: left; content.body.paragraph.indent: 1em; content.body.paragraph.spacing.before: 57.9pt; class: doc-number-line"
+      "::: content.body.paragraph.align: left; content.body.paragraph.indent: 1em"
     )
+    expect(markdown).not.toContain("spacing.before: 57.9pt")
     expect(markdown).toContain("国发〔2026〕12号\n签发人：×××\n:::")
+  })
+
+  it("非文件式红头文种（请示）即使带 issuingOrg 也不渲染红头容器", () => {
+    // 命令/请示/函等无文件式红头格式：LLM 若填了 issuingOrg（如命令的"×××令"），
+    // 渲染层不得把它当"×××文件"式红头（isFileRedHeadDocType 门控），也不出分隔线。
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "request",
+        issuingOrg: "××市人民政府文件",
+        docNumber: "×政〔2026〕12号",
+      })
+    )
+    expect(markdown).not.toContain("#e60012")
+    expect(markdown).not.toContain("content.body.style.size: 36pt")
+    expect(markdown).not.toContain("\n---\n")
+    expect(markdown).toContain("×政〔2026〕12号")
   })
 
   it("上行文（报告）无签发人时仍居左，不输出签发人行", () => {
