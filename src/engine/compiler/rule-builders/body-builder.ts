@@ -3,6 +3,7 @@ import type { HostSelectors, StyleNode } from "../types"
 import { scopeSelectors } from "../css-scope"
 import { toCssCustomProperty } from "../css-variable"
 import {
+  buildCharGridExpression,
   buildCharGridLetterSpacing,
   buildCharGridTrailingCompensation,
   buildContentFontPath,
@@ -28,6 +29,19 @@ export function buildBodyRules(
     "body",
     config.content.body.paragraph.charsPerLine
   )
+  // 字格 letter-spacing 的 fallback（未覆盖时用的 calc 表达式原文）。容器级
+  // 字号覆盖（红头 48px/版记 14pt）会把 --content-body-style-size 换成容器值，
+  // calc 随字号变号（红头 28 格下 48px → 负字距重叠）。`: : :` 描述符通过
+  // content.body.paragraph.letterSpacing 覆盖字距；这里消费该变量，变量未设时
+  // 回退到字格 calc（默认行为不变）。::after 尾距补偿必须用同一变量覆盖值，
+  // 否则仍按字格 calc 补偿、与行内实际字距不一致（→ 居中行被 +26.94px 的
+  // ::after 压偏 13.5px，红头与文号对不齐）。
+  const letterSpacingVar = toCssCustomProperty(
+    "content.body.paragraph.letterSpacing"
+  )
+  const gridExpression = config.content.body.paragraph.charsPerLine
+    ? buildCharGridExpression("body", config.content.body.paragraph.charsPerLine)
+    : null
   return [
     styleRule(host.rootContent, [
       declaration(
@@ -111,11 +125,16 @@ export function buildBodyRules(
     // 抵消该尾距（M3 ①）。与 buildCharGridLetterSpacing 成对出现，无字格时不生成。
     // 容器级字号覆盖（版记 14pt、红头 22pt）会同时覆盖 --content-body-style-size，
     // 补偿公式里的 fontSize 与 letter-spacing 同步更新，容器内仍然一致，无需特判。
-    ...(bodyGridTrailing
+    // 容器覆盖 letter-spacing（红头 4pt）时，补偿用同一变量覆盖值——否则 ::after
+    // 仍按字格 calc 补偿，与行内实际字距不一致，把居中行压偏半字距（见上）。
+    ...(bodyGridTrailing && gridExpression
       ? [
           styleRule(scopeSelectors(["p::after"], host.rootContent), [
             declaration("content", '""'),
-            bodyGridTrailing,
+            declaration(
+              "margin-right",
+              `calc(-1 * (var(${letterSpacingVar}, ${gridExpression})))`
+            ),
           ]),
         ]
       : []),
@@ -190,7 +209,14 @@ export function buildBodyRules(
         `var(${toCssCustomProperty("content.body.paragraph.spacing.lineHeight")})`
       ),
       declaration("word-break", bodyWordBreak),
-      ...(bodyLetterSpacing ? [bodyLetterSpacing] : []),
+      ...(bodyLetterSpacing
+        ? [
+            declaration(
+              "letter-spacing",
+              `var(${letterSpacingVar}, ${bodyLetterSpacing.value})`
+            ),
+          ]
+        : []),
     ]),
     // 红色分隔线（红头红线，GB/T 9704 §7.2.6）：通栏红色横线，位于发文字号
     // 下 4mm 处。由 red-rule-line 插件把 `---` 渲染为 `<hr class="red-rule-line">`。

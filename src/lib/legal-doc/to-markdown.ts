@@ -216,13 +216,17 @@ export function toMarkdown(doc: LegalDoc): string {
     const hasRedHead = hasFileRedHead && doc.issuingOrg && doc.issuingOrg.trim().length > 0
     const alignment = isUpwardDoc ? UPWARD_DOC_NUMBER : CENTERED
     const docNumberLines = [doc.docNumber]
-    if (isUpwardDoc && doc.signer) {
+    // 上行文带签发人时两行同行（文号居左、签发人靠右），用 flex 两端对齐；
+    // 下行文（通知）文号单行居中，只靠 text-align: center，绝不能套
+    // doc-number-line——flex 会无视 text-align，把单行挤向一侧与红头错位。
+    const needFlex = isUpwardDoc && Boolean(doc.signer)
+    if (needFlex) {
       docNumberLines.push(`签发人：${doc.signer}`)
     }
-    const docNumberStyle = hasRedHead
-      ? `${alignment}; content.body.paragraph.spacing.before: 57.9pt; class: doc-number-line`
-      : alignment
-    blocks.push(container(docNumberStyle, docNumberLines))
+    const styleParts = [alignment]
+    if (hasRedHead) styleParts.push("content.body.paragraph.spacing.before: 57.9pt")
+    if (needFlex) styleParts.push("class: doc-number-line")
+    blocks.push(container(styleParts.join("; "), docNumberLines))
   }
 
   // 红色分隔线（GB/T 9704 §7.2.6）：文件式红头（红头+文号齐全）下方通栏红线的

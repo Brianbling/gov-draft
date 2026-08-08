@@ -514,13 +514,16 @@ describe("toMarkdown", () => {
     expect(markdown).not.toContain("签发人：")
   })
 
-  it("下行文（通知）文号保持居中，不输出签发人", () => {
+  it("下行文（通知）文号保持居中，不输出签发人，也不套 flex 类", () => {
     const markdown = toMarkdown(
       buildDoc({ issuingOrg: "××市人民政府文件", signer: "×××" })
     )
+    // 下行文文号单行居中：只带 CENTERED（text-align: center），不带
+    // doc-number-line——flex 会无视 text-align 把单行挤向一侧，与红头错位。
     expect(markdown).toContain(
-      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.paragraph.spacing.before: 57.9pt; class: doc-number-line"
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.paragraph.spacing.before: 57.9pt"
     )
+    expect(markdown).not.toContain("class: doc-number-line")
     expect(markdown).not.toContain("签发人：")
   })
 
