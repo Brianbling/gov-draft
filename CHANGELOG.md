@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - **工具栏格式按钮点击后不回焦编辑器**：点击 `<button>` 使 DOM 焦点离开编辑器，后续打字/Ctrl+Z 失效。`format()` 执行成功后 `view.focus()` 回焦。
 - **A4Paper fitScale 负值闪跳**：clientWidth 为 0 时 fitScale 算出负值让预览消失；clamp 到 0.1，并用 ResizeObserver 替代 window resize 监听。
 - **要素编辑面板回填丢用户正文修改**：patchMarkdownElements 按槽位替换丢新增段，重写为整体区域替换（要素区重建自 IR 快照、正文区保留编辑器当前内容）。
+- **工具栏标题按钮无激活态指示**：光标移到某级标题行时对应按钮无视觉反馈，用户无法确认当前所在层级。修复：CodeMirror 新增 `onActiveHeadingChange` 回调（selectionSet/docChanged 时上报当前行 `#` 数量），App 经 Toolbar 传给 FormatButtons；h1/h2/h3 按钮（对应 `##`/`###`/`####`）命中层级时切换 `secondary` variant + `aria-pressed`。
 
 ## [0.1.9] - 2026-08-08
 

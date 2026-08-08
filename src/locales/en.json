@@ -111,6 +111,7 @@
 		"title": "AI Generate Official Document",
 		"close": "Close",
 		"generate": "Generate",
+		"regenerate": "Regenerate",
 		"generating": "Generating...",
 		"docTypeLabel": "Document Type",
 		"docTypePlaceholder": "Select document type",

@@ -288,6 +288,19 @@ export function adjustParagraphIndent(
 }
 
 /**
+ * 查询选区主光标所在行的标题层级（`#` 数量），非标题行返回 0。
+ * 供工具栏按钮显示激活态：公文语义下 h1 按钮对应 `##`（一级标题），
+ * 故返回 2 时 h1 按钮应处于激活态。
+ */
+export function getCurrentHeadingLevel(view: EditorView): number {
+  const { state } = view
+  const { from } = state.selection.main
+  const line = state.doc.lineAt(from)
+  const m = line.text.match(/^(#{1,6})\s/)
+  return m ? m[1]!.length : 0
+}
+
+/**
  * 格式化分派:工具栏按钮通过 CodeMirrorHandle 调用此函数。
  *
  * 公文语义:引擎里 `#` 是红头/文题(GB/T 9704 §7.2.4, 22pt 红字居中),

@@ -22,6 +22,7 @@ import { searchExtension } from "./features/search"
 import { autoPairExtension } from "./features/auto-pair"
 import { highlightActiveLine } from "./features/active-line"
 import { lineWrapExtension } from "./features/line-wrap"
+import { getCurrentHeadingLevel } from "./features/format-commands"
 import {
   fontSizeExtension,
   lineNumbersExtension,
@@ -33,6 +34,8 @@ interface CreateEditorStateOptions {
   content: string
   onChange: (value: string) => void
   settings: EditorSettings
+  /** 光标/选区变化时上报当前行标题层级（`#` 数量，非标题行为 0）。 */
+  onActiveHeadingChange?: (level: number) => void
 }
 
 const MIN_LINE_NUMBER_DIGITS = 2
@@ -79,6 +82,12 @@ export function createEditorState(
     EditorView.updateListener.of((update) => {
       if (!update.docChanged) return
       options.onChange(update.state.doc.toString())
+    }),
+    EditorView.updateListener.of((update) => {
+      if (!options.onActiveHeadingChange) return
+      if (update.selectionSet || update.docChanged) {
+        options.onActiveHeadingChange(getCurrentHeadingLevel(update.view))
+      }
     }),
     EditorView.contentAttributes.of({
       "aria-label": i18n.t("codemirror.editorAria"),

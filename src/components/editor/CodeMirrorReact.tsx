@@ -13,6 +13,8 @@ import type { EditorSettings } from "@/stores/settings-store"
 interface CodeMirrorReactProps {
   value: string
   onChange: (value: string) => void
+  /** 光标/选区移动时上报当前行标题层级（`#` 数量，非标题行为 0）。 */
+  onActiveHeadingChange?: (level: number) => void
 }
 
 export interface CodeMirrorHandle {
@@ -24,10 +26,11 @@ export interface CodeMirrorHandle {
 }
 
 const CodeMirrorReact = forwardRef<CodeMirrorHandle, CodeMirrorReactProps>(
-  function CodeMirrorReact({ value, onChange }, ref) {
+  function CodeMirrorReact({ value, onChange, onActiveHeadingChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const onChangeRef = useRef(onChange)
+    const onActiveHeadingChangeRef = useRef(onActiveHeadingChange)
 
     const editorSettings = useSettingsStore((s) => s.editorSettings)
     // Snapshot of the settings the view was last configured with, so the
@@ -37,6 +40,10 @@ const CodeMirrorReact = forwardRef<CodeMirrorHandle, CodeMirrorReactProps>(
     useEffect(() => {
       onChangeRef.current = onChange
     }, [onChange])
+
+    useEffect(() => {
+      onActiveHeadingChangeRef.current = onActiveHeadingChange
+    }, [onActiveHeadingChange])
 
     useImperativeHandle(ref, () => ({
       undo: () => {
@@ -76,6 +83,10 @@ const CodeMirrorReact = forwardRef<CodeMirrorHandle, CodeMirrorReactProps>(
           onChangeRef.current(newValue)
         },
         settings: initialSettings,
+        // 光标/选区变化上报当前行标题层级，驱动工具栏按钮激活态。
+        onActiveHeadingChange: (level) => {
+          onActiveHeadingChangeRef.current?.(level)
+        },
       })
       const view = new EditorView({
         state,

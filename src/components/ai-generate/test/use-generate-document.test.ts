@@ -23,7 +23,7 @@ vi.mock("@/lib/llm", () => ({
 }))
 
 const { generateDocument } = await import("@/lib/llm")
-const { useGenerateDocument } = await import(
+const { useGenerateDocument, resetGenerateSession } = await import(
   "@/hooks/use-generate-document"
 )
 const { useDocStore } = await import("@/stores/doc-store")
@@ -48,6 +48,7 @@ describe("useGenerateDocument 状态流", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useDocStore.getState().reset()
+    resetGenerateSession()
   })
 
   it("初始态 idle", () => {
@@ -280,6 +281,7 @@ describe("useGenerateDocument · 表单辅助路径", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useDocStore.getState().reset()
+    resetGenerateSession()
   })
 
   it("填写表单要素 → prompt 追加表单约束 → 生成成功", async () => {
@@ -394,6 +396,7 @@ describe("useGenerateDocument · applyEdit 要素编辑回填（#29）", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useDocStore.getState().reset()
+    resetGenerateSession()
   })
 
   async function generateOnce(): Promise<{
@@ -473,6 +476,53 @@ describe("useGenerateDocument · applyEdit 要素编辑回填（#29）", () => {
       result.current.applyEdit({ title: "新标题", docNumber: "国发〔2026〕12号" })
     })
     expect(result.current.issues.map((i) => i.code)).not.toContain(
+      "DOC_NUMBER_YEAR_MISSING",
+    )
+  })
+
+  it("3.7 关窗重开：从模块级恢复上次生成结果，可直接续编（不丢 issues）", async () => {
+    mockGenerateDocument.mockResolvedValue(
+      JSON.stringify({
+        docType: "gongwen",
+        title: "关于推进垃圾分类工作的通知",
+        docNumber: "国发12号",
+        body: [{ type: "p", text: "正文" }],
+      }),
+    )
+    // 第一次挂载：生成成功，写入模块级 lastResult/lastIssues
+    const first = renderHook(() => useGenerateDocument())
+    act(() => first.result.current.setPrompt("帮我写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = first.result.current.generate()
+    })
+    await act(async () => {
+      await promise
+    })
+    expect(first.result.current.status).toBe("done")
+    expect(first.result.current.issues.map((i) => i.code)).toContain(
+      "DOC_NUMBER_YEAR_MISSING",
+    )
+    // 卸载组件（等价关闭弹窗）：组件 state 全丢，但模块级保留
+    first.unmount()
+
+    // 第二次挂载（等价重开弹窗）：从模块级恢复 done 态 + 上次结果 + issues
+    const second = renderHook(() => useGenerateDocument())
+    expect(second.result.current.status).toBe("done")
+    expect(second.result.current.result?.title).toBe(
+      "关于推进垃圾分类工作的通知",
+    )
+    expect(second.result.current.issues.map((i) => i.code)).toContain(
+      "DOC_NUMBER_YEAR_MISSING",
+    )
+    // 续编：直接改文号，格式自检跟着更新
+    act(() => {
+      second.result.current.applyEdit({
+        title: "关于推进垃圾分类工作的通知",
+        docNumber: "国发〔2026〕12号",
+      })
+    })
+    expect(second.result.current.issues.map((i) => i.code)).not.toContain(
       "DOC_NUMBER_YEAR_MISSING",
     )
   })

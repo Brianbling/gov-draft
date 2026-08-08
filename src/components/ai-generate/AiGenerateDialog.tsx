@@ -437,9 +437,32 @@ function AiGeneratePanel({
 
       <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">
         {isDone ? (
-          <Button type="button" size="sm" onClick={handleClose}>
-            {t("aiGenerate.close")}
-          </Button>
+          <>
+            <Button type="button" size="sm" onClick={handleClose}>
+              {t("aiGenerate.close")}
+            </Button>
+            {/* 3.7: 重开弹窗续编时 isDone 状态下也要能发起全新生成，
+                否则用户被卡在编辑面板，想重生成只能关窗再开 */}
+            <Button
+              type="button"
+              size="sm"
+              disabled={!hasContent}
+              onClick={handleGenerate}
+            >
+              {isGenerating ? (
+                <HugeiconsIcon
+                  icon={AiMagicIcon}
+                  strokeWidth={2}
+                  className="animate-spin"
+                />
+              ) : (
+                <HugeiconsIcon icon={AiMagicIcon} strokeWidth={2} />
+              )}
+              {isGenerating
+                ? t("aiGenerate.generating")
+                : t("aiGenerate.regenerate")}
+            </Button>
+          </>
         ) : (
           <>
             <Button

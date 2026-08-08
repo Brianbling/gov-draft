@@ -125,17 +125,37 @@ export interface GenerateResult {
   title: string
 }
 
+/**
+ * 模块级最近一次生成结果，跨弹窗会话保留（3.7）：关闭 AI 生成弹窗（组件
+ * 卸载）后，`result/issues` 不丢。重开弹窗时从这两个值恢复"编辑已生成文档"
+ * 状态，避免"关窗即丢、重开即空、被迫重新生成"。reset() 只清 UI 临时态，
+ * 不碰这两个值；下次 generate 成功才覆盖。
+ */
+let lastResult: LegalDoc | null = null
+let lastIssues: FormatIssue[] = []
+
+/** 清空跨会话保留的最近生成结果（测试隔离 / 用户主动开始全新会话时用）。 */
+export function resetGenerateSession(): void {
+  lastResult = null
+  lastIssues = []
+}
+
 export function useGenerateDocument() {
   const [prompt, setPrompt] = useState("")
   const [docType, setDocType] = useState<DocType>(DOC_TYPE_DEFAULT)
   // 表单辅助模式：按文种 formFields 填写的结构化要素。未触碰时保持 undefined，
   // 生成的 prompt 约束只包含用户确实填过的字段。
-  const [formValues, setFormValues] = useState<FormValues>({})
-  const [status, setStatus] = useState<GenerateStatus>("idle")
+  // 重开弹窗续编时（lastResult 存在），把上次生成结果拍平回表单初值。
+  const [formValues, setFormValues] = useState<FormValues>(
+    lastResult ? docToFormValues(lastResult) : {}
+  )
+  const [status, setStatus] = useState<GenerateStatus>(
+    lastResult ? "done" : "idle"
+  )
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [formErrors, setFormErrors] = useState<string[]>([])
-  const [result, setResult] = useState<LegalDoc | null>(null)
-  const [issues, setIssues] = useState<FormatIssue[]>([])
+  const [result, setResult] = useState<LegalDoc | null>(lastResult)
+  const [issues, setIssues] = useState<FormatIssue[]>(lastIssues)
 
   // 生成是异步的：用户在生成中关闭对话框（Radix 卸载组件）后，
   // 挂载守卫防止 generate() 完成后把结果静默写进 store / 编辑器。
@@ -212,6 +232,8 @@ export function useGenerateDocument() {
       useDocStore.getState().setContent(markdown)
       useDocStore.getState().setTitle(doc.title)
       const nextIssues = [...repairsToIssues(repairs), ...reviewDocument(doc)]
+      lastResult = doc
+      lastIssues = nextIssues
       setResult(doc)
       // 生成成功后把 LegalDoc 拍平回 formValues：对话框的要素区从"生成前约束表单"
       // 切换为"生成后编辑面板"，初值即 AI 实际产出，用户可直接改。
@@ -267,10 +289,13 @@ export function useGenerateDocument() {
       const markdown = patchMarkdownElements(current, next)
       useDocStore.getState().setContent(markdown)
       useDocStore.getState().setTitle(next.title)
+      const nextIssues = reviewDocument(next)
+      lastResult = next
+      lastIssues = nextIssues
       setResult(next)
       // 要素改动可能消除/引入格式问题（如修正文号消除 DOC_NUMBER_YEAR_MISSING），
       // 用编辑后的 doc 重跑一遍格式自检，让"格式自检"面板与所见一致。
-      setIssues(reviewDocument(next))
+      setIssues(nextIssues)
       return markdown
     },
     [result]

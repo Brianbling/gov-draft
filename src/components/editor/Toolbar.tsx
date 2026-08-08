@@ -37,9 +37,11 @@ const OPEN_IMPORT_EVENT = "ezdoc:open-import"
 
 interface ToolbarProps {
   editorRef: React.RefObject<CodeMirrorHandle | null>
+  /** 光标所在行标题层级，转发给 FormatButtons 显示激活态。 */
+  activeHeadingLevel?: number
 }
 
-export function Toolbar({ editorRef }: ToolbarProps) {
+export function Toolbar({ editorRef, activeHeadingLevel }: ToolbarProps) {
   const { t } = useTranslation()
   const { importFile, exportMarkdown, exportHtml } = useFileSystem()
   const { exportPdf, isSupported: pdfSupported } = usePdfExport()
@@ -147,7 +149,10 @@ export function Toolbar({ editorRef }: ToolbarProps) {
       <span className="mx-1 h-4 w-px bg-border" />
 
       {/* Format buttons */}
-      <FormatButtons editorRef={editorRef} />
+      <FormatButtons
+        editorRef={editorRef}
+        activeHeadingLevel={activeHeadingLevel ?? 0}
+      />
       <LayoutCodeToggle />
 
       <span className="mx-1 h-4 w-px bg-border" />

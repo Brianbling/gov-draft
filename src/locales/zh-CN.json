@@ -111,6 +111,7 @@
 		"title": "AI 生成公文",
 		"close": "关闭",
 		"generate": "生成",
+		"regenerate": "重新生成",
 		"generating": "生成中...",
 		"docTypeLabel": "文种",
 		"docTypePlaceholder": "请选择文种",

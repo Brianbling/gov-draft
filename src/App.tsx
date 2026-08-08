@@ -49,6 +49,9 @@ export function App() {
   const isMobile = useIsMobile()
   const [mobileTab, setMobileTab] = useState<"editor" | "preview">("editor")
 
+  // 光标所在行标题层级（`#` 数量），驱动工具栏标题按钮激活态。
+  const [activeHeadingLevel, setActiveHeadingLevel] = useState(0)
+
   // Split pane
   const { workspaceRef, workspaceStyle, startResize } = useSplitPane({
     minPanelWidth: 360,
@@ -221,11 +224,15 @@ export function App() {
               className="editor-panel flex flex-col overflow-hidden border-r"
               style={isMobile ? undefined : { width: "var(--editor-width)" }}
             >
-              <Toolbar editorRef={editorRef} />
+              <Toolbar
+                editorRef={editorRef}
+                activeHeadingLevel={activeHeadingLevel}
+              />
               <CodeMirrorReact
                 ref={editorRef}
                 value={content}
                 onChange={setContent}
+                onActiveHeadingChange={setActiveHeadingLevel}
               />
               <StatusBar />
             </div>
