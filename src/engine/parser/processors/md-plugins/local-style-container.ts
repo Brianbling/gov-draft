@@ -72,10 +72,39 @@ type SegmentParseResult =
   | { kind: "ok"; declaration: string }
   | { kind: "skip"; reason: LocalStyleDescriptorIssueReason }
 
+/**
+ * 容器附加 class 段（如 `class: keep-together`）：不产出 CSS 变量，而是给
+ * 容器 div 追加 class。用于版式结构标记——分页器据此把落款保持为整块
+ * （keep-together）、上行文文号/签发人同行（doc-number-line）、红色分隔线
+ * （red-rule-line）。在 descriptor 解析前剥离，不落入 CSS 变量、也不上报
+ * unknownKey 告警。
+ */
+const CONTAINER_CLASS_SEGMENT_PATTERN = /^class\s*[:：]\s*(.+)$/
+
+export function isClassSegment(segment: string): boolean {
+  return CONTAINER_CLASS_SEGMENT_PATTERN.test(segment.trim())
+}
+
+export function extractClassSegments(descriptor: string): string[] {
+  return descriptor
+    .split(/[;；]/)
+    .map((segment) => segment.trim())
+    .filter(isClassSegment)
+    .map((segment) => {
+      const match = segment.match(CONTAINER_CLASS_SEGMENT_PATTERN)
+      return match?.[1]?.trim() ?? ""
+    })
+    .filter(Boolean)
+}
+
 function parseLocalStyleSegment(
   segment: string,
   options: ParserConfig
 ): SegmentParseResult {
+  if (isClassSegment(segment)) {
+    // 类段由 extractClassSegments 处理，不进入 CSS 变量声明。
+    return { kind: "skip", reason: "unknownKey" }
+  }
   const separatorIndex = findDescriptorSeparatorIndex(segment)
   if (separatorIndex <= 0) {
     return { kind: "skip", reason: "badSeparator" }
@@ -143,6 +172,9 @@ export function collectLocalStyleDescriptorIssues(
 
   const issues: LocalStyleDescriptorIssue[] = []
   for (const segment of segments) {
+    if (isClassSegment(segment)) {
+      continue
+    }
     const result = parseLocalStyleSegment(segment, options)
     if (result.kind === "skip") {
       issues.push({ segment, reason: result.reason })
@@ -196,8 +228,9 @@ export const localStyleContainerPlugin: MdPluginWithOptions<ParserConfig> = (
     }
 
     const descriptor = firstLine.slice(3).trim()
+    const classSegments = extractClassSegments(descriptor)
     const styleText = parseMultiLocalStyleDescriptors(descriptor, parserOptions)
-    if (!styleText) {
+    if (!styleText && classSegments.length === 0) {
       return false
     }
 
@@ -233,8 +266,13 @@ export const localStyleContainerPlugin: MdPluginWithOptions<ParserConfig> = (
     const open = state.push("local_style_container_open", "div", 1)
     open.block = true
     open.map = [startLine, nextLine]
-    open.attrSet("class", "local-style-container")
-    open.attrSet("style", styleText)
+    open.attrSet(
+      "class",
+      ["local-style-container", ...classSegments].join(" ")
+    )
+    if (styleText) {
+      open.attrSet("style", styleText)
+    }
 
     state.md.block.tokenize(state, startLine + 1, nextLine)
 

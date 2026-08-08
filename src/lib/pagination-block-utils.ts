@@ -94,8 +94,21 @@ function collectBlocksFromNode(
   if (element.classList.contains(options.localStyleContainerClassName)) {
     mergedClassNames.add(options.localStyleContainerClassName)
   }
+  if (element.classList.contains('keep-together')) {
+    mergedClassNames.add('keep-together')
+  }
 
   if (options.styleWrapperTagNames.has(element.tagName.toUpperCase())) {
+    // keep-together 容器（落款署名/日期）：保持整块原子，不解包成子块——
+    // 否则署名与日期会被拆到不同页（落款背页）。原子块保留容器 inline style
+    // 与 class，分页器整体处理。
+    if (mergedClassNames.has('keep-together')) {
+      const cloned = element.cloneNode(true) as Element
+      applyMergedInlineStyle(cloned, mergedStyleText)
+      applyInheritedClassNames(cloned, mergedClassNames)
+      acc.push(cloned.outerHTML)
+      return
+    }
     const childNodes = Array.from(element.childNodes)
     childNodes.forEach((child) => {
       collectBlocksFromNode(child, mergedStyleText, mergedClassNames, acc, options)

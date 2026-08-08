@@ -489,3 +489,25 @@ describe('heading numbering does not double-number manual prefixes', () => {
     expect(html).toContain('<h2>一、无序号标题</h2>')
   })
 })
+
+describe('red rule line (红头红线, GB/T 9704 §7.2.6)', () => {
+  it('renders --- as a red-rule-line hr by default (horizontalRule enabled)', () => {
+    // gb-t-9704.yaml 已从 disabledSyntax 移除 horizontalRule，`---` 经
+    // red-rule-line 插件渲染为红色通栏分隔线。
+    const parser = new MarkdownParser(undefined, {
+      headingNumbering: false,
+      disabledSyntax: [],
+    })
+    const html = parser.parse('正文前\n\n---\n\n正文后').html
+    expect(html).toContain('<hr class="red-rule-line" />')
+  })
+
+  it('still downgrades --- when horizontalRule is explicitly disabled', () => {
+    const parser = new MarkdownParser(undefined, {
+      headingNumbering: false,
+      disabledSyntax: ['horizontalRule'],
+    })
+    const html = parser.parse('---').html
+    expect(html).not.toContain('<hr')
+  })
+})

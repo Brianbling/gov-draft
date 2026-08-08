@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **红色分隔线（红头红线，GB/T 9704 §7.2.6）**：文件式红头（gongwen/communique，红头+文号齐全）文号下 4mm 处输出通栏红色横线。实现：markdown `---` 重新启用（`disabledSyntax` 移除 `horizontalRule`）+ 新插件 `red-rule-line` 覆写 `md.renderer.rules.hr` 渲染为 `<hr class="red-rule-line">`（renderer 输出 HTML 字符串，不受 `html:false` 限制，同 `textFontScope` 先例）；`.red-rule-line` 样式 `border-top: 2px solid #e60012; margin: 4mm 0`。红头或文号缺失时不输出。
+- **上行文（请示/报告）文号居左空一字 + 签发人**（GB/T 9704 §7.2.5）：request/report 文号容器改为居左空一字（`align:left; indent:1em`），同容器第二行排"签发人：×××"，`.doc-number-line` flex 两端对齐（文号居左、签发人靠右）；下行文保持居中。schema 新增 `signer` 字段，prompt 增加上行文编排规则。
+- **红头字距加宽**（GB/T 9704 §7.2.4 小标宋宽字距）：红头容器 descriptor 加 `letter-spacing: 3pt`，body-builder `.local-style-container` 规则消费该 CSS 变量（回退正文字距），覆盖正文字格 calc 在红头字号 22pt 下变负值（`442pt/28−22pt≈−6.2pt`）导致的红字重叠。零 schema 改动（descriptor 路径惰性、消费即生效）。
 - **补 5 个法定公文文种**：按《党政机关公文处理工作条例》（中办发〔2012〕14号）15 文种补齐——新增 `resolution`（决议）、`order`（命令/令）、`gazette`（公报）、`communique`（通报）、`proposal`（议案），DOC_TYPES 从 9 扩到 14。全链路单源扩展：`types.ts` 枚举 + `doc-type-spec.ts`（name/promptRequirement/rules/formFields/sealDefault）+ `prompt.ts` 示例输出 + i18n（zh/en）+ 表单要素集。文种特性：命令文号用顺序号"第×号"（无年份括号）、决议/公报无文号、公报无主送机关、议案主送必填单一、通报用文件式红头。
 - **发文字号年份检查豁免命令文种**：命令（令）文号为顺序号"第×号"，`DOC_NUMBER_YEAR_MISSING` 不再误报。
 - **决议标题长度上限放宽到 50 字**：决议标题须写明通过决议的会议名称（"××市第×届人民代表大会第×次会议关于批准××报告的决议"），30 字上限必然误报，放宽到 50；其余文种维持 30。
@@ -14,6 +17,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **机关代字与红头机关名不匹配（GB/T 9704 §7.2.5）**：红头"国务院办公厅文件"+ 文号"国发〔2026〕15号"——国发=国务院、国办发=国务院办公厅，LLM 常混用，`checkFormat` 此前完全不校验。修复：新增 `org-code.ts`（机关名↔代字映射表，含国务院/国务院办公厅/部门/省市政府占位），`matchOrgCode` 三级判定（机关名精确匹配→代字必须一致；机关名未知但代字匹配→校验机关名；两者未知→不误报），`checkFormat` 接入 `ORG_CODE_MISMATCH`（error 级）。**反向校验链路**：要素编辑面板改 docNumber/issuingOrg → `applyEdit` → `reviewDocument` 重跑格式自检 → 不匹配在结果面板弹出提示。
+- **落款背页 + 版头独占一页（分页）**：① 落款（署名+日期）被甩到单独空白页——分页器对落款容器解包成独立块、可在署名与日期之间断页。修复：落款容器标 `class: keep-together`，`collectBlocksFromNode` 对 keep-together 容器整体成块不解包、`trySplitOversizedBlock` 拒绝拆分，溢出时先收紧行距重试（`tightenKeepTogetherBlock`）再换页。② 版头独占首页——分页器无条件 H1 换页规则（`isH1Block && currentPageHtml.length > 0 → pushPage`）把标题 H1 永远推到次页。修复：移除该规则，H1 放得下时与红头/文号/分隔线同页、放不下才换页。③ `local-style-container` 新增 `class:` 描述符段类型（提取到容器 class，非 CSS 变量）。
 - **红头与发文字号成对检查（反向缺失）**：原先只查"有文号无红头"，漏了"有红头无文号"——LLM 只给红头不发文号时（如"××市人民政府文件"下面直接是标题）检查放行。修复：`checkFormat` 新增 `RED_HEAD_WITHOUT_DOC_NUMBER`（红头下应空二行排文号，error 级）；红头成对检查限定文件式红头文种（gongwen/communique），意见/请示/批复/函/决议/命令/公报/议案等无文件式红头文种不误报。
 - **标题开头重复红头发文机关名**：LLM 常把机关名写进标题（"重庆市人民政府关于印发《×××》的通知"）与红头"重庆市人民政府文件"视觉重复。修复：`repairDoc` 新增 `stripOrgNameFromTitle`——标题最开头与红头机关名（剥"文件"后缀）完全匹配、且后续为公文标题动词时剥除；绝不剥标题中间机关名、后续非公文动词不剥（防误剥）。配套：prompt 新增"标题严禁包含发文机关名称"指令。
 - **红头推导扩展到通报文种**：`repairDoc` 的 `inferRedHeadFromIssuer` 原来只对 gongwen 推导红头，现在通报（communique，同为文件式红头）也支持；决议等无文件式红头文种不推导。
@@ -45,7 +50,7 @@ All notable changes to this project will be documented in this file.
 
 ### Notes
 
-- **文秘红头验收 backlog（`workflow-wenshu-red-head` 结论）**：修复项已在上文 Fixed/Added 落地（红头成对反向检查、标题去机关名、通报红头推导、空二行间距、命令/决议检查豁免）。**遗留 3 项未做**，排期待定：① **版记生成缺口**——LLM 生成 docs 的版记（抄送/印发机关/印发日期）字段齐全，但 `toMarkdown` 版记容器渲染与理想态仍有差距（印发机关/日期表述格式未完全对齐），后续版记专项对齐；② **意见红头门控扩展**——红头成对检查目前只门控 gongwen/communique 文件式红头，个别单位意见用"××文件"红头时会漏检，是否扩展门控范围属产品决策；③ **红色反线**——版头与标题间的红色分隔线（GB/T 9704 §7.2.6）尚未渲染，需引擎支持。
+- **文秘红头验收 backlog（`workflow-wenshu-red-head` 结论）**：修复项已在上文 Fixed/Added 落地（红头成对反向检查、标题去机关名、通报红头推导、空二行间距、命令/决议检查豁免、**红色分隔线、机关代字匹配、上行文签发人、落款背页/版头独占页、红头字距**）。**遗留 2 项未做**，排期待定：① **版记生成缺口**——LLM 生成 docs 的版记（抄送/印发机关/印发日期）字段齐全，但 `toMarkdown` 版记容器渲染与理想态仍有差距（印发机关/日期表述格式未完全对齐），后续版记专项对齐；② **意见红头门控扩展**——红头成对检查目前只门控 gongwen/communique 文件式红头，个别单位意见用"××文件"红头时会漏检，是否扩展门控范围属产品决策。
 
 ## [0.1.9] - 2026-08-08
 

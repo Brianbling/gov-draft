@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { collectLocalStyleDescriptorIssues } from "../local-style-container"
+import {
+  collectLocalStyleDescriptorIssues,
+  extractClassSegments,
+  isClassSegment,
+} from "../local-style-container"
 import type { ParserConfig } from "../../../../schema"
 
 const BASE_OPTIONS: ParserConfig = {
@@ -71,5 +75,32 @@ describe("collectLocalStyleDescriptorIssues", () => {
 
   it("returns empty for an empty descriptor", () => {
     expect(collectLocalStyleDescriptorIssues("", BASE_OPTIONS)).toHaveLength(0)
+  })
+
+  it("class 段被识别为 class 段（不进入 CSS 变量）", () => {
+    expect(isClassSegment("class: keep-together")).toBe(true)
+    expect(isClassSegment("content.body.paragraph.indent: 2em")).toBe(false)
+  })
+
+  it("extractClassSegments 提取 class 值，忽略其他段", () => {
+    expect(
+      extractClassSegments(
+        "content.body.paragraph.indent: 0em; class: keep-together; content.body.style.size: 14pt"
+      )
+    ).toEqual(["keep-together"])
+  })
+
+  it("class 段不产生 unknownKey 告警", () => {
+    const issues = collectLocalStyleDescriptorIssues(
+      "content.body.paragraph.indent: 0em; class: keep-together",
+      BASE_OPTIONS
+    )
+    expect(issues).toHaveLength(0)
+  })
+
+  it("空 class 段不提取", () => {
+    expect(extractClassSegments("content.body.paragraph.indent: 0em")).toEqual(
+      []
+    )
   })
 })

@@ -57,6 +57,8 @@ export const LegalDocSchema = z.object({
   /** 发文机关标志（GB/T 9704 §7.2.4 红头）：红色居中，小标宋。 */
   issuingOrg: z.string().optional(),
   recipient: z.string().optional(),
+  /** 上行文（请示/报告）签发人（GB/T 9704 §7.2.5）：与发文字号同行右侧。 */
+  signer: z.string().optional(),
   body: z
     .array(LegalParagraphSchema)
     .min(1, "Body must contain at least one paragraph"),

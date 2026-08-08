@@ -48,16 +48,28 @@ describe("paginateBlocks", () => {
     expect(pages[0]).toBe("<p>a</p><p>b</p><p>c</p>")
   })
 
-  it("starts a new page before an H1 heading", () => {
+  it("H1 能放下时不再强制换页（版头独占页修复：红头+标题 H1 可同页）", () => {
     const measure = makeMeasure(1000, 20)
     const pages = paginateBlocks(
-      ["<p>a</p>", "<h1>t</h1>", "<p>b</p>"],
+      ["<h1>t</h1>", "<p>b</p>"],
       measure,
       baseOptions
     )
-    expect(pages).toHaveLength(2)
-    expect(pages[0]).toContain("<p>a</p>")
-    expect(pages[1]).toContain("<h1>t</h1>")
+    expect(pages).toHaveLength(1)
+    expect(pages[0]).toContain("<h1>t</h1>")
+  })
+
+  it("H1 放不下时才换页（内容填满后 H1 正常分页）", () => {
+    const measure = makeMeasure(1000, 20)
+    const blocks = [
+      `<p>${"x".repeat(600)}</p>`,
+      "<h1>标题</h1>",
+      "<p>b</p>",
+    ]
+    const pages = paginateBlocks(blocks, measure, baseOptions)
+    expect(pages.length).toBeGreaterThan(1)
+    const joined = pages.map(textOf).join("")
+    expect(joined).toBe(`${"x".repeat(600)}标题b`)
   })
 
   it("splits an oversized paragraph across pages without losing content", () => {
@@ -91,5 +103,38 @@ describe("paginateBlocks", () => {
     expect(pages.length).toBe(2)
     const joined = pages.map(textOf).join("")
     expect(joined).toBe(body)
+  })
+
+  it("keep-together 块不可拆分：超大落款整块独占一页（不拆散署名与日期）", () => {
+    const measure = makeMeasure(1000, 20)
+    const body = "x".repeat(500)
+    const block = `<div class="keep-together"><p>${body}</p><p>date</p></div>`
+    const pages = paginateBlocks([block], measure, baseOptions)
+    expect(pages).toHaveLength(1)
+    expect(pages[0]).toContain(`<p>${body}</p>`)
+    expect(pages[0]).toContain("<p>date</p>")
+  })
+
+  it("同尺寸普通段落会拆分、keep-together 块不会（对照）", () => {
+    const measure = makeMeasure(1000, 20)
+    const body = "x".repeat(500)
+    const plainPages = paginateBlocks([`<p>${body}</p>`], measure, baseOptions)
+    expect(plainPages.length).toBeGreaterThan(1)
+    const keptPages = paginateBlocks(
+      [`<div class="keep-together"><p>${body}</p></div>`],
+      measure,
+      baseOptions
+    )
+    expect(keptPages).toHaveLength(1)
+  })
+
+  it("当前页有内容时，keep-together 块溢出后整块移到下一页（不被拆分）", () => {
+    const measure = makeMeasure(1000, 20)
+    const block = `<div class="keep-together"><p>${"x".repeat(500)}</p><p>date</p></div>`
+    const pages = paginateBlocks([`<p>filler</p>`, block], measure, baseOptions)
+    expect(pages.length).toBe(2)
+    expect(pages[0]).toContain("<p>filler</p>")
+    expect(pages[1]).toContain(`<p>${"x".repeat(500)}</p>`)
+    expect(pages[1]).toContain("<p>date</p>")
   })
 })

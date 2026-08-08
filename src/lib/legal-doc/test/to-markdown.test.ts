@@ -155,8 +155,9 @@ describe("toMarkdown", () => {
     // 不加盖公章：署名右空二字、日期排其下一行且首字比署名首字右移二字。
     // "国务院办公厅" 6 字 vs "2026年7月31日" 10 字 → 日期长于署名，
     // 改日期右空二字、署名右空数相应增加（10-6+4=8 全角空格）。
+    // 落款容器带 keep-together 标记（分页器保持整块、防背页）。
     expect(markdown).toContain(
-      "::: content.body.paragraph.align: right; content.body.paragraph.indent: 0em; content.body.paragraph.spacing.before: 28.95pt\n国务院办公厅" +
+      "::: content.body.paragraph.align: right; content.body.paragraph.indent: 0em; content.body.paragraph.spacing.before: 28.95pt; class: keep-together\n国务院办公厅" +
         "　".repeat(8) +
         "\n:::"
     )
@@ -364,16 +365,69 @@ describe("toMarkdown", () => {
     expect(markdown).not.toContain("黑体, SimHei, STHeiti, sans-serif")
   })
 
-  it("发文机关标志（红头）：红色小标宋 22pt 居中，上距版心 35mm", () => {
+  it("发文机关标志（红头）：红色小标宋 22pt 居中，上距版心 35mm，字距 3pt", () => {
     const markdown = toMarkdown(buildDoc({ issuingOrg: "××市人民政府文件" }))
     expect(markdown).toContain(
-      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 22pt; content.body.paragraph.spacing.before: 35mm\n××市人民政府文件\n:::"
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 22pt; content.body.paragraph.spacing.before: 35mm; content.body.paragraph.letterSpacing: 3pt\n××市人民政府文件\n:::"
     )
   })
 
   it("无发文机关标志时不输出红头容器", () => {
     const markdown = toMarkdown(buildDoc())
     expect(markdown).not.toContain("#e60012")
+  })
+
+  it("文件式红头（红头+文号齐全）在文号后、标题前输出红色分隔线 ---", () => {
+    const markdown = toMarkdown(buildDoc({ issuingOrg: "××市人民政府文件" }))
+    // `---` 经 red-rule-line 插件渲染为通栏红线（GB/T 9704 §7.2.6）
+    const redLineIndex = markdown.indexOf("---")
+    const docNumberIndex = markdown.indexOf("国发〔2026〕12号")
+    const titleIndex = markdown.indexOf("# 关于加强数字政府建设的通知")
+    expect(redLineIndex).toBeGreaterThan(docNumberIndex)
+    expect(redLineIndex).toBeLessThan(titleIndex)
+  })
+
+  it("红头或文号缺失时不输出红色分隔线", () => {
+    // 有红头无文号
+    expect(
+      toMarkdown(buildDoc({ issuingOrg: "××市人民政府文件", docNumber: undefined }))
+    ).not.toContain("\n---\n")
+    // 有文号无红头（意见等无文件式红头文种）
+    expect(toMarkdown(buildDoc())).not.toContain("\n---\n")
+  })
+
+  it("上行文（请示）文号居左空一字 + 同容器签发人（doc-number-line）", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "request",
+        issuingOrg: "××市人民政府文件",
+        signer: "×××",
+      })
+    )
+    expect(markdown).toContain(
+      "::: content.body.paragraph.align: left; content.body.paragraph.indent: 1em; content.body.paragraph.spacing.before: 57.9pt; class: doc-number-line"
+    )
+    expect(markdown).toContain("国发〔2026〕12号\n签发人：×××\n:::")
+  })
+
+  it("上行文（报告）无签发人时仍居左，不输出签发人行", () => {
+    const markdown = toMarkdown(
+      buildDoc({ docType: "report", issuingOrg: "××市人民政府文件" })
+    )
+    expect(markdown).toContain(
+      "content.body.paragraph.align: left; content.body.paragraph.indent: 1em"
+    )
+    expect(markdown).not.toContain("签发人：")
+  })
+
+  it("下行文（通知）文号保持居中，不输出签发人", () => {
+    const markdown = toMarkdown(
+      buildDoc({ issuingOrg: "××市人民政府文件", signer: "×××" })
+    )
+    expect(markdown).toContain(
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.paragraph.spacing.before: 57.9pt; class: doc-number-line"
+    )
+    expect(markdown).not.toContain("签发人：")
   })
 
   it("附注渲染为成文日期后左空二字加圆括号", () => {

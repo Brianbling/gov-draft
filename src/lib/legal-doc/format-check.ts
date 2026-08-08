@@ -1,4 +1,5 @@
 import type { LegalDoc } from "./types"
+import { matchOrgCode } from "./org-code"
 
 const MAX_TITLE_LENGTH = 30
 const DOC_NUMBER_YEAR_PATTERN = /〔\d{4}〕/
@@ -109,6 +110,13 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
         severity: "error",
       })
     }
+
+    // 机关代字与红头机关名匹配校验（GB/T 9704 §7.2.5）：红头"国务院办公厅文件"
+    // + 文号"国发〔2026〕15号"属代字与机关不匹配（国发=国务院、国办发=国务院办公厅）。
+    if (doc.issuingOrg && doc.docNumber) {
+      const orgCodeIssue = matchOrgCode(doc.issuingOrg, doc.docNumber)
+      if (orgCodeIssue) issues.push(orgCodeIssue)
+    }
   }
 
   if (
@@ -135,6 +143,18 @@ export function checkFormat(doc: LegalDoc): FormatIssue[] {
       field: "date",
       code: "DATE_FORMAT_INVALID",
       message: `成文日期应为真实存在的 ISO 日期（如 2026-07-31），当前为“${doc.date}”。`,
+    })
+  }
+
+  // 上行文（请示/报告）签发人（GB/T 9704 §7.2.5）：发文字号右侧应有签发人。
+  const isUpwardDoc = doc.docType === "request" || doc.docType === "report"
+  if (isUpwardDoc && doc.docNumber && !doc.signer) {
+    issues.push({
+      field: "signer",
+      code: "UPWARD_DOC_MISSING_SIGNER",
+      message:
+        "上行文（请示/报告）发文字号应居左空一字、右侧编排签发人（如“签发人：×××”），当前缺少签发人。",
+      severity: "warning",
     })
   }
 

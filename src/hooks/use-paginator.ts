@@ -73,8 +73,33 @@ function canFit(
   return !isOverflowing(measure, tolerance)
 }
 
-function isH1Block(block: string): boolean {
-  return /<h1(\s|>)/.test(block)
+/**
+ * keep-together 块（落款署名/日期）：原子处理，不拆分、不与其他内容断页分离。
+ */
+function isKeepTogetherBlock(block: string): boolean {
+  const container = document.createElement("div")
+  container.innerHTML = block
+  const element = container.firstElementChild
+  if (!element) return false
+  return element.classList.contains("keep-together")
+}
+
+/**
+ * 收紧 keep-together 块的行距，把落款挤回当前页（用户要求：空间不够调整行距，
+ * 不允许落款甩到下一页）。把块内各段 line-height 压到 22pt、首段 margin-top 归零，
+ * 返回收紧后的块 HTML；块为 null/不可收紧时原样返回。
+ */
+function tightenKeepTogetherBlock(block: string): string {
+  const container = document.createElement("div")
+  container.innerHTML = block
+  const element = container.firstElementChild as HTMLElement | null
+  if (!element) return block
+  element.querySelectorAll("p").forEach((p) => {
+    ;(p as HTMLElement).style.setProperty("line-height", "22pt")
+  })
+  const first = element.firstElementChild as HTMLElement | null
+  if (first) first.style.setProperty("margin-top", "0")
+  return element.outerHTML
 }
 
 function buildElementHtmlWithChildRange(
@@ -249,6 +274,9 @@ function trySplitOversizedBlock(
   if (!element) return null
   const tagName = element.tagName.toUpperCase()
   if (tagName === "H1") return null
+  // keep-together 块（落款署名/日期）：禁止拆分——拆开会把署名与日期、
+  // 或落款与正文割裂到不同页（背页）。由调用方走 tighten 或整块换页。
+  if (element.classList.contains("keep-together")) return null
   // Headings (H2–H6) have inline children whose boundaries don't align
   // with page breaks — a child-node split orphans numbering prefixes.
   // Use character-level text-content split instead.
@@ -294,7 +322,6 @@ export function paginateBlocks(
       continue
     }
     const block = pending.shift()!
-    if (isH1Block(block) && currentPageHtml.length > 0) pushPage()
 
     const candidate = `${currentPageHtml}${block}`
     measure.innerHTML = candidate
@@ -306,6 +333,18 @@ export function paginateBlocks(
       continue
     }
     if (currentPageHtml.length > 0) {
+      // keep-together 块溢出：先试收紧行距把落款挤回当前页（用户要求：空间不够
+      // 调整行距，不允许落款甩到下一页）。收紧后仍放不下才走拆分（keep-together
+      // 块不可拆，会落到整块换页）。
+      if (isKeepTogetherBlock(block)) {
+        const tightened = tightenKeepTogetherBlock(block)
+        const tightenedCandidate = `${currentPageHtml}${tightened}`
+        measure.innerHTML = tightenedCandidate
+        if (!isOverflowing(measure, overflowTolerancePx)) {
+          currentPageHtml = tightenedCandidate
+          continue
+        }
+      }
       const split = trySplitOversizedBlock(
         block,
         measure,

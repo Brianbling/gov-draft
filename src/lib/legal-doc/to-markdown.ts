@@ -3,6 +3,9 @@ import { isValidIsoDate } from "./format-check"
 
 const SEPARATOR = "\n"
 
+/** 落款（署名+日期）容器标记：分页器保持整块不拆、不与正文断页分离。 */
+const SIGNATURE_BLOCK_CLASS = "keep-together"
+
 /**
  * 标题中的 markdown 行内特殊字符转义（M2）：标题经 markdown-it 渲染成红头
  * `<h1>`，行内 `*`/`_`/`[`/`]`/`` ` ``/`~~`/`<` 等若不转义会被渲染成
@@ -20,6 +23,12 @@ const CENTERED =
 const RIGHT_ALIGNED =
   "content.body.paragraph.align: right; content.body.paragraph.indent: 0em"
 const FLUSH_LEFT = "content.body.paragraph.indent: 0em"
+/**
+ * 上行文（请示/报告）发文字号编排：居左空一字（GB/T 9704 §7.2.5），
+ * 右侧同排签发人。下行文才用居中（CENTERED）。
+ */
+const UPWARD_DOC_NUMBER =
+  "content.body.paragraph.align: left; content.body.paragraph.indent: 1em"
 const BODY_INDENT = "content.body.paragraph.indent: 2em"
 /**
  * 版头密级/紧急程度（GB/T 9704 §7.2.2/7.2.3）：顶格居左、黑体。
@@ -36,9 +45,11 @@ const VERSION_MEMO =
 /**
  * 发文机关标志（红头，GB/T 9704 §7.2.4）：红色小标宋 2 号（22pt）居中，
  * 上边缘距版心上边缘 35mm。红色 #e60012 为电子稿近似色（打印以实际红墨为准）。
+ * letterSpacing: 3pt 覆盖正文字距（否则容器字号 22pt 会让 body 的
+ * charsPerLine:28 字距 calc 变为负值 −6.2pt，红字互相重叠）。
  */
 const RED_HEAD =
-  "content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 22pt; content.body.paragraph.spacing.before: 35mm"
+  "content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 22pt; content.body.paragraph.spacing.before: 35mm; content.body.paragraph.letterSpacing: 3pt"
 
 function container(descriptor: string, lines: string[]): string[] {
   return [`::: ${descriptor}`, ...lines, ":::"]
@@ -154,16 +165,28 @@ export function toMarkdown(doc: LegalDoc): string {
     blocks.push(container(RED_HEAD, [doc.issuingOrg.trim()]))
   }
 
-  // 发文字号（GB/T 9704 §7.2.5）：编排在发文机关标志（红头）下空二行处，
-  // 居中排布（机关代字〔年份〕顺序号）。紧跟红头、在标题之前。
-  // 空二行 = 2 × 3 号行高（28.95pt/行，与附件"正文下空一行"同口径）；
+  // 发文字号（GB/T 9704 §7.2.5）：编排在发文机关标志（红头）下空二行处。
+  // 下行文（通知等）文号居中；上行文（请示/报告）文号居左空一字、同行右侧排签发人
+  // （同容器两行 + .doc-number-line flex 两端对齐）。空二行 = 2 × 3 号行高；
   // 无红头时（意见等无文件式红头文种）文号顶格无前置间距。
+  const isUpwardDoc = doc.docType === "request" || doc.docType === "report"
   if (doc.docNumber) {
     const hasRedHead = doc.issuingOrg && doc.issuingOrg.trim().length > 0
+    const alignment = isUpwardDoc ? UPWARD_DOC_NUMBER : CENTERED
+    const docNumberLines = [doc.docNumber]
+    if (isUpwardDoc && doc.signer) {
+      docNumberLines.push(`签发人：${doc.signer}`)
+    }
     const docNumberStyle = hasRedHead
-      ? `${CENTERED}; content.body.paragraph.spacing.before: 57.9pt`
-      : CENTERED
-    blocks.push(container(docNumberStyle, [doc.docNumber]))
+      ? `${alignment}; content.body.paragraph.spacing.before: 57.9pt; class: doc-number-line`
+      : alignment
+    blocks.push(container(docNumberStyle, docNumberLines))
+  }
+
+  // 红色分隔线（GB/T 9704 §7.2.6）：文件式红头（红头+文号齐全）下方通栏红线的
+  // 前置条件，在发文字号下 4mm 处。`---` 经 red-rule-line 插件渲染为红色横线。
+  if (doc.issuingOrg && doc.docNumber) {
+    blocks.push(["---"])
   }
 
   // 标题空缺（LLM 未给出、且用户关闭表单必填门槛时）不输出幽灵红头 `# `，
@@ -222,6 +245,8 @@ export function toMarkdown(doc: LegalDoc): string {
   if (doc.date)
     signatureLines.push(stripSealPlaceholder(formatChineseDate(doc.date)))
   if (signatureLines.length > 0) {
+    // 落款（署名+日期）必须与正文同页（背页修复）：容器标 keep-together，
+    // 分页器整体处理不拆分；空间不足时收紧行距挤回本页。
     if (doc.seal === true) {
       // 需盖章：署名与成文日期分别右对齐，署名上方 spacing.before 在正文末与落款之间
       // 留出印章空间（15mm）。印章由用户打印后手工加盖（骑年盖月），仅预留位置，
@@ -230,16 +255,17 @@ export function toMarkdown(doc: LegalDoc): string {
       if (doc.issuer) {
         blocks.push(
           container(
-            `${RIGHT_ALIGNED}; content.body.paragraph.spacing.before: 15mm`,
+            `${RIGHT_ALIGNED}; content.body.paragraph.spacing.before: 15mm; class: ${SIGNATURE_BLOCK_CLASS}`,
             [signatureLines[0]]
           )
         )
       }
       if (doc.date) {
         blocks.push(
-          container(RIGHT_ALIGNED, [
-            `${signatureLines[signatureLines.length - 1]}　　　　`,
-          ])
+          container(
+            `${RIGHT_ALIGNED}; class: ${SIGNATURE_BLOCK_CLASS}`,
+            [`${signatureLines[signatureLines.length - 1]}　　　　`]
+          )
         )
       }
     } else {
@@ -258,14 +284,17 @@ export function toMarkdown(doc: LegalDoc): string {
       if (doc.issuer) {
         blocks.push(
           container(
-            `${RIGHT_ALIGNED}; content.body.paragraph.spacing.before: 28.95pt`,
+            `${RIGHT_ALIGNED}; content.body.paragraph.spacing.before: 28.95pt; class: ${SIGNATURE_BLOCK_CLASS}`,
             [`${issuerText}${"　".repeat(issuerPad)}`]
           )
         )
       }
       if (doc.date) {
         blocks.push(
-          container(RIGHT_ALIGNED, [`${dateText}${"　".repeat(datePad)}`])
+          container(
+            `${RIGHT_ALIGNED}; class: ${SIGNATURE_BLOCK_CLASS}`,
+            [`${dateText}${"　".repeat(datePad)}`]
+          )
         )
       }
     }

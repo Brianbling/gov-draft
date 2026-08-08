@@ -155,7 +155,6 @@ parser:
     - codeBlock
     - blockquote
     - unorderedList
-    - horizontalRule
 editor:
   fontSize: 18
   lineNumbers: true

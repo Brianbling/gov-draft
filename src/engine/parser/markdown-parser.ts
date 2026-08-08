@@ -6,6 +6,7 @@ import { syntaxStripper } from './processors/preprocess/syntax-stripper'
 import { lineBreakNormalizer } from './processors/preprocess/line-break-normalizer'
 import { localStyleContainerPlugin } from './processors/md-plugins/local-style-container'
 import { textFontScopePlugin } from './processors/md-plugins/text-font-scope'
+import { redRuleLinePlugin } from './processors/md-plugins/red-rule-line'
 import { fastLinkifyPlugin } from './processors/md-plugins/fast-linkify'
 import { headingNumberingProcessor } from './processors/token/heading-numbering'
 import { BlockCache } from './block-cache'
@@ -18,13 +19,18 @@ const defaultOptions: MarkdownOptions = {
   linkify: true,
   typographer: true,
   headingNumbering: true,
-  disabledSyntax: ['codeBlock', 'blockquote', 'unorderedList', 'horizontalRule'],
+  disabledSyntax: ['codeBlock', 'blockquote', 'unorderedList'],
   localStyleAliases: {}
 }
 
 export const DEFAULT_PIPELINE: ParserPipeline = {
   preprocessors: [syntaxStripper, lineBreakNormalizer],
-  mdPlugins: [localStyleContainerPlugin, textFontScopePlugin, fastLinkifyPlugin],
+  mdPlugins: [
+    localStyleContainerPlugin,
+    textFontScopePlugin,
+    redRuleLinePlugin,
+    fastLinkifyPlugin,
+  ],
   tokenProcessors: [headingNumberingProcessor],
   htmlPostprocessors: [],
 }

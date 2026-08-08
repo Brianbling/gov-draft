@@ -137,6 +137,52 @@ describe("checkFormat", () => {
     )
   })
 
+  it("机关代字与红头机关名不匹配报错（文秘验收问题 1）", () => {
+    const issues = checkFormat(
+      buildDoc({ issuingOrg: "国务院办公厅文件", docNumber: "国发〔2026〕15号" })
+    )
+    expect(issues.map((i) => i.code)).toContain("ORG_CODE_MISMATCH")
+    expect(issues.find((i) => i.code === "ORG_CODE_MISMATCH")).toMatchObject({
+      field: "docNumber",
+      severity: "error",
+    })
+  })
+
+  it("机关代字与红头机关名匹配通过", () => {
+    const issues = checkFormat(
+      buildDoc({ issuingOrg: "国务院办公厅文件", docNumber: "国办发〔2026〕15号" })
+    )
+    expect(issues.map((i) => i.code)).not.toContain("ORG_CODE_MISMATCH")
+  })
+
+  it("上行文（请示/报告）有文号缺签发人给 warning（文秘验收问题 5）", () => {
+    const issues = checkFormat(
+      buildDoc({ docType: "request", issuingOrg: undefined })
+    )
+    const signerIssue = issues.find(
+      (i) => i.code === "UPWARD_DOC_MISSING_SIGNER"
+    )
+    expect(signerIssue).toBeDefined()
+    expect(signerIssue).toMatchObject({
+      field: "signer",
+      severity: "warning",
+    })
+  })
+
+  it("上行文（请示）有签发人不报缺签发人", () => {
+    const issues = checkFormat(
+      buildDoc({ docType: "request", issuingOrg: undefined, signer: "×××" })
+    )
+    expect(issues.map((i) => i.code)).not.toContain(
+      "UPWARD_DOC_MISSING_SIGNER"
+    )
+  })
+
+  it("下行文（通知）缺签发人不报缺签发人（签发人仅上行文要素）", () => {
+    const issues = checkFormat(buildDoc())
+    expect(issues.map((i) => i.code)).not.toContain("UPWARD_DOC_MISSING_SIGNER")
+  })
+
   it("决议文种有文号无红头不算红头错误（无文件式红头）", () => {
     const issues = checkFormat(
       buildDoc({

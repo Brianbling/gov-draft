@@ -124,6 +124,16 @@ export function buildBodyRules(
     // Without these, a container that sets e.g. --content-body-style-size: 14pt only
     // changes color/background; the text keeps the root body font. GB/T 9704 uses
     // container-level font overrides for 版记 (14pt 抄送/印发) and 红头.
+    //
+    // letter-spacing: the char-grid rule below applies `calc(版心宽/charsPerLine − 字号)`
+    // to every body `p`. A container that overrides font-size (e.g. 红头 22pt) keeps
+    // the body charsPerLine:28, so the inherited calc goes negative (442pt/28−22pt≈−6.2pt)
+    // and the red characters overlap. The container rule consumes
+    // --content-body-paragraph-letter-spacing so a `:::` descriptor can override the
+    // letter-spacing without fighting the char-grid calc. When the variable is unset
+    // the root body value (the char-grid calc) is the fallback, so non-overriding
+    // containers (版记 etc.) keep their current spacing. Only emitted when the body
+    // actually enables the char grid — otherwise no letter-spacing exists to override.
     styleRule(scopeSelectors([".local-style-container"], host.rootContent), [
       declaration(
         "font-family",
@@ -141,6 +151,14 @@ export function buildBodyRules(
         "line-height",
         `var(${toCssCustomProperty("content.body.paragraph.spacing.lineHeight")})`
       ),
+      ...(bodyLetterSpacing
+        ? [
+            declaration(
+              "letter-spacing",
+              `var(${toCssCustomProperty("content.body.paragraph.letterSpacing")}, ${bodyLetterSpacing.value})`
+            ),
+          ]
+        : []),
       declaration(
         "color",
         `var(${toCssCustomProperty("content.body.style.colors.text")})`
@@ -173,6 +191,25 @@ export function buildBodyRules(
       ),
       declaration("word-break", bodyWordBreak),
       ...(bodyLetterSpacing ? [bodyLetterSpacing] : []),
+    ]),
+    // 红色分隔线（红头红线，GB/T 9704 §7.2.6）：通栏红色横线，位于发文字号
+    // 下 4mm 处。由 red-rule-line 插件把 `---` 渲染为 `<hr class="red-rule-line">`。
+    // border-top 2px 红色 + 上下 4mm 间距（上 4mm = 红线距上方要素、即文号）。
+    styleRule(scopeSelectors([".red-rule-line"], host.rootContent), [
+      declaration("border", "none"),
+      declaration("border-top", "2px solid #e60012"),
+      declaration("margin", "4mm 0"),
+    ]),
+    // 落款（署名+日期）原子块：分页器对 keep-together 容器整体处理、不拆分。
+    // doc-number-line 标记上行文文号/签发人同行的容器（见 pagination-block-utils）。
+    styleRule(scopeSelectors([".keep-together"], host.rootContent), [
+      declaration("break-inside", "avoid"),
+      declaration("page-break-inside", "avoid"),
+    ]),
+    // 上行文文号 + 签发人同行：flex 两端对齐（文号居左空一字、签发人靠右）。
+    styleRule(scopeSelectors([".doc-number-line"], host.rootContent), [
+      declaration("display", "flex"),
+      declaration("justify-content", "space-between"),
     ]),
   ]
 }
