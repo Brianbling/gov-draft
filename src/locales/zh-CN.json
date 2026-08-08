@@ -202,6 +202,7 @@
 			"llmHttpAction": "请检查服务配置或稍后重试",
 			"legalDocParseAction": "格式审查未通过，可点击重试重新生成",
 			"llmEmptyResult": "AI 未返回有效内容",
+			"llmInvalidResponse": "AI 返回的内容格式无效，请重试或调整描述",
 			"llmParseFailed": "AI 返回的内容无法解析",
 			"legalDocParseFailed": "解析生成的公文失败，请重试",
 			"legalDocUnsupportedType": "不支持的公文文种",

@@ -124,7 +124,14 @@ function bootstrapDraft(): SettingsDraft {
  * unmounts `Dialog.Content` when closed), so every open starts from a fresh
  * snapshot of the stores without an extra sync effect.
  */
-function SettingsPanel({ onClose }: { onClose: () => void }) {
+function SettingsPanel({
+  onClose,
+  onRequestCloseRef,
+}: {
+  onClose: () => void
+  /** 外部关闭请求（Esc/遮罩点击）路由到此，走脏检查。 */
+  onRequestCloseRef?: React.MutableRefObject<(() => void) | null>
+}) {
   const { t, i18n } = useTranslation()
 
   const [draft, setDraft] = useState<SettingsDraft>(bootstrapDraft)
@@ -154,6 +161,10 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     }
     onClose()
   }
+  // 暴露给外层 Dialog.Root：Esc/遮罩点击经 onOpenChange 走外部 onClose 会直接
+  // 卸载面板、静默丢弃未保存草稿。这里把 closeIfClean 桥接出去，让外部关闭
+  // 也走脏检查（与"取消"按钮一致）。
+  if (onRequestCloseRef) onRequestCloseRef.current = closeIfClean
 
   const descriptors = useMemo(() => traverseSchema(RuleConfigSchema), [])
 
@@ -565,6 +576,7 @@ interface SettingsOverlayProps {
  */
 export function SettingsOverlay({ open, onOpenChange }: SettingsOverlayProps) {
   const { t } = useTranslation()
+  const closeIfCleanRef = useRef<(() => void) | null>(null)
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -573,9 +585,23 @@ export function SettingsOverlay({ open, onOpenChange }: SettingsOverlayProps) {
         <Dialog.Content
           aria-label={t("settings.dialogAria")}
           aria-describedby={undefined}
+          onEscapeKeyDown={(e: Event) => {
+            // Esc 关闭走脏检查：draft 未保存时弹确认。阻止 Radix 默认立即关闭，
+            // 改为路由到 closeIfClean（与"取消"按钮一致），避免草稿静默丢弃。
+            e.preventDefault()
+            closeIfCleanRef.current?.()
+          }}
+          onPointerDownOutside={(e: Event) => {
+            // 遮罩点击关闭同样走脏检查，与"取消"按钮行为一致。
+            e.preventDefault()
+            closeIfCleanRef.current?.()
+          }}
           className="fixed inset-0 z-50 flex flex-col bg-background text-foreground duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
         >
-          <SettingsPanel onClose={() => onOpenChange(false)} />
+          <SettingsPanel
+            onClose={() => onOpenChange(false)}
+            onRequestCloseRef={closeIfCleanRef}
+          />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

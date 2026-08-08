@@ -23,6 +23,11 @@ All notable changes to this project will be documented in this file.
 - **移动端工具栏 18 按钮 flex-wrap 挤压编辑区**：11 个格式按钮在窄屏折成多行。修复：移动端把格式工具收进单个"格式"下拉（保留标题层级激活态指示），桌面端保持平铺。
 - **移动端预览首帧闪跳 + tab 重挂载重分页**：fitScale 初始 `useState(1)` 以 scale=1 渲染超宽纸面再被 effect 修正；切 preview tab 卸载重挂载导致整篇重分页 + 丢滚动位置。修复：初始 fitScale 按视口宽度估算；预览面板改为始终挂载、display:none 隐藏切换。
 - **saveRule 对非当前规则静默 no-op**：校验通过但不持久化还返回成功，配置静默丢失。修复：返回 `valid:false` + 明确 errors/issues 说明未持久化。
+- **AI 生成覆盖确认被绕过（HIGH，第 3 轮审查）**：OPEN_AI_EVENT 守卫只 `preventDefault` 不 `stopPropagation`，非空白文档点「AI 生成」会同时弹覆盖确认与生成对话框（双弹窗）；且对话框内「生成」按钮直连 `generate()` 写 store，完全不经守卫——手动微调后一次生成即静默覆盖。修复两处：① guard 加 `stopImmediatePropagation` 消除双弹窗；② 覆盖保护下沉到写入点——`generate()` 在文档非空白时返回不写 store，对话框内点生成先弹覆盖确认，「覆盖」按钮带 `force` 显式放行。
+- **AI 生成模块级 lastResult 跨文档会话泄漏（MEDIUM）**：`lastResult/lastIssues` 模块级保留"最近一次生成"，导入/新建别的文档后重开弹窗，编辑面板显示旧文档要素，`applyEdit` 把旧要素结构静默拼进新文档。修复：新建/导入入口调用 `resetGenerateSession()` 清空跨会话结果。
+- **newDocument 后空白文档误报"未保存"（MEDIUM）**：App 同步 effect 用相同内容再调 `setContent`，doc-store 无条件 `set({isDirty:true})` 把新建后已清空的 dirty 标志复位。修复：`setContent` 值未变化时跳过置脏。
+- **设置页 Esc/遮罩点击绕过 closeIfClean（MEDIUM）**：Esc/遮罩点击走 `onOpenChange(false)` 直接卸载面板，未保存的设置草稿静默丢弃（与「取消」按钮弹确认不一致）。修复：`onEscapeKeyDown`/`onPointerDownOutside` 路由到 `closeIfClean` 走脏检查。
+- **LLM_INVALID_RESPONSE 误用"生成内容为空"文案**：非法 JSON 响应显示"AI 未返回有效内容"误导。修复：新增 `llmInvalidResponse` 专属文案（zh/en）。
 
 ## [0.1.9] - 2026-08-08
 

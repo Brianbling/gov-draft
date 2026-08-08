@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRuleStore } from "@/stores/rule-store"
 import { useDocStore, BLANK_DOCUMENT } from "@/stores/doc-store"
+import { resetGenerateSession } from "@/hooks/use-generate-document"
 import { useSettingsStore } from "@/stores/settings-store"
 import { useStyleInjector } from "@/hooks/use-style-injector"
 import { useMarkdown } from "@/hooks/use-markdown"
@@ -103,6 +104,9 @@ export function App() {
     useDocStore.getState().newDocument()
     lastSyncedStoreRef.current = BLANK_DOCUMENT
     setContent(BLANK_DOCUMENT)
+    // #3 跨文档会话泄漏防护：新建文档后清掉模块级最近一次生成结果，
+    // 避免旧文档的要素结构被静默拼进新文档（applyEdit patchMarkdownElements）。
+    resetGenerateSession()
   }, [])
 
   // P0-1 新建文档逻辑（供按钮/快捷键/确认弹窗复用）。
@@ -122,13 +126,15 @@ export function App() {
   // 阶段拦截：有内容（非空白）时 preventDefault 并弹确认，空白放行。
   // 确认弹窗的"覆盖"用 detail.force 显式放行（用户已确认覆盖，不再二次弹窗）。
   // Toolbar 自己的 OPEN_AI_EVENT 监听（handleOpenAi → 打开对话框）在冒泡阶段，
-  // 已被 capture 拦截时收不到事件，故不会出现"已确认又二次弹窗"。
+  // capture 拦截时 stopImmediatePropagation 同时阻止同节点后续监听，故 Toolbar
+  // 收不到事件、对话框不会打开——只有 App 层确认弹窗，无双弹窗。
   useEffect(() => {
     const guard = (e: Event) => {
       const custom = e as CustomEvent
       if (custom.detail?.force) return
       if (!useDocStore.getState().isBlankDocument()) {
         e.preventDefault()
+        e.stopImmediatePropagation()
         setConfirmGenerate(true)
       }
     }

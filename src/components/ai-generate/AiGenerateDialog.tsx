@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Dialog } from "radix-ui"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -35,6 +35,8 @@ import { DOC_TYPES, type DocType } from "@/lib/legal-doc"
 import { DOC_TYPE_SPECS, type FormField } from "@/lib/legal-doc/doc-type-spec"
 import { severityOfIssue, type IssueSeverity } from "./issue-severity"
 import { hasFormValues, type FormValues } from "@/lib/legal-doc/form-adaptor"
+import { ConfirmOverwriteDialog } from "@/components/ConfirmOverwriteDialog"
+import { useDocStore } from "@/stores/doc-store"
 
 interface AiGenerateDialogProps {
   open: boolean
@@ -200,8 +202,23 @@ function AiGeneratePanel({
     ? DOC_TYPE_SPECS[result.docType].formFields
     : fields
 
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+
+  // 覆盖确认（#1 写入点守卫）：文档非空白时点"生成/重新生成"不直接触发
+  // LLM，先弹覆盖确认；确认框"覆盖"→ 带 force 放行。OPEN_AI_EVENT 守卫已拦
+  // "打开对话框"，这里拦的是"对话框已打开后直连 generate()"的路径。不在
+  // generate() 返回 null 后弹（那也可能是表单校验/LLM 失败），显式判断空白。
   const handleGenerate = async () => {
+    if (!useDocStore.getState().isBlankDocument()) {
+      setConfirmOverwrite(true)
+      return
+    }
     await generate()
+  }
+
+  const handleConfirmedGenerate = async () => {
+    setConfirmOverwrite(false)
+    await generate(true)
   }
 
   // 切换文种时重置表单：不同文种的要素集与盖章默认不同，
@@ -496,6 +513,16 @@ function AiGeneratePanel({
           </>
         )}
       </footer>
+
+      {/* #1 写入点覆盖确认：对话框内点"生成/重新生成"且文档非空白时拦截。
+          与 App 层 OPEN_AI_EVENT 守卫互补（后者拦"打开"、此处拦"写入"）。
+          z-[70] 高于本对话框 z-50，覆盖在 AI 生成对话框之上。 */}
+      <ConfirmOverwriteDialog
+        open={confirmOverwrite}
+        onOpenChange={setConfirmOverwrite}
+        onConfirm={handleConfirmedGenerate}
+        onNewDocument={() => setConfirmOverwrite(false)}
+      />
     </>
   )
 }

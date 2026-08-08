@@ -62,4 +62,18 @@ describe("doc-store 持久化 · autoSave 开关", () => {
     useDocStore.getState().setContent("又一次未保存的编辑")
     expect(persistedContent()).toBe("未保存的编辑")
   })
+
+  it("newDocument 后同步 effect 用相同内容 setContent 不再置脏", () => {
+    useDocStore.getState().newDocument()
+    expect(useDocStore.getState().isDirty).toBe(false)
+
+    // App 的 content→store 同步 effect 用相同内容（BLANK_DOCUMENT）再调一次
+    useDocStore.getState().setContent("# 未命名公文")
+    expect(useDocStore.getState().isDirty).toBe(false)
+  })
+
+  it("不同内容 setContent 正常置脏", () => {
+    useDocStore.getState().setContent("真正的新内容")
+    expect(useDocStore.getState().isDirty).toBe(true)
+  })
 })

@@ -72,6 +72,9 @@ export const useDocStore = create<DocState>()(
       manualSaveAt: null,
 
       setContent(content) {
+        // 值未变化时跳过 isDirty 置位：newDocument 后 App 的同步 effect 用相同
+        // 内容再调一次 setContent，若无条件置脏，新建空白文档会误报"未保存"。
+        if (get().content === content) return
         set({ content, isDirty: true })
       },
 

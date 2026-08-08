@@ -202,6 +202,7 @@
 			"llmHttpAction": "Check the service settings or retry later.",
 			"legalDocParseAction": "Format review did not pass. Click Retry to regenerate.",
 			"llmEmptyResult": "AI returned empty content.",
+			"llmInvalidResponse": "The AI response was invalid. Please retry or adjust your description.",
 			"llmParseFailed": "Could not parse the AI response.",
 			"legalDocParseFailed": "Failed to parse the generated document. Please retry.",
 			"legalDocUnsupportedType": "Unsupported document type.",

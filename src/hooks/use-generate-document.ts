@@ -40,7 +40,7 @@ function getEzdocEnv(name: string): string | undefined {
 
 const ERROR_CODE_TO_I18N: Record<string, string> = {
   LLM_EMPTY_RESULT: "aiGenerate.errors.llmEmptyResult",
-  LLM_INVALID_RESPONSE: "aiGenerate.errors.llmEmptyResult",
+  LLM_INVALID_RESPONSE: "aiGenerate.errors.llmInvalidResponse",
   LEGAL_DOC_PARSE_FAILED: "aiGenerate.errors.legalDocParseFailed",
   LEGAL_DOC_UNSUPPORTED_TYPE: "aiGenerate.errors.legalDocUnsupportedType",
   LEGAL_DOC_MISSING_TITLE: "aiGenerate.errors.legalDocMissingTitle",
@@ -171,10 +171,18 @@ export function useGenerateDocument() {
     }
   }, [])
 
-  const generate = useCallback(async (): Promise<GenerateResult | null> => {
-    // 表单必填校验：仅在用户实际填写了表单时强制（纯自然语言路径不设门槛，
-    // title/主送机关等交由 LLM 从描述推断，与 v1 行为一致）。
-    if (hasFormValues(formValues)) {
+  const generate = useCallback(
+    async (force = false): Promise<GenerateResult | null> => {
+      // 覆盖确认下沉到写入点：OPEN_AI_EVENT 守卫只拦"打开对话框"，对话框内的
+      // "生成/重新生成"按钮直连本函数、不经守卫。若文档非空白且未确认覆盖，
+      // 直接返回（不触发 LLM、不写 store），由对话框展示覆盖确认，防止手动
+      // 微调被一次生成静默覆盖。
+      if (!force && !useDocStore.getState().isBlankDocument()) {
+        return null
+      }
+      // 表单必填校验：仅在用户实际填写了表单时强制（纯自然语言路径不设门槛，
+      // title/主送机关等交由 LLM 从描述推断，与 v1 行为一致）。
+      if (hasFormValues(formValues)) {
       const missing = validateFormRequired(docType, formValues)
       if (missing.length > 0) {
         setStatus("error")
@@ -255,7 +263,9 @@ export function useGenerateDocument() {
     } finally {
       abortRef.current = null
     }
-  }, [docType, prompt, formValues])
+    },
+    [docType, prompt, formValues]
+  )
 
   const reset = useCallback(() => {
     abortRef.current?.abort()

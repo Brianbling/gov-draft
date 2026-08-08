@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useDocStore } from "@/stores/doc-store"
 import { useRuleStore } from "@/stores/rule-store"
 import { toast } from "@/components/ui/toast"
+import { resetGenerateSession } from "@/hooks/use-generate-document"
 import { isDocxFile, parseDocxToMarkdown } from "@/lib/importers/docx"
 
 export function useFileSystem() {
@@ -42,6 +43,9 @@ export function useFileSystem() {
         throw err
       }
       setContent(content)
+      // #3 跨文档会话泄漏防护：导入新文档后清掉模块级最近一次生成结果，
+      // 避免旧文档的要素结构被静默拼进导入的文档（applyEdit patchMarkdownElements）。
+      resetGenerateSession()
       toast.success(t("toolbar.importSuccess", { name: file.name }))
       return content
     },

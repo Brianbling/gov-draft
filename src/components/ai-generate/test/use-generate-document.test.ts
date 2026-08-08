@@ -392,6 +392,81 @@ describe("useGenerateDocument · 表单辅助路径", () => {
   })
 })
 
+describe("useGenerateDocument · 覆盖写入点守卫（#1）与跨文档会话（#3）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useDocStore.getState().reset()
+    resetGenerateSession()
+  })
+
+  it("文档非空白时 generate() 不调 LLM、不写 store、返回 null", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    // 模拟已有内容的文档（非空白）
+    useDocStore.getState().setContent("用户手动写的一段正文")
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("帮我写一份通知"))
+    const ret = await act(async () => result.current.generate())
+
+    expect(ret).toBeNull()
+    expect(mockGenerateDocument).not.toHaveBeenCalled()
+    expect(useDocStore.getState().content).toBe("用户手动写的一段正文")
+    // 未触发生成，状态保持 idle（不进入 generating/error）
+    expect(result.current.status).toBe("idle")
+  })
+
+  it("文档非空白时 generate(true) 显式放行 → 正常生成覆盖", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    useDocStore.getState().setContent("已有内容")
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("帮我写一份通知"))
+    const ret = await act(async () => result.current.generate(true))
+
+    expect(ret?.title).toBe("关于推进垃圾分类工作的通知")
+    expect(mockGenerateDocument).toHaveBeenCalledOnce()
+    expect(useDocStore.getState().content).toContain(
+      "关于推进垃圾分类工作的通知",
+    )
+  })
+
+  it("空白文档 generate() 正常放行（BLANK_DOCUMENT 视为空白）", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    useDocStore.getState().setContent("# 未命名公文")
+    const { result } = renderHook(() => useGenerateDocument())
+
+    act(() => result.current.setPrompt("帮我写一份通知"))
+    const ret = await act(async () => result.current.generate())
+
+    expect(ret).not.toBeNull()
+    expect(mockGenerateDocument).toHaveBeenCalledOnce()
+  })
+
+  it("#3 resetGenerateSession 后重开挂载不再恢复旧结果（新建/导入后不污染）", async () => {
+    mockGenerateDocument.mockResolvedValue(VALID_LLM_OUTPUT)
+    const first = renderHook(() => useGenerateDocument())
+    act(() => first.result.current.setPrompt("帮我写一份通知"))
+    let promise: Promise<unknown> = Promise.resolve()
+    act(() => {
+      promise = first.result.current.generate()
+    })
+    await act(async () => {
+      await promise
+    })
+    expect(first.result.current.status).toBe("done")
+    first.unmount()
+
+    // 用户在期间新建/导入别的文档 → 入口调 resetGenerateSession()
+    useDocStore.getState().setContent("# 另一篇导入的文档")
+    resetGenerateSession()
+
+    // 重开弹窗：不再从模块级恢复旧结果，回到干净 idle
+    const second = renderHook(() => useGenerateDocument())
+    expect(second.result.current.status).toBe("idle")
+    expect(second.result.current.result).toBeNull()
+  })
+})
+
 describe("useGenerateDocument · applyEdit 要素编辑回填（#29）", () => {
   beforeEach(() => {
     vi.clearAllMocks()
