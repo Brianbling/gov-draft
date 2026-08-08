@@ -246,12 +246,16 @@ export function App() {
             />
           )}
 
-          {/* Preview panel */}
-          {(isMobile ? mobileTab === "preview" : true) && (
-            <div className="preview-panel flex-1 overflow-hidden">
-              <A4Paper html={html} />
-            </div>
-          )}
+          {/* Preview panel：始终挂载（移动端用 display:none 隐藏而非卸载）。
+              分页是布局测量热点，切回 preview tab 若重挂载则整篇重新分页 + 丢
+              滚动位置。保持挂载让分页结果与滚动位置跨 tab 切换保留。 */}
+          <div
+            className={`preview-panel flex-1 overflow-hidden ${
+              isMobile && mobileTab !== "preview" ? "hidden" : ""
+            }`}
+          >
+            <A4Paper html={html} />
+          </div>
         </div>
 
         {/* P0-1 首启引导层：四步 + 两个主入口 */}

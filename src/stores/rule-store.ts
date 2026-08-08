@@ -116,9 +116,9 @@ export const useRuleStore = create<RuleState>()(
         if (!validation.valid) {
           throw new Error(`Invalid rule: ${validation.errors.join(", ")}`)
         }
-        // Persistence only fires when `set` is called below, which happens
-        // solely for the current rule. Saving a non-current rule validates
-        // but does NOT persist.
+        // persist 只持久化 currentRule（单规则模型），保存非当前规则时
+        // 校验通过但不会落盘——若静默返回成功，调用方会以为配置已保存
+        // 而实际丢失。返回失败 + 说明 issue，让调用方明确知道没有持久化。
         const current = get().currentRule
         if (current && current.name === rule.name) {
           const compiled = compileRule(rule, get().host)
@@ -127,8 +127,23 @@ export const useRuleStore = create<RuleState>()(
             compiledRule: compiled,
             ruleOrigin: classifyOrigin(rule),
           })
+          return validation
         }
-        return validation
+        return {
+          valid: false,
+          errors: [
+            `Rule "${rule.name}" is not the current rule; it was not persisted`,
+          ],
+          issues: [
+            ...validation.issues,
+            {
+              level: 'error',
+              path: 'rule',
+              code: 'MISSING_OR_INVALID_FIELD',
+              message: `Rule "${rule.name}" is not the current rule; it was not persisted`,
+            },
+          ],
+        }
       },
 
       setCustomStyle(key, value) {

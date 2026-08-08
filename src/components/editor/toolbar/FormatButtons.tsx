@@ -14,6 +14,13 @@ import {
   ListIndentIncreaseIcon,
   ListIndentDecreaseIcon,
 } from "@hugeicons/core-free-icons"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+import { useIsMobile } from "@/hooks/use-is-mobile"
 import type { CodeMirrorHandle } from "../CodeMirrorReact"
 import type { FormatAction } from "../core/features/format-commands"
 
@@ -110,6 +117,14 @@ const actions: {
   },
 ]
 
+function isHeadingActive(
+  headingLevel: number | null,
+  activeHeadingLevel: number,
+): boolean {
+  return headingLevel !== null && activeHeadingLevel === headingLevel
+}
+
+/** 桌面端：11 个格式按钮平铺。 */
 export function FormatButtons({
   editorRef,
   activeHeadingLevel,
@@ -119,8 +134,7 @@ export function FormatButtons({
   return (
     <>
       {actions.map(({ action, icon, titleKey, labelKey, headingLevel }) => {
-        const active =
-          headingLevel !== null && activeHeadingLevel === headingLevel
+        const active = isHeadingActive(headingLevel, activeHeadingLevel)
         return (
           <Button
             key={action}
@@ -136,6 +150,56 @@ export function FormatButtons({
         )
       })}
     </>
+  )
+}
+
+/** 移动端：11 个格式工具收进单个"格式"下拉，保留激活态指示。 */
+export function FormatDropdown({
+  editorRef,
+  activeHeadingLevel,
+}: FormatButtonsProps) {
+  const { t } = useTranslation()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          title={t("toolbar.formatGroupLabel")}
+          aria-label={t("toolbar.formatGroupAria")}
+        >
+          <HugeiconsIcon icon={TextBoldIcon} />
+          <span className="ml-1 text-xs">{t("toolbar.formatGroupLabel")}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-[60vh] overflow-y-auto">
+        {actions.map(({ action, icon, labelKey, headingLevel }) => {
+          const active = isHeadingActive(headingLevel, activeHeadingLevel)
+          return (
+            <DropdownMenuItem
+              key={action}
+              aria-label={t(labelKey)}
+              aria-pressed={active}
+              onSelect={() => editorRef.current?.format(action)}
+            >
+              <HugeiconsIcon icon={icon} />
+              <span className="ml-2">{t(labelKey)}</span>
+            </DropdownMenuItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/** 响应式格式工具：桌面端平铺，移动端折叠为下拉。 */
+export function ResponsiveFormatButtons(props: FormatButtonsProps) {
+  const isMobile = useIsMobile()
+  return isMobile ? (
+    <FormatDropdown {...props} />
+  ) : (
+    <FormatButtons {...props} />
   )
 }
 

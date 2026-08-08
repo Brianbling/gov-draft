@@ -6,15 +6,23 @@ import { useRuleStore } from '@/stores/rule-store'
 
 const DEFAULT_THROTTLE_MS = 100
 
+/** index 允许 string|null：null = suppress 序号。UI 清空输入框写 ''，
+ * 若保留空串则与 null 语义不一致，归一为禁用哨兵 '0lines'。 */
+export function normalizeHeadingIndex(
+  index: string | null | undefined,
+): string {
+  return index == null || index.trim() === '' ? '0lines' : index
+}
+
 function buildHeadingStyles(
   content: { h1?: { style?: { index?: string | null } }; h2?: { style?: { index?: string | null } }; h3?: { style?: { index?: string | null } }; h4?: { style?: { index?: string | null } } } | undefined,
 ): Record<string, string> | undefined {
   if (!content) return undefined
   return {
-    h1: content.h1?.style?.index ?? '0lines',
-    h2: content.h2?.style?.index ?? '0lines',
-    h3: content.h3?.style?.index ?? '0lines',
-    h4: content.h4?.style?.index ?? '0lines',
+    h1: normalizeHeadingIndex(content.h1?.style?.index),
+    h2: normalizeHeadingIndex(content.h2?.style?.index),
+    h3: normalizeHeadingIndex(content.h3?.style?.index),
+    h4: normalizeHeadingIndex(content.h4?.style?.index),
   }
 }
 

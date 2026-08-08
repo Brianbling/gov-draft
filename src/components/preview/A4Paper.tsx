@@ -19,11 +19,20 @@ export function A4Paper({ html }: A4PaperProps) {
   const previewZoom = useSettingsStore((s) => s.previewSettings.zoom)
   const { pages, pageMetas, paginate, measureRef } = usePaginator()
   const stageRef = useRef<HTMLDivElement>(null)
-  const [fitScale, setFitScale] = useState(1)
 
   // 移动端纸面适配视口宽度：210mm 纸张在窄屏下等比缩小到 <768px 内可见。
   // 桌面端保持用户 zoom 不缩放（fit-to-width 固定，分屏变化不改渲染尺寸）。
   const isNarrow = useIsMobile()
+
+  // 初始 fitScale 直接按视口宽度估算：移动端首帧就接近正确缩放，避免
+  // useState(1) 先以 scale=1 渲染 794px 宽纸面（超出窄屏）再被 effect 修正的闪跳。
+  const mmToPx = (mm: number) => (mm * 96) / 25.4
+  const [fitScale, setFitScale] = useState(() => {
+    if (!isNarrow) return 1
+    if (typeof window === "undefined" || window.innerWidth <= 0) return 0.1
+    const availablePx = window.innerWidth - 2 * 16
+    return Math.max(0.1, Math.min(1, availablePx / mmToPx(210)))
+  })
 
   useEffect(() => {
     if (!isNarrow) {
@@ -31,7 +40,6 @@ export function A4Paper({ html }: A4PaperProps) {
       return
     }
     const measure = () => {
-      const mmToPx = (mm: number) => (mm * 96) / 25.4
       const paperWidthPx = mmToPx(210)
       const availablePx = (stageRef.current?.clientWidth ?? 0) - 2 * 16
       // clientWidth 为 0（tab 切换/初始未布局）时算出负值会让预览消失，

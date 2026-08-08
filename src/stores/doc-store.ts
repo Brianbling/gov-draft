@@ -1,7 +1,37 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import {
+  createJSONStorage,
+  persist,
+  type StateStorage,
+} from "zustand/middleware"
+import { useSettingsStore } from "./settings-store"
 
 const DOC_STORAGE_KEY = "ezdoc-document"
+
+// autoSave=false 时普通编辑不落盘（开关语义：关闭自动保存 = 内容不自动持久化），
+// 仅显式 Ctrl+S（saveManually）放行一次。armed 由 saveManually 置位，
+// 下一次 storage.setItem 消费后复位。
+let manualSaveArmed = false
+
+const docStorage: StateStorage = {
+  getItem: (name) => {
+    if (typeof localStorage === "undefined") return null
+    return localStorage.getItem(name)
+  },
+  setItem: (name, value) => {
+    if (typeof localStorage === "undefined") return
+    // 自动保存关闭且非显式手动保存 → 抑制写盘。已落盘的旧值保留，
+    // 刷新恢复到"最后一次落盘"状态（手动保存语义）。
+    const autoSave = useSettingsStore.getState().autoSave
+    if (!autoSave && !manualSaveArmed) return
+    manualSaveArmed = false
+    localStorage.setItem(name, value)
+  },
+  removeItem: (name) => {
+    if (typeof localStorage === "undefined") return
+    localStorage.removeItem(name)
+  },
+}
 
 /** 空白文档占位标题：与 toMarkdown 的空标题兜底一致，保证 A4 预览不为空。 */
 export const BLANK_DOCUMENT = "# 未命名公文"
@@ -60,6 +90,8 @@ export const useDocStore = create<DocState>()(
 
       saveManually() {
         const now = new Date().toISOString()
+        // 显式保存必须落盘：放行下一次 storage.setItem（即使 autoSave=false）。
+        manualSaveArmed = true
         set({ isDirty: false, lastSaved: now, manualSaveAt: now })
       },
 
@@ -115,6 +147,7 @@ export const useDocStore = create<DocState>()(
     }),
     {
       name: DOC_STORAGE_KEY,
+      storage: createJSONStorage(() => docStorage),
       partialize: (state) => ({
         content: state.content,
         html: state.html,

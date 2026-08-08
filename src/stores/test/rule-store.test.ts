@@ -136,8 +136,7 @@ describe("rule-store initializeRule", () => {
     )
   })
 
-  it("preserves the poisoned persisted rule JSON in a -poisoned backup on reset", () => {
-    // 用户手动配置的标题层级/字体被静默清空是最痛的场景：reset 前把损坏的
+  it("preserves the poisoned persisted rule JSON in a -poisoned backup on reset", () => {    // 用户手动配置的标题层级/字体被静默清空是最痛的场景：reset 前把损坏的
     // 原始 JSON 备份到 "ezdoc-rule-poisoned"，用户可据此找回丢失的配置手工重建。
     const poisoned = JSON.parse(
       JSON.stringify(getBuiltinRules()[0]!),
@@ -167,5 +166,45 @@ describe("rule-store initializeRule", () => {
     // 当前规则已回退内置，不再是损坏值。
     const builtin = getBuiltinRules()[0]!
     expect(useRuleStore.getState().currentRule?.name).toBe(builtin.name)
+  })
+})
+
+describe("rule-store saveRule（3.22 非当前规则不静默丢配置）", () => {
+  beforeEach(() => {
+    useRuleStore.setState({
+      currentRule: null,
+      ruleOrigin: null,
+      availableRules: [],
+      compiledRule: null,
+      customStyles: {},
+    })
+  })
+
+  it("保存当前规则 → 校验通过 + 持久化为 currentRule", () => {
+    const rule = structuredClone(getBuiltinRules()[0]!)
+    useRuleStore.getState().loadRule(rule)
+
+    const edited = structuredClone(rule)
+    edited.content.body.style.size = "18pt"
+    const result = useRuleStore.getState().saveRule(edited)
+
+    expect(result.valid).toBe(true)
+    expect(useRuleStore.getState().currentRule?.content.body.style.size).toBe(
+      "18pt"
+    )
+  })
+
+  it("保存非当前规则 → 返回失败而非静默成功（不静默丢配置）", () => {
+    const current = structuredClone(getBuiltinRules()[0]!)
+    useRuleStore.getState().loadRule(current)
+
+    // 另一条内置规则（name 不同）被误当"当前规则"保存
+    const other = structuredClone(getBuiltinRules()[1] ?? getBuiltinRules()[0]!)
+    const result = useRuleStore.getState().saveRule(other)
+
+    expect(result.valid).toBe(false)
+    expect(result.errors.join("")).toContain("not the current rule")
+    // 当前规则未被意外替换，配置没有丢失
+    expect(useRuleStore.getState().currentRule?.name).toBe(current.name)
   })
 })

@@ -1,23 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useIsMobile } from './use-is-mobile'
 
 interface UseSplitPaneOptions {
   minPanelWidth?: number
-  mobileBreakpoint?: number
   initialEditorWidthPercent?: number
 }
 
 const DEFAULT_MIN_WIDTH = 360
-const DEFAULT_BREAKPOINT = 1024
 const DEFAULT_PERCENT = 50
 
 export function useSplitPane(options: UseSplitPaneOptions = {}) {
   const minPanelWidth = options.minPanelWidth ?? DEFAULT_MIN_WIDTH
-  const mobileBreakpoint = options.mobileBreakpoint ?? DEFAULT_BREAKPOINT
   const initialPercent = options.initialEditorWidthPercent ?? DEFAULT_PERCENT
 
   const [editorWidthPercent, setEditorWidthPercent] = useState(initialPercent)
   const isResizing = useRef(false)
   const workspaceRef = useRef<HTMLDivElement | null>(null)
+  // 复用 App 的移动断点（<768px）：分割条可拖拽性与编辑/预览 tab 切换用
+  // 同一判断，消除 768–1024px 间"渲染分栏但拖不动"的死区。
+  const isMobile = useIsMobile()
 
   const clampPercent = useCallback(
     (raw: number, containerWidth: number) => {
@@ -41,13 +42,13 @@ export function useSplitPane(options: UseSplitPaneOptions = {}) {
 
   const startResize = useCallback(
     (e: React.PointerEvent) => {
-      if (window.innerWidth <= mobileBreakpoint) return
+      if (isMobile) return
       isResizing.current = true
       document.body.style.cursor = 'col-resize'
       document.body.style.userSelect = 'none'
       updateByClientX(e.clientX)
     },
-    [mobileBreakpoint, updateByClientX],
+    [isMobile, updateByClientX],
   )
 
   useEffect(() => {

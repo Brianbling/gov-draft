@@ -17,6 +17,12 @@ All notable changes to this project will be documented in this file.
 - **A4Paper fitScale 负值闪跳**：clientWidth 为 0 时 fitScale 算出负值让预览消失；clamp 到 0.1，并用 ResizeObserver 替代 window resize 监听。
 - **要素编辑面板回填丢用户正文修改**：patchMarkdownElements 按槽位替换丢新增段，重写为整体区域替换（要素区重建自 IR 快照、正文区保留编辑器当前内容）。
 - **工具栏标题按钮无激活态指示**：光标移到某级标题行时对应按钮无视觉反馈，用户无法确认当前所在层级。修复：CodeMirror 新增 `onActiveHeadingChange` 回调（selectionSet/docChanged 时上报当前行 `#` 数量），App 经 Toolbar 传给 FormatButtons；h1/h2/h3 按钮（对应 `##`/`###`/`####`）命中层级时切换 `secondary` variant + `aria-pressed`。
+- **autoSave=false 时内容仍无条件写 localStorage**：persist 在每次编辑落盘，开关只控制定时清 dirty flag，语义失真。修复：custom storage 在 autoSave=false 时抑制普通编辑写盘（保留已落盘旧值），显式 Ctrl+S 放行一次。
+- **768–1024px 分割条 inert 死区**：useSplitPane 内部断点 1024 与 App 移动断点 768 不一致，该区间渲染分栏却拖不动。修复：split-pane 复用 useIsMobile() 同一断点。
+- **持久化 rule 空串 index 落"隐藏禁用"路径**：UI 清空 index 写 `''`，与文档化 null=suppress 语义分叉。修复：`normalizeHeadingIndex` 把空串/空白归一为 `0lines` 禁用哨兵。
+- **移动端工具栏 18 按钮 flex-wrap 挤压编辑区**：11 个格式按钮在窄屏折成多行。修复：移动端把格式工具收进单个"格式"下拉（保留标题层级激活态指示），桌面端保持平铺。
+- **移动端预览首帧闪跳 + tab 重挂载重分页**：fitScale 初始 `useState(1)` 以 scale=1 渲染超宽纸面再被 effect 修正；切 preview tab 卸载重挂载导致整篇重分页 + 丢滚动位置。修复：初始 fitScale 按视口宽度估算；预览面板改为始终挂载、display:none 隐藏切换。
+- **saveRule 对非当前规则静默 no-op**：校验通过但不持久化还返回成功，配置静默丢失。修复：返回 `valid:false` + 明确 errors/issues 说明未持久化。
 
 ## [0.1.9] - 2026-08-08
 

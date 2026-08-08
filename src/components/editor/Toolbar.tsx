@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { CodeMirrorHandle } from "./CodeMirrorReact"
-import { FormatButtons } from "./toolbar/FormatButtons"
+import { ResponsiveFormatButtons } from "./toolbar/FormatButtons"
 import { LineWrapToggle } from "./toolbar/LineWrapToggle"
 import { LayoutCodeToggle } from "./toolbar/LayoutCodeToggle"
 
@@ -148,8 +148,8 @@ export function Toolbar({ editorRef, activeHeadingLevel }: ToolbarProps) {
 
       <span className="mx-1 h-4 w-px bg-border" />
 
-      {/* Format buttons */}
-      <FormatButtons
+      {/* Format buttons：桌面端平铺，移动端折叠为"格式"下拉，避免挤压编辑区 */}
+      <ResponsiveFormatButtons
         editorRef={editorRef}
         activeHeadingLevel={activeHeadingLevel ?? 0}
       />

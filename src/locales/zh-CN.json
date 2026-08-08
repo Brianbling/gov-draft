@@ -89,6 +89,7 @@
 		"toggleLayoutCode": "显示/隐藏排版代码",
 		"toggleLineWrap": "切换自动换行",
 		"formatGroupAria": "格式化工具",
+		"formatGroupLabel": "格式",
 		"settings": "设置",
 		"settingsTitle": "设置",
 		"aiGenerate": "AI 生成公文",

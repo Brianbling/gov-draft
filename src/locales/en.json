@@ -89,6 +89,7 @@
 		"toggleLayoutCode": "Show/Hide layout code",
 		"toggleLineWrap": "Toggle word wrap",
 		"formatGroupAria": "Formatting tools",
+		"formatGroupLabel": "Format",
 		"settings": "Settings",
 		"settingsTitle": "Settings",
 		"aiGenerate": "AI Generate Document",
