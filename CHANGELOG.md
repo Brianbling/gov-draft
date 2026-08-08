@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - **发文字号年份检查豁免命令文种**：命令（令）文号为顺序号"第×号"，`DOC_NUMBER_YEAR_MISSING` 不再误报。
 - **决议标题长度上限放宽到 50 字**：决议标题须写明通过决议的会议名称（"××市第×届人民代表大会第×次会议关于批准××报告的决议"），30 字上限必然误报，放宽到 50；其余文种维持 30。
 - **发文字号与红头之间空二行间距**（GB/T 9704 §7.2.5）：有红头时文号容器加 `spacing.before: 57.9pt`（2 × 3 号行高），无红头文种（意见等）不受影响。
+- **事务文书家族规划（未实现）**：用户提出"文种不够，想加讲稿/主持词这类"。已调研确认**事务文书无国家法定标准**（中办发〔2012〕14号只管 15 法定公文，讲稿/主持词不受条例管辖，格式靠工具书惯例 + 机关内模板，版式托底 GB/T 9704）。规划落盘 `docs/事务文书家族规划.md`：独立 `PracticalDocType` family（共享版式、剥离红头/文号/版记/密级），首期 3 文种（讲话稿/主持词/工作总结），交付形态建议"模板引导"而非自由生成。待产品决策。
 
 ### Fixed
 
@@ -41,6 +42,10 @@ All notable changes to this project will be documented in this file.
 - **newDocument 后空白文档误报"未保存"（MEDIUM）**：App 同步 effect 用相同内容再调 `setContent`，doc-store 无条件 `set({isDirty:true})` 把新建后已清空的 dirty 标志复位。修复：`setContent` 值未变化时跳过置脏。
 - **设置页 Esc/遮罩点击绕过 closeIfClean（MEDIUM）**：Esc/遮罩点击走 `onOpenChange(false)` 直接卸载面板，未保存的设置草稿静默丢弃（与「取消」按钮弹确认不一致）。修复：`onEscapeKeyDown`/`onPointerDownOutside` 路由到 `closeIfClean` 走脏检查。
 - **LLM_INVALID_RESPONSE 误用"生成内容为空"文案**：非法 JSON 响应显示"AI 未返回有效内容"误导。修复：新增 `llmInvalidResponse` 专属文案（zh/en）。
+
+### Notes
+
+- **文秘红头验收 backlog（`workflow-wenshu-red-head` 结论）**：修复项已在上文 Fixed/Added 落地（红头成对反向检查、标题去机关名、通报红头推导、空二行间距、命令/决议检查豁免）。**遗留 3 项未做**，排期待定：① **版记生成缺口**——LLM 生成 docs 的版记（抄送/印发机关/印发日期）字段齐全，但 `toMarkdown` 版记容器渲染与理想态仍有差距（印发机关/日期表述格式未完全对齐），后续版记专项对齐；② **意见红头门控扩展**——红头成对检查目前只门控 gongwen/communique 文件式红头，个别单位意见用"××文件"红头时会漏检，是否扩展门控范围属产品决策；③ **红色反线**——版头与标题间的红色分隔线（GB/T 9704 §7.2.6）尚未渲染，需引擎支持。
 
 ## [0.1.9] - 2026-08-08
 
