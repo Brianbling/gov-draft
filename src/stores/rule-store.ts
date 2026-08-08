@@ -62,6 +62,24 @@ function builtinRules(): RuleConfig[] {
   return builtinCache
 }
 
+/**
+ * 版本迁移（2026-08-08）：红色分隔线（GB/T 9704 §7.2.6）上线前，内置规则曾把
+ * horizontalRule 列进 disabledSyntax，`---` 被 markdown-it 禁用。任何持久化
+ * 的规则（即使 ruleOrigin 已分类为 "custom"，见 initializeRule 的早退）若仍带
+ * horizontalRule，会把 `---` 降级为文本横线、红头红线渲染不出来。这里把该条目
+ * 从 persisted rule 里剔除（deep clone 后就地删，不污染原对象），让修复对所有
+ * 用户生效，无需手工重置规则。
+ */
+function migratePersistedRule(rule: RuleConfig): RuleConfig {
+  const disabled = rule.parser.disabledSyntax
+  if (!disabled?.includes("horizontalRule")) return rule
+  const migrated = structuredClone(rule)
+  migrated.parser.disabledSyntax = disabled.filter(
+    (item) => item !== "horizontalRule"
+  )
+  return migrated
+}
+
 /** Byte-compare against the shipped builtins to classify a rule's origin. */
 function classifyOrigin(rule: RuleConfig): RuleOrigin {
   const serialized = JSON.stringify(rule)
@@ -212,6 +230,14 @@ export const useRuleStore = create<RuleState>()(
           const parsed = RuleConfigSchema.safeParse(saved)
           if (!parsed.success) {
             recover(new Error(`zod validation failed: ${parsed.error.message}`))
+            return
+          }
+          // 版本迁移：剔除持久化规则里的 horizontalRule（见 migratePersistedRule）。
+          // 必须先于 ruleOrigin==="custom" 的早退执行，否则 custom 规则会保留
+          // 旧 disabledSyntax，`---` 继续被禁用、红头红线渲染不出来。
+          const migrated = migratePersistedRule(parsed.data)
+          if (migrated !== parsed.data) {
+            get().loadRule(migrated)
             return
           }
           // A rule the user edited must survive rehydration as-is. Only a rule

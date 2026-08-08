@@ -167,6 +167,27 @@ describe("rule-store initializeRule", () => {
     const builtin = getBuiltinRules()[0]!
     expect(useRuleStore.getState().currentRule?.name).toBe(builtin.name)
   })
+
+  it("migrates a custom-classified persisted rule that still disables horizontalRule", () => {
+    // 红色分隔线修复上线前持久化的 33476 规则：即使内容已被用户改过（ruleOrigin
+    // 分类为 "custom"），只要 disabledSyntax 还带 horizontalRule，`---` 就会被
+    // markdown-it 禁用、红头红线渲染不出来。migratePersistedRule 必须先于 custom
+    // 早退执行，把它剔除——否则修复对老用户永远不生效。
+    const stale = structuredClone(getBuiltinRules()[0]!)
+    stale.parser.disabledSyntax = [...stale.parser.disabledSyntax, "horizontalRule"]
+    // 改一处内容，让它的 ruleOrigin 在 initializeRule 里走到 custom 分支。
+    stale.content.body.style.size = "18pt"
+    useRuleStore.setState({ currentRule: stale, ruleOrigin: "custom" })
+
+    useRuleStore.getState().initializeRule()
+
+    const current = useRuleStore.getState().currentRule!
+    expect(current.name).toBe(stale.name)
+    // 用户的 18pt 手工字号保留（迁移不改内容，只删禁用项）。
+    expect(current.content.body.style.size).toBe("18pt")
+    // horizontalRule 已从 disabledSyntax 剔除，`---` 可渲染红头红线。
+    expect(current.parser.disabledSyntax).not.toContain("horizontalRule")
+  })
 })
 
 describe("rule-store saveRule（3.22 非当前规则不静默丢配置）", () => {
