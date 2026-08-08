@@ -58,13 +58,19 @@ const LETTERHEAD =
 const VERSION_MEMO =
   "content.body.paragraph.indent: 1em; content.body.style.size: 14pt"
 /**
- * 发文机关标志（红头，GB/T 9704 §7.2.4）：红色小标宋 2 号（22pt）居中，
- * 上边缘距版心上边缘 35mm。红色 #e60012 为电子稿近似色（打印以实际红墨为准）。
- * letterSpacing: 3pt 覆盖正文字距（否则容器字号 22pt 会让 body 的
- * charsPerLine:28 字距 calc 变为负值 −6.2pt，红字互相重叠）。
+ * 红头（发文机关标志）字号按机关名长度自适应（GB/T 9704 §7.2.4）：红头是
+ * 整个版头最醒目、字号最大的要素，须与下方 3 号仿宋发文字号（16pt）拉开
+ * 视觉差距——≤6 字初号 42pt；7-10 字小初 36pt；11-13 字 30pt；≥14 字 26pt
+ * （版心宽 ~436pt，26pt+3pt 字距 15 字仍单行放得下）。空机关名返回空串。
  */
-const RED_HEAD =
-  "content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 22pt; content.body.paragraph.spacing.before: 35mm; content.body.paragraph.letterSpacing: 3pt"
+function redHeadFontSize(org: string): string {
+  const count = Array.from(org).length
+  if (count <= 0) return ""
+  if (count <= 6) return "42pt"
+  if (count <= 10) return "36pt"
+  if (count <= 13) return "30pt"
+  return "26pt"
+}
 
 function container(descriptor: string, lines: string[]): string[] {
   return [`::: ${descriptor}`, ...lines, ":::"]
@@ -176,8 +182,25 @@ export function toMarkdown(doc: LegalDoc): string {
   }
 
   // 发文机关标志（红头，GB/T 9704 §7.2.4）：红色小标宋居中，上边缘距版心上边缘 35mm。
+  // 字号按机关名长度自适应（redHeadFontSize），始终大于标题 22pt、远超文号 16pt，
+  // 保持版头"红头最醒目"的层级。letterSpacing 随字号微调（大字号宽字距更舒展，
+  // 小字号收窄防多字铺不下）——该变量由 body-builder 的 .local-style-container
+  // 规则消费，覆盖 body 的 charsPerLine 字距 calc（大字号下 calc 会变负值导致
+  // 红字重叠，见 heading-builder 同构处理）。
   if (doc.issuingOrg && doc.issuingOrg.trim().length > 0) {
-    blocks.push(container(RED_HEAD, [doc.issuingOrg.trim()]))
+    const org = doc.issuingOrg.trim()
+    const redSize = redHeadFontSize(org)
+    const redLetterSpacing = redSize === "42pt" || redSize === "36pt" ? "4pt" : "3pt"
+    const redHeadStyle = [
+      "content.body.paragraph.align: center",
+      "content.body.paragraph.indent: 0em",
+      "content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif",
+      "content.body.style.colors.text: #e60012",
+      `content.body.style.size: ${redSize}`,
+      "content.body.paragraph.spacing.before: 35mm",
+      `content.body.paragraph.letterSpacing: ${redLetterSpacing}`,
+    ].join("; ")
+    blocks.push(container(redHeadStyle, [org]))
   }
 
   // 发文字号（GB/T 9704 §7.2.5）：编排在发文机关标志（红头）下空二行处。

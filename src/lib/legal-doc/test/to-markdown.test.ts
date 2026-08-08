@@ -408,11 +408,44 @@ describe("toMarkdown", () => {
     expect(markdown).not.toContain("黑体, SimHei, STHeiti, sans-serif")
   })
 
-  it("发文机关标志（红头）：红色小标宋 22pt 居中，上距版心 35mm，字距 3pt", () => {
+  it("发文机关标志（红头）：红色小标宋 36pt 居中，上距版心 35mm，字距 4pt", () => {
+    // "××市人民政府文件" = 9 字 → 7-10 字档小初 36pt
     const markdown = toMarkdown(buildDoc({ issuingOrg: "××市人民政府文件" }))
     expect(markdown).toContain(
-      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 22pt; content.body.paragraph.spacing.before: 35mm; content.body.paragraph.letterSpacing: 3pt\n××市人民政府文件\n:::"
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 36pt; content.body.paragraph.spacing.before: 35mm; content.body.paragraph.letterSpacing: 4pt\n××市人民政府文件\n:::"
     )
+  })
+
+  it("红头字号按机关名长度自适应：10 字小初 36pt、13 字 30pt、14+ 字 26pt", () => {
+    // 6 字以下初号 42pt
+    expect(toMarkdown(buildDoc({ issuingOrg: "××市文件" }))).toContain(
+      "content.body.style.size: 42pt"
+    )
+    // 7-10 字小初 36pt（"国务院办公厅文件"=8 字）
+    expect(toMarkdown(buildDoc({ issuingOrg: "国务院办公厅文件" }))).toContain(
+      "content.body.style.size: 36pt"
+    )
+    // 11-13 字 30pt
+    expect(
+      toMarkdown(buildDoc({ issuingOrg: "×××市人民政府办公厅文件" }))
+    ).toContain("content.body.style.size: 30pt")
+    // 14+ 字 26pt（国务院直属事业单位 = 8 字，用更长的）
+    expect(
+      toMarkdown(
+        buildDoc({ issuingOrg: "××××××市人民政府办公厅办公室文件" })
+      )
+    ).toContain("content.body.style.size: 26pt")
+  })
+
+  it("红头字距随字号：42/36pt 用 4pt，30/26pt 用 3pt", () => {
+    // ≤10 字（42/36pt）→ 4pt
+    expect(toMarkdown(buildDoc({ issuingOrg: "××市文件" }))).toContain(
+      "content.body.paragraph.letterSpacing: 4pt"
+    )
+    // ≥11 字（30/26pt）→ 3pt
+    expect(
+      toMarkdown(buildDoc({ issuingOrg: "×××市人民政府办公厅文件" }))
+    ).toContain("content.body.paragraph.letterSpacing: 3pt")
   })
 
   it("无发文机关标志时不输出红头容器", () => {
