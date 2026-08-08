@@ -7,6 +7,21 @@ const SEPARATOR = "\n"
 const SIGNATURE_BLOCK_CLASS = "keep-together"
 
 /**
+ * 标题字号按标题字数递减（GB/T 9704 §7.3.1 标准为 2 号 22pt，但标题超过一行
+ * 篇幅时同字号整行铺满会过满；实测习惯是标题越长字号越小，保证多行标题整体
+ * 紧凑居中）。字数 ≤14 用标准 2 号；15-18 用 20pt；19-22 用 18pt；23+ 用 16pt。
+ * 空标题返回 null（由调用方回退占位标题，不套字号容器）。
+ */
+function titleFontSize(title: string): string | null {
+  const count = Array.from(title).length
+  if (count <= 0) return null
+  if (count <= 14) return null
+  if (count <= 18) return "20pt"
+  if (count <= 22) return "18pt"
+  return "16pt"
+}
+
+/**
  * 标题中的 markdown 行内特殊字符转义（M2）：标题经 markdown-it 渲染成红头
  * `<h1>`，行内 `*`/`_`/`[`/`]`/`` ` ``/`~~`/`<` 等若不转义会被渲染成
  * `<em>`/`<a>`/`<code>`/`<s>` 等，与表单/LLM 提供的标题视觉不一致。
@@ -192,10 +207,26 @@ export function toMarkdown(doc: LegalDoc): string {
   // 标题空缺（LLM 未给出、且用户关闭表单必填门槛时）不输出幽灵红头 `# `，
   // 而是输出一个可见占位标题，让生成的文档始终有可辨识的标题行；空缺本身
   // 由 checkFormat 的 TITLE_EMPTY（error 级）在结果面板显著提示。
-  if (doc.title.trim().length > 0) {
-    blocks.push([`# ${escapeMarkdownInline(doc.title)}`])
+  const titleText =
+    doc.title.trim().length > 0 ? escapeMarkdownInline(doc.title.trim()) : "未命名公文"
+  const titleSize = titleFontSize(doc.title)
+  // 标题容器（GB/T 9704 §7.3.1 分隔线下空二行由 h1 spacing.before 实现）。
+  // 标题超过 14 字时按字数递减字号，容器覆盖 content.h1.style.size；h1 字格
+  // letter-spacing 与 ::after 尾距补偿都以该变量为字号基准，覆盖后自动重算——
+  // 但字号缩小会让字格 calc 暴增（442/20−16pt ≈ +6.1pt），故同时把 letter-spacing
+  // 覆盖为 0em（heading-builder 消费该变量，::after 补偿同步），标题保持紧凑居中。
+  // class: keep-together 让分页器把标题容器整块原子处理、不拆分（等价于裸 `#`
+  // 的 h1 不拆行为）——否则分页器会把容器解包、把 local-style-container 类落到
+  // h1 上，其 0,2,0 选择器会压过 `.preview-content h1`（0,1,1），把标题打回正文。
+  if (titleSize) {
+    blocks.push(
+      container(
+        `content.h1.style.size: ${titleSize}; content.h1.paragraph.letterSpacing: 0em; class: ${SIGNATURE_BLOCK_CLASS}`,
+        [`# ${titleText}`]
+      )
+    )
   } else {
-    blocks.push([`# 未命名公文`])
+    blocks.push([`# ${titleText}`])
   }
 
   if (doc.recipient) {

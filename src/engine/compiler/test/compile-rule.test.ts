@@ -91,8 +91,10 @@ describe("compileRule", () => {
     expect(compiled.cssText).toContain(
       "letter-spacing: calc((var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 28 - var(--content-body-style-size));"
     )
+    // 标题 h1 的字格 calc 以 content.h1.paragraph.letterSpacing 变量为优先
+    // （容器级字号覆盖后需要同步覆盖字距，见 heading-builder），未覆盖时回退到 calc。
     expect(compiled.cssText).toContain(
-      "letter-spacing: calc((var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 20 - var(--content-h1-style-size));"
+      "letter-spacing: var(--content-h1-paragraph-letter-spacing, calc((var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 20 - var(--content-h1-style-size)));"
     )
   })
 
@@ -108,9 +110,9 @@ describe("compileRule", () => {
     expect(compiled.cssText).toContain(
       "margin-right: calc(-1 * ((var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 28 - var(--content-body-style-size)));"
     )
-    // 标题 h1（charsPerLine=20）同样有尾距补偿
+    // 标题 h1（charsPerLine=20）同样有尾距补偿，与 letter-spacing 同变量同步
     expect(compiled.cssText).toContain(
-      "margin-right: calc(-1 * ((var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 20 - var(--content-h1-style-size)));"
+      "margin-right: calc(-1 * (var(--content-h1-paragraph-letter-spacing, (var(--page-dimension-width) - var(--page-margins-left) - var(--page-margins-right)) / 20 - var(--content-h1-style-size))));"
     )
   })
 

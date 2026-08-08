@@ -47,6 +47,49 @@ describe("toMarkdown", () => {
     expect(markdown).toContain("# 关于加强数字政府建设的通知")
   })
 
+  it("标题 ≤14 字不套字号容器，保持标准 2 号", () => {
+    // "关于加强数字政府建设的通知" = 13 字，走标准字号路径（裸 `#`）。
+    const markdown = toMarkdown(buildDoc())
+    expect(markdown).not.toContain("content.h1.style.size")
+    expect(markdown).toContain("# 关于加强数字政府建设的通知")
+  })
+
+  it("标题 15-18 字降为 20pt", () => {
+    const title = "关于加强数字政府建设的通知字字"
+    expect(Array.from(title).length).toBe(15)
+    const markdown = toMarkdown(buildDoc({ title }))
+    expect(markdown).toContain(
+      "::: content.h1.style.size: 20pt; content.h1.paragraph.letterSpacing: 0em; class: keep-together\n# "
+    )
+    expect(markdown).toContain(`# ${title}`)
+  })
+
+  it("标题 19-22 字降为 18pt", () => {
+    const title = "关于加强数字政府建设的通知字字字字字字"
+    expect(Array.from(title).length).toBe(19)
+    const markdown = toMarkdown(buildDoc({ title }))
+    expect(markdown).toContain("content.h1.style.size: 18pt")
+    expect(markdown).toContain("class: keep-together")
+  })
+
+  it("标题 23+ 字降为 16pt", () => {
+    const title = "关于加强数字政府建设的通知字字字字字字字字字字"
+    expect(Array.from(title).length).toBe(23)
+    const markdown = toMarkdown(buildDoc({ title }))
+    expect(markdown).toContain("content.h1.style.size: 16pt")
+  })
+
+  it("长标题容器 round-trip：patchMarkdownElements 后标题仍是 # 一级标题", () => {
+    const title = "关于加强数字政府建设的通知字字字字字字"
+    const markdown = toMarkdown(buildDoc({ title }))
+    const patched = patchMarkdownElements(markdown, {
+      ...buildDoc({ title }),
+      title: "关于更新标题的通知",
+    })
+    expect(patched).toContain("# 关于更新标题的通知")
+    expect(patched).not.toContain("未命名公文")
+  })
+
   it("renders docNumber in a centered container above the title, after the red-head", () => {
     const markdown = toMarkdown(buildDoc())
     const docNumberLine =

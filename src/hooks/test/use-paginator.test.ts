@@ -115,6 +115,20 @@ describe("paginateBlocks", () => {
     expect(pages[0]).toContain("<p>date</p>")
   })
 
+  it("标题字号容器（keep-together + h1）不可拆分：放不下整块换页", () => {
+    // 长标题被 toMarkdown 包进 `::: content.h1.style.size: …; class: keep-together`
+    // 容器，渲染成 <div class="local-style-container keep-together" style="…"><h1>…</h1></div>。
+    // 分页器必须把整块原子处理——h1 本身不可拆（trySplitOversizedBlock 对 H1 返回 null），
+    // 容器又带 keep-together，双重保护：不拆标题、不与前后内容断页。
+    const measure = makeMeasure(1000, 20)
+    const title = "关于进一步加强和完善新时代基层数字政府建设工作若干重大事项的通知"
+    const block = `<div class="local-style-container keep-together" style="--content-h1-style-size: 18pt"><h1>${title}</h1></div>`
+    const pages = paginateBlocks([block, "<p>正文</p>"], measure, baseOptions)
+    expect(pages).toHaveLength(1)
+    expect(pages[0]).toContain(`<h1>${title}</h1>`)
+    expect(pages[0]).toContain("<p>正文</p>")
+  })
+
   it("同尺寸普通段落会拆分、keep-together 块不会（对照）", () => {
     const measure = makeMeasure(1000, 20)
     const body = "x".repeat(500)

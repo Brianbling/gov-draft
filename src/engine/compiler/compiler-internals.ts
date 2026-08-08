@@ -163,7 +163,10 @@ export function mapTokensToDeclarations(
   )
 }
 
-function buildCharGridExpression(level: string, charsPerLine: number): string {
+export function buildCharGridExpression(
+  level: string,
+  charsPerLine: number
+): string {
   const contentWidth = `(var(${toCssCustomProperty("page.dimension.width")}) - var(${toCssCustomProperty("page.margins.left")}) - var(${toCssCustomProperty("page.margins.right")}))`
   const fontSize = `var(${toCssCustomProperty(`content.${level}.style.size`)})`
   return `${contentWidth} / ${charsPerLine} - ${fontSize}`
