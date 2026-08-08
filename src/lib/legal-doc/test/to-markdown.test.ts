@@ -567,6 +567,113 @@ describe("toMarkdown", () => {
       "::: content.body.paragraph.indent: 1em; content.body.style.size: 14pt\n国务院办公厅\n2026年8月1日印发　\n:::"
     )
   })
+
+  it("命令（令）红头：issuingOrg=\"×××令\" 渲染为红色居中标志（§10.2）", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "order",
+        title: "××市人民政府令",
+        issuingOrg: "××市人民政府令",
+        docNumber: "第25号",
+        date: "2026-07-15",
+      })
+    )
+    expect(markdown).toContain("content.body.style.colors.text: #e60012")
+    expect(markdown).toContain("content.body.paragraph.align: center")
+    expect(markdown).toContain("content.body.paragraph.spacing.before: 20mm")
+    // 令标志文本本身
+    expect(markdown).toContain("::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em; content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif; content.body.style.colors.text: #e60012; content.body.style.size: 36pt; content.body.paragraph.spacing.before: 20mm; content.body.paragraph.letterSpacing: 4pt\n××市人民政府令\n:::")
+  })
+
+  it("命令（令）文号仍居中编排（§10.2 令号下空二行）", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "order",
+        title: "××市人民政府令",
+        issuingOrg: "××市人民政府令",
+        docNumber: "第25号",
+      })
+    )
+    expect(markdown).toContain(
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em\n第25号\n:::"
+    )
+  })
+
+  it("纪要红色标志（§10.3）：标题渲染为红色居中\"××会议纪要\"，不再输出重复黑字 # 标题", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "minutes",
+        title: "××市人民政府第××次常务会议纪要",
+        date: "2026-07-05",
+        attendees: ["王强（市长）"],
+      })
+    )
+    expect(markdown).toContain("content.body.style.colors.text: #e60012")
+    expect(markdown).toContain("content.body.paragraph.spacing.before: 20mm")
+    expect(markdown).toContain("××市人民政府第××次常务会议纪要\n:::")
+    // 不再输出 # 标题（红标已作标题）
+    expect(markdown).not.toContain("# ××市人民政府第××次常务会议纪要")
+  })
+
+  it("决议题注（公文格式惯例）：标题下居中排（会议名 日期通过）", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "resolution",
+        title: "××市第×届人民代表大会第×次会议关于××市人民政府工作报告的决议",
+        issuer: "××市第×届人民代表大会第×次会议",
+        date: "2026-01-18",
+      })
+    )
+    expect(markdown).toContain(
+      "（××市第×届人民代表大会第×次会议 2026年1月18日通过）"
+    )
+    // 题注居中无缩进
+    expect(markdown).toContain(
+      "::: content.body.paragraph.align: center; content.body.paragraph.indent: 0em\n（××市第×届人民代表大会第×次会议 2026年1月18日通过）\n:::"
+    )
+  })
+
+  it("公报题注：issuer + 日期排（发布机关 日期发布）", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "gazette",
+        title: "2025年××省国民经济和社会发展统计公报",
+        issuer: "××省统计局",
+        date: "2026-03-15",
+      })
+    )
+    expect(markdown).toContain("（××省统计局 2026年3月15日通过）")
+  })
+
+  it("决议无 date 时题注只排会议名（缺日期由 checkFormat 提示）", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "resolution",
+        title: "××会议关于××的决议",
+        issuer: "××市第×届人民代表大会第×次会议",
+        docNumber: undefined,
+        date: undefined,
+      })
+    )
+    expect(markdown).toContain("（××市第×届人民代表大会第×次会议）")
+  })
+
+  it("上行文缺文号但带签发人时仍渲染签发人（不丢）", () => {
+    const markdown = toMarkdown(
+      buildDoc({
+        docType: "request",
+        title: "关于实施××市城区防洪排涝工程立项的请示",
+        recipient: "××市人民政府：",
+        signer: "王××",
+        date: "2026-06-08",
+        docNumber: undefined,
+      })
+    )
+    // docNumber 为空：文号行不输出，但签发人行仍在 doc-number-line 容器
+    expect(markdown).toContain("签发人：王××")
+    expect(markdown).toContain("class: doc-number-line")
+    expect(markdown).not.toContain("〔")
+  })
 })
 
 describe("formatChineseDate · GB/T 9704 §6.5 中文日期", () => {

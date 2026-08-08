@@ -188,8 +188,8 @@ export function toMarkdown(doc: LegalDoc): string {
   // 小字号收窄防多字铺不下）——该变量由 body-builder 的 .local-style-container
   // 规则消费，覆盖 body 的 charsPerLine 字距 calc（大字号下 calc 会变负值导致
   // 红字重叠，见 heading-builder 同构处理）。
-  // 仅文件式红头文种（通知/通报）渲染红头——其他文种的 issuingOrg 即使被 LLM
-  // 填了（如命令的"×××令"标志）也不渲染成"×××文件"式红头（isFileRedHeadDocType）。
+  // 文件式红头仅通知/通报（isFileRedHeadDocType）；命令（令）用"机关全称+令"式
+  // 红色标志（§10.2），纪要用"××会议纪要"红色标志（§10.3），两者走下方专属路径。
   const hasFileRedHead = isFileRedHeadDocType(doc.docType)
   if (hasFileRedHead && doc.issuingOrg && doc.issuingOrg.trim().length > 0) {
     const org = doc.issuingOrg.trim()
@@ -207,19 +207,80 @@ export function toMarkdown(doc: LegalDoc): string {
     blocks.push(container(redHeadStyle, [org]))
   }
 
+  // 命令（令）发文机关标志（GB/T 9704 §10.2）：发文机关全称加"命令"或"令"字，
+  // 红色小标宋居中，上边缘至版心上边缘 20mm（比文件式红头 35mm 更靠上）。
+  // LLM 通常填 issuingOrg="××市人民政府令"，直接渲染该文本。
+  const isOrder = doc.docType === "order"
+  if (isOrder && doc.issuingOrg && doc.issuingOrg.trim().length > 0) {
+    const orderOrg = doc.issuingOrg.trim()
+    const orderRedSize = redHeadFontSize(orderOrg)
+    const orderRedSpacing =
+      orderRedSize === "42pt" || orderRedSize === "36pt" ? "4pt" : "3pt"
+    blocks.push(
+      container(
+        [
+          "content.body.paragraph.align: center",
+          "content.body.paragraph.indent: 0em",
+          "content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif",
+          "content.body.style.colors.text: #e60012",
+          `content.body.style.size: ${orderRedSize}`,
+          "content.body.paragraph.spacing.before: 20mm",
+          `content.body.paragraph.letterSpacing: ${orderRedSpacing}`,
+        ].join("; "),
+        [orderOrg]
+      )
+    )
+  }
+
+  // 纪要发文机关标志（GB/T 9704 §10.3）："××会议纪要"红色居中，上边缘至版心上
+  // 边缘 20mm。LLM 通常把会议名写在 title（如"××市人民政府第××次常务会议纪要"），
+  // 渲染时从 title 提取机关+会议名作为红色标志。
+  const isMinutes = doc.docType === "minutes"
+  if (isMinutes) {
+    const minutesTitle = doc.title.trim()
+    // 取 title 里的会议主体（"××市人民政府第××次常务会议纪要" → "××市人民政府
+    // 第××次常务会议"），若标题不含"纪要"则整体当标志文本回退。
+    const meetingName = minutesTitle.endsWith("纪要")
+      ? minutesTitle.replace(/纪要$/, "")
+      : minutesTitle
+    if (meetingName.length > 0) {
+      const minutesSize = redHeadFontSize(meetingName)
+      const minutesSpacing =
+        minutesSize === "42pt" || minutesSize === "36pt" ? "4pt" : "3pt"
+      blocks.push(
+        container(
+          [
+            "content.body.paragraph.align: center",
+            "content.body.paragraph.indent: 0em",
+            "content.body.fonts.cjkFamily: 方正小标宋_GBK, 方正小标宋简体, FZXiaoBiaoSong-B05, 黑体, SimHei, STHeiti, sans-serif",
+            "content.body.style.colors.text: #e60012",
+            `content.body.style.size: ${minutesSize}`,
+            "content.body.paragraph.spacing.before: 20mm",
+            `content.body.paragraph.letterSpacing: ${minutesSpacing}`,
+          ].join("; "),
+          [minutesTitle]
+        )
+      )
+    }
+  }
+
   // 发文字号（GB/T 9704 §7.2.5）：编排在发文机关标志（红头）下空二行处。
   // 下行文（通知等）文号居中；上行文（请示/报告）文号居左空一字、同行右侧排签发人
   // （同容器两行 + .doc-number-line flex 两端对齐）。空二行 = 2 × 3 号行高；
   // 无红头时（意见等无文件式红头文种）文号顶格无前置间距。
+  // 上行文带签发人时即使缺文号也要渲染文号容器（文号行留空、只出签发人行），
+  // 否则签发人整体丢失（GB/T 9704 §7.2.5 签发人与文号同行）。
   const isUpwardDoc = doc.docType === "request" || doc.docType === "report"
-  if (doc.docNumber) {
+  const hasSigner = Boolean(doc.signer)
+  if (doc.docNumber || (isUpwardDoc && hasSigner)) {
     const hasRedHead = hasFileRedHead && doc.issuingOrg && doc.issuingOrg.trim().length > 0
     const alignment = isUpwardDoc ? UPWARD_DOC_NUMBER : CENTERED
-    const docNumberLines = [doc.docNumber]
+    const docNumberLines: string[] = []
+    if (doc.docNumber) docNumberLines.push(doc.docNumber)
     // 上行文带签发人时两行同行（文号居左、签发人靠右），用 flex 两端对齐；
     // 下行文（通知）文号单行居中，只靠 text-align: center，绝不能套
     // doc-number-line——flex 会无视 text-align，把单行挤向一侧与红头错位。
-    const needFlex = isUpwardDoc && Boolean(doc.signer)
+    const needFlex = isUpwardDoc && hasSigner
     if (needFlex) {
       docNumberLines.push(`签发人：${doc.signer}`)
     }
@@ -231,6 +292,7 @@ export function toMarkdown(doc: LegalDoc): string {
 
   // 红色分隔线（GB/T 9704 §7.2.6）：文件式红头（红头+文号齐全）下方通栏红线的
   // 前置条件，在发文字号下 4mm 处。`---` 经 red-rule-line 插件渲染为红色横线。
+  // 命令（令）/纪要的红色标志已作标题，其后直接正文，不出分隔线。
   if (hasFileRedHead && doc.issuingOrg && doc.docNumber) {
     blocks.push(["---"])
   }
@@ -238,6 +300,8 @@ export function toMarkdown(doc: LegalDoc): string {
   // 标题空缺（LLM 未给出、且用户关闭表单必填门槛时）不输出幽灵红头 `# `，
   // 而是输出一个可见占位标题，让生成的文档始终有可辨识的标题行；空缺本身
   // 由 checkFormat 的 TITLE_EMPTY（error 级）在结果面板显著提示。
+  // 纪要（§10.3）与命令（§10.2）的红色标志已作标题展示，不再输出重复黑字 # 标题。
+  const suppressTitle = isMinutes || isOrder
   const titleText =
     doc.title.trim().length > 0 ? escapeMarkdownInline(doc.title.trim()) : "未命名公文"
   const titleSize = titleFontSize(doc.title)
@@ -249,15 +313,37 @@ export function toMarkdown(doc: LegalDoc): string {
   // class: keep-together 让分页器把标题容器整块原子处理、不拆分（等价于裸 `#`
   // 的 h1 不拆行为）——否则分页器会把容器解包、把 local-style-container 类落到
   // h1 上，其 0,2,0 选择器会压过 `.preview-content h1`（0,1,1），把标题打回正文。
-  if (titleSize) {
+  if (!suppressTitle && titleSize) {
     blocks.push(
       container(
         `content.h1.style.size: ${titleSize}; content.h1.paragraph.letterSpacing: 0em; class: ${SIGNATURE_BLOCK_CLASS}`,
         [`# ${titleText}`]
       )
     )
-  } else {
+  } else if (!suppressTitle) {
     blocks.push([`# ${titleText}`])
+  }
+
+  // 决议/公报题注（GB/T 9704 公文格式惯例）：标题下居中排会议名称+通过日期，
+  // 用圆括号括入，如"（××市第十六届人民代表大会第三次会议 2026年1月18日通过）"。
+  // 决议的会议名取 title 中的"××会议"部分或 issuer；公报取 issuer（发布机关）。
+  // 无通过日期时只排会议名（缺日期由 checkFormat 提示）。
+  if (doc.docType === "resolution" || doc.docType === "gazette") {
+    const hasDate = Boolean(doc.date)
+    if (hasDate || (doc.issuer && doc.issuer.trim().length > 0)) {
+      const venue =
+        doc.issuer && doc.issuer.trim().length > 0
+          ? doc.issuer.trim()
+          : doc.title.replace(/关于.+$/, "").trim()
+      const dateText = doc.date ? formatChineseDate(doc.date) : ""
+      const caption = dateText ? `${venue} ${dateText}通过` : venue
+      // 题注居中、无缩进，紧随标题（正文 16pt 仿宋）
+      blocks.push(
+        container("content.body.paragraph.align: center; content.body.paragraph.indent: 0em", [
+          `（${caption}）`,
+        ])
+      )
+    }
   }
 
   if (doc.recipient) {

@@ -553,7 +553,7 @@ function buildFormFields(docType: DocType): FormField[] {
     case "order":
       // 命令（令）：发文机关标志为“×××令”（主席令/市长令），文号为“第×号”，非文件式红头
       return [
-        textField("title", "标题", { placeholder: "关于…的命令" }),
+        textField("title", "标题", { placeholder: "××市人民政府令" }),
         textField("docNumber", "文号", { placeholder: "第×号" }),
         textField("recipient", "主送机关", { placeholder: "各市人民政府，省政府各部门" }),
         textField("issuer", "署名", { placeholder: "×××（机关首长）" }),
@@ -885,11 +885,26 @@ function buildDocTypeRules(docType: DocType): DocFormatRequirement[] {
         code: "ORDER_DOC_NUMBER_SHOULD_BE_SEQ",
         field: "docNumber",
         check: (doc) => {
-          if (doc.docNumber && !/^第\s*\d+\s*号/.test(doc.docNumber)) {
+          if (doc.docNumber && !/^第\s*(?:\d+|×+)\s*号/.test(doc.docNumber)) {
             return issue(
               "ORDER_DOC_NUMBER_SHOULD_BE_SEQ",
               "docNumber",
               "命令（令）的文号采用顺序号“第×号”（如“主席令第×号”），不使用“××发〔2026〕×号”式发文字号。"
+            )
+          }
+          return null
+        },
+      })
+      rules.push({
+        code: "ORDER_MISSING_LING_MARKER",
+        field: "issuingOrg",
+        check: (doc) => {
+          const org = doc.issuingOrg ?? ""
+          if (!/令$/.test(org)) {
+            return issue(
+              "ORDER_MISSING_LING_MARKER",
+              "issuingOrg",
+              `命令（令）应有发文机关标志“×××令”（如“××市人民政府令”，GB/T 9704 §10.2），以“令”字结尾，现为“${org || "空"}”。`
             )
           }
           return null
